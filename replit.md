@@ -1,27 +1,25 @@
 # TugasCMS - Professional Content Management System
 
 ## Overview
-This is a professional CMS application built with React, TypeScript, and Vite. It provides a modern interface for managing blog posts, categories, tags, and media. The application uses Supabase for database, Clerk for authentication, and Appwrite for image storage.
+This is a professional CMS application built with Next.js, React, and TypeScript. It provides a modern interface for managing blog posts, categories, tags, and media. The application uses Supabase for database, Clerk for authentication, and Appwrite for image storage.
 
 ## Project Setup - October 1, 2025
-- **Framework**: React 18.3.1 with TypeScript
-- **Build Tool**: Vite 6.3.5
+- **Framework**: Next.js 15.5.4 with React 18.3.1 and TypeScript
 - **UI Components**: Radix UI with Tailwind CSS
-- **Backend**: Express server with Supabase (PostgreSQL)
-- **Authentication**: Clerk
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Clerk with Next.js middleware
 - **Image Storage**: Appwrite
-- **Dev Server Port**: 5000 (Frontend), 3001 (Backend)
-- **Production Server**: serve (static file server)
+- **Port**: 5000 (Single port for both frontend and backend)
 
 ## Architecture
-- **Frontend**: Single Page Application (SPA) using React
-- **Backend**: Express API server on port 3001
-- **Database**: Supabase (PostgreSQL) with Drizzle ORM schema
+- **Framework**: Next.js App Router (Server and Client Components)
+- **API Routes**: Next.js API routes in app/api/
+- **Database**: Supabase (PostgreSQL) 
 - **Authentication**: Clerk middleware
 - **Image Storage**: Appwrite cloud storage
 - **Styling**: Tailwind CSS with custom components
 - **State Management**: React Hooks
-- **API Communication**: Custom API client with Clerk auth tokens
+- **Caching**: Redis (optional) for API response caching
 
 ## Key Features
 - Posts management (create, edit, delete, filter)
@@ -30,17 +28,17 @@ This is a professional CMS application built with React, TypeScript, and Vite. I
 - User profile and API tokens settings
 - Responsive sidebar navigation
 - Dark mode support
+- Public API with token authentication
 
 ## Development
-- Run `npm run dev` to start the development server on port 5000
+- Run `npm start` or `npm run dev` to start the development server on port 5000
 - The dev server is configured to work with Replit's proxy (0.0.0.0 host)
-- HMR (Hot Module Reload) is enabled for faster development
+- Hot Module Reload (HMR) is enabled for faster development
 
 ## Deployment
 - Build command: `npm run build`
-- Start command: `npm run start`
-- Deployment target: autoscale (static site)
-- Output directory: `build/`
+- Start command: `npm start`
+- Single port architecture - both frontend and API on port 5000
 
 ## Environment Variables (Optional)
 If using Appwrite backend, set these variables:
@@ -59,8 +57,24 @@ If using Appwrite backend, set these variables:
 
 ## Project Structure
 ```
+app/
+├── (auth)/            # Authentication routes
+│   └── sign-in/       # Sign in page
+├── (dashboard)/       # Protected dashboard routes
+│   ├── posts/         # Posts pages
+│   ├── settings/      # Settings pages
+│   └── layout.tsx     # Dashboard layout
+├── api/               # API routes
+│   ├── posts/         # Posts API
+│   ├── categories/    # Categories API
+│   ├── tags/          # Tags API
+│   ├── settings/      # Settings API
+│   ├── public/        # Public API
+│   └── health/        # Health check
+├── layout.tsx         # Root layout
+└── page.tsx           # Home page
+
 src/
-├── api/          # API integrations
 ├── components/   # React components
 │   ├── figma/    # Figma-specific components
 │   ├── layout/   # Layout components
@@ -68,15 +82,16 @@ src/
 │   ├── settings/ # Settings components
 │   └── ui/       # Reusable UI components
 ├── hooks/        # Custom React hooks
-├── lib/          # Utilities and configurations
+├── lib/          # Utilities (Supabase, cache, API client)
 ├── styles/       # Global styles
 └── types/        # TypeScript type definitions
 ```
 
 ## Recent Changes
-- October 1, 2025: Initial Replit environment setup
-  - Configured Vite for port 5000 with 0.0.0.0 host
-  - Added TypeScript configuration
-  - Created .gitignore for Node.js project
-  - Configured deployment for production
-  - Added serve package for static file serving
+- October 1, 2025: Migrated from Vite to Next.js
+  - Converted to Next.js 15 with App Router
+  - Migrated Express API routes to Next.js API routes
+  - Single port architecture on port 5000
+  - Removed Vite, Express, and react-router-dom
+  - Updated authentication to use @clerk/nextjs
+  - Added .next to .gitignore
