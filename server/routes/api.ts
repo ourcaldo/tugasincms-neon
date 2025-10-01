@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../db';
+import { getCachedData, setCachedData, deleteCachedData } from '../cache';
 
 export const apiRouter = Router();
 
@@ -41,6 +42,13 @@ apiRouter.get('/posts', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid or expired API token' });
     }
     
+    const cacheKey = 'api:public:posts:all';
+    
+    const cachedPosts = await getCachedData(cacheKey);
+    if (cachedPosts) {
+      return res.json({ success: true, data: cachedPosts, cached: true });
+    }
+    
     const { data: publishedPosts, error } = await supabase
       .from('posts')
       .select(`
@@ -59,7 +67,9 @@ apiRouter.get('/posts', async (req, res) => {
       tags: (post.tags || []).map((pt: any) => pt.tag).filter(Boolean),
     }));
     
-    res.json({ success: true, data: postsWithRelations });
+    await setCachedData(cacheKey, postsWithRelations, 300);
+    
+    res.json({ success: true, data: postsWithRelations, cached: false });
   } catch (error) {
     console.error('Error fetching published posts:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch posts' });
@@ -160,6 +170,9 @@ apiRouter.post('/posts', async (req, res) => {
       
       await supabase.from('post_tags').insert(tagInserts);
     }
+    
+    await deleteCachedData('api:public:posts:*');
+    console.log('🔄 Cache invalidated after post creation');
     
     res.status(201).json({ success: true, data: newPost });
   } catch (error) {

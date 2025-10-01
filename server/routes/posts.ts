@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../db';
+import { deleteCachedData } from '../cache';
 
 export const postsRouter = Router();
 
@@ -158,6 +159,8 @@ postsRouter.post('/', async (req, res) => {
       );
     }
     
+    await deleteCachedData('api:public:posts:*');
+    
     console.log('✅ Post created:', { id: newPost.id, status: finalStatus, publish_date: finalPublishDate });
     res.status(201).json(newPost);
   } catch (error) {
@@ -240,6 +243,8 @@ postsRouter.put('/:id', async (req, res) => {
       );
     }
     
+    await deleteCachedData('api:public:posts:*');
+    
     console.log('✅ Post updated:', { id: req.params.id, status: finalStatus, publish_date: finalPublishDate });
     res.json(updatedPost);
   } catch (error) {
@@ -256,6 +261,8 @@ postsRouter.delete('/:id', async (req, res) => {
       .eq('id', req.params.id);
     
     if (error) throw error;
+    
+    await deleteCachedData('api:public:posts:*');
     
     res.status(204).send();
   } catch (error) {
