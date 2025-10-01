@@ -312,120 +312,54 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
           </div>
         </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Main Content */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Post Content</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="Enter post title..."
-                />
-              </div>
+      <div className="space-y-6">
+        {/* Main Content - Full Width */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Post Content</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                placeholder="Enter post title..."
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="content">Content</Label>
-                <TiptapEditor
-                  content={formData.content}
-                  onChange={(content) => handleInputChange('content', content)}
-                  placeholder="Write your post content..."
-                />
-              </div>
+            <div>
+              <Label htmlFor="content">Content</Label>
+              <TiptapEditor
+                content={formData.content}
+                onChange={(content) => handleInputChange('content', content)}
+                placeholder="Write your post content..."
+              />
+            </div>
 
-              <div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Label htmlFor="excerpt">Excerpt</Label>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>A short summary that appears in post listings and search results</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Textarea
-                  id="excerpt"
-                  value={formData.excerpt}
-                  onChange={(e) => handleInputChange('excerpt', e.target.value)}
-                  placeholder="Brief description of the post..."
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
+            <div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="excerpt">Excerpt</Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>A short summary that appears in post listings and search results</p>
+                </TooltipContent>
+              </Tooltip>
+              <Textarea
+                id="excerpt"
+                value={formData.excerpt}
+                onChange={(e) => handleInputChange('excerpt', e.target.value)}
+                placeholder="Brief description of the post..."
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* SEO Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>SEO Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="seo" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="seo">SEO</TabsTrigger>
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                </TabsList>
-                <TabsContent value="seo" className="space-y-4">
-                  <div>
-                    <Label htmlFor="seo-title">SEO Title</Label>
-                    <Input
-                      id="seo-title"
-                      value={formData.seo.title}
-                      onChange={(e) => handleSEOChange('title', e.target.value)}
-                      placeholder="SEO optimized title..."
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="seo-description">Meta Description</Label>
-                    <Textarea
-                      id="seo-description"
-                      value={formData.seo.metaDescription}
-                      onChange={(e) => handleSEOChange('metaDescription', e.target.value)}
-                      placeholder="Meta description for search engines..."
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Label htmlFor="seo-keyword">Focus Keyword</Label>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>The main keyword you want this post to rank for in search engines</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Input
-                      id="seo-keyword"
-                      value={formData.seo.focusKeyword}
-                      onChange={(e) => handleSEOChange('focusKeyword', e.target.value)}
-                      placeholder="Primary keyword for SEO..."
-                    />
-                  </div>
-                </TabsContent>
-                <TabsContent value="preview" className="space-y-4">
-                  <div className="border rounded-lg p-4 bg-muted/50">
-                    <h3 className="text-blue-600 text-lg mb-1">
-                      {formData.seo.title || formData.title || 'Your Post Title'}
-                    </h3>
-                    <p className="text-green-700 text-sm mb-2">
-                      yourdomain.com/{formData.seo.slug || formData.slug}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formData.seo.metaDescription || formData.excerpt || 'Your post description will appear here...'}
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
+        {/* Settings Grid - 2 columns for sidebar items */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Publish Settings */}
           <Card>
             <CardHeader>
@@ -628,6 +562,71 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                   </Badge>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* SEO Settings */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>SEO Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="seo" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="seo">SEO</TabsTrigger>
+                  <TabsTrigger value="preview">Preview</TabsTrigger>
+                </TabsList>
+                <TabsContent value="seo" className="space-y-4">
+                  <div>
+                    <Label htmlFor="seo-title">SEO Title</Label>
+                    <Input
+                      id="seo-title"
+                      value={formData.seo.title}
+                      onChange={(e) => handleSEOChange('title', e.target.value)}
+                      placeholder="SEO optimized title..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="seo-description">Meta Description</Label>
+                    <Textarea
+                      id="seo-description"
+                      value={formData.seo.metaDescription}
+                      onChange={(e) => handleSEOChange('metaDescription', e.target.value)}
+                      placeholder="Meta description for search engines..."
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Label htmlFor="seo-keyword">Focus Keyword</Label>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The main keyword you want this post to rank for in search engines</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Input
+                      id="seo-keyword"
+                      value={formData.seo.focusKeyword}
+                      onChange={(e) => handleSEOChange('focusKeyword', e.target.value)}
+                      placeholder="Primary keyword for SEO..."
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="preview" className="space-y-4">
+                  <div className="border rounded-lg p-4 bg-muted/50">
+                    <h3 className="text-blue-600 text-lg mb-1">
+                      {formData.seo.title || formData.title || 'Your Post Title'}
+                    </h3>
+                    <p className="text-green-700 text-sm mb-2">
+                      yourdomain.com/{formData.seo.slug || formData.slug}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formData.seo.metaDescription || formData.excerpt || 'Your post description will appear here...'}
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>
