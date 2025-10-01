@@ -7,6 +7,8 @@ import { ProfileSettings } from './components/settings/profile-settings';
 import { ApiTokens } from './components/settings/api-tokens';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './components/theme-provider';
+import { useEffect } from 'react';
+import { useApiClient } from './lib/api-client';
 
 function PostsListPage() {
   const navigate = useNavigate();
@@ -35,6 +37,37 @@ function PostEditorPage() {
   );
 }
 
+function UserSync() {
+  const { user, isLoaded } = useUser();
+  const apiClient = useApiClient();
+
+  useEffect(() => {
+    async function syncUser() {
+      if (!isLoaded || !user) return;
+
+      try {
+        const response = await fetch(`/api/settings/profile/${user.id}`);
+        
+        if (response.status === 404) {
+          await apiClient.post('/settings/profile', {
+            id: user.id,
+            email: user.primaryEmailAddress?.emailAddress || '',
+            name: user.fullName || user.firstName || '',
+            avatar: user.imageUrl || '',
+          });
+          console.log('User synced to database');
+        }
+      } catch (error) {
+        console.error('Error syncing user:', error);
+      }
+    }
+
+    syncUser();
+  }, [user, isLoaded, apiClient]);
+
+  return null;
+}
+
 export default function App() {
   const { user } = useUser();
   
@@ -47,6 +80,7 @@ export default function App() {
       </SignedOut>
       
       <SignedIn>
+        <UserSync />
         <div className="min-h-screen bg-background">
           <DashboardLayout>
             <Routes>
