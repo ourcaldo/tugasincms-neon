@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { UserSync } from '@/components/user-sync'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayoutWrapper({
   children,
 }: {
