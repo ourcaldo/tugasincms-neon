@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase } from '../db';
+import { supabase } from '../db.js';
 import { nanoid } from 'nanoid';
 
 export const settingsRouter = Router();

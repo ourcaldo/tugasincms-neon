@@ -2,11 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import { clerkMiddleware } from '@clerk/express';
-import { postsRouter } from '../server/routes/posts';
-import { categoriesRouter } from '../server/routes/categories';
-import { tagsRouter } from '../server/routes/tags';
-import { settingsRouter } from '../server/routes/settings';
-import { apiRouter } from '../server/routes/api';
+import { postsRouter } from '../server/routes/posts.js';
+import { categoriesRouter } from '../server/routes/categories.js';
+import { tagsRouter } from '../server/routes/tags.js';
+import { settingsRouter } from '../server/routes/settings.js';
+import { apiRouter } from '../server/routes/api.js';
 
 dotenv.config();
 

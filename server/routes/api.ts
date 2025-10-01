@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { supabase } from '../db';
-import { getCachedData, setCachedData, deleteCachedData } from '../cache';
+import { supabase } from '../db.js';
+import { getCachedData, setCachedData, deleteCachedData } from '../cache.js';
 
 export const apiRouter = Router();
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { supabase } from '../db';
-import { deleteCachedData } from '../cache';
+import { supabase } from '../db.js';
+import { deleteCachedData } from '../cache.js';
 
 export const postsRouter = Router();
 
