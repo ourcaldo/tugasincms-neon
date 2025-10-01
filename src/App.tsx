@@ -1,163 +1,84 @@
-import { useState } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { SignIn, SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 import { DashboardLayout } from './components/layout/dashboard-layout';
 import { PostsList } from './components/posts/posts-list';
 import { PostEditor } from './components/posts/post-editor';
 import { ProfileSettings } from './components/settings/profile-settings';
 import { ApiTokens } from './components/settings/api-tokens';
-import { AppSidebar } from './components/layout/app-sidebar';
-import { useNavigation } from './hooks/use-navigation';
-import { Post } from './types';
-import { mockPosts } from './lib/mock-data';
-import { toast } from 'sonner@2.0.3';
 import { Toaster } from './components/ui/sonner';
+import { ThemeProvider } from './components/theme-provider';
+
+function PostsListPage() {
+  const navigate = useNavigate();
+  
+  return (
+    <PostsList
+      onCreatePost={() => navigate('/posts/new')}
+      onEditPost={(post) => navigate(`/posts/edit/${post.id}`)}
+      onViewPost={(post) => window.open(`/posts/${post.id}`, '_blank')}
+      onDeletePost={() => {}}
+    />
+  );
+}
+
+function PostEditorPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  
+  return (
+    <PostEditor
+      postId={id}
+      onSave={() => navigate('/posts')}
+      onPreview={() => {}}
+      onPublish={() => {}}
+    />
+  );
+}
 
 export default function App() {
-  const { currentPage, navigate, navigateToEditPost, getActiveItem } = useNavigation();
-  const [posts, setPosts] = useState<Post[]>(mockPosts);
-
-  const handleCreatePost = () => {
-    navigate('/posts/new');
-  };
-
-  const handleEditPost = (post: Post) => {
-    navigateToEditPost(post.id);
-  };
-
-  const handleViewPost = (post: Post) => {
-    // In a real application, this would navigate to a preview page
-    toast.info(`Viewing post: ${post.title}`);
-  };
-
-  const handleDeletePost = (postId: string) => {
-    setPosts(prev => prev.filter(post => post.id !== postId));
-    toast.success('Post deleted successfully');
-  };
-
-  const handleSavePost = (postData: Partial<Post>) => {
-    if (currentPage.page === 'posts-new') {
-      // Create new post
-      const newPost: Post = {
-        id: Date.now().toString(),
-        ...postData,
-        authorId: 'user_1',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as Post;
-      
-      setPosts(prev => [newPost, ...prev]);
-      toast.success('Post created successfully');
-      navigate('/posts');
-    } else if (currentPage.page === 'posts-edit' && currentPage.postId) {
-      // Update existing post
-      setPosts(prev => prev.map(post => 
-        post.id === currentPage.postId 
-          ? { ...post, ...postData, updatedAt: new Date() }
-          : post
-      ));
-      toast.success('Post updated successfully');
-      navigate('/posts');
-    }
-  };
-
-  const handlePreview = () => {
-    toast.info('Preview functionality would open in a new tab');
-  };
-
-  const handlePublish = () => {
-    toast.success('Post published successfully');
-  };
-
-  const getCurrentPost = (): Post | undefined => {
-    if (currentPage.page === 'posts-edit' && currentPage.postId) {
-      return posts.find(post => post.id === currentPage.postId);
-    }
-    return undefined;
-  };
-
-  const renderCurrentPage = () => {
-    switch (currentPage.page) {
-      case 'posts':
-        return (
-          <PostsList
-            onCreatePost={handleCreatePost}
-            onEditPost={handleEditPost}
-            onViewPost={handleViewPost}
-            onDeletePost={handleDeletePost}
-          />
-        );
-      
-      case 'posts-new':
-        return (
-          <PostEditor
-            onSave={handleSavePost}
-            onPreview={handlePreview}
-            onPublish={handlePublish}
-          />
-        );
-      
-      case 'posts-edit':
-        const currentPost = getCurrentPost();
-        return currentPost ? (
-          <PostEditor
-            post={currentPost}
-            onSave={handleSavePost}
-            onPreview={handlePreview}
-            onPublish={handlePublish}
-          />
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Post not found</p>
-          </div>
-        );
-      
-      case 'settings-profile':
-        return <ProfileSettings />;
-      
-      case 'settings-tokens':
-        return <ApiTokens />;
-      
-      case 'categories':
-        return (
-          <div className="text-center py-12">
-            <h2>Categories Management</h2>
-            <p className="text-muted-foreground">Category management functionality coming soon</p>
-          </div>
-        );
-      
-      case 'tags':
-        return (
-          <div className="text-center py-12">
-            <h2>Tags Management</h2>
-            <p className="text-muted-foreground">Tag management functionality coming soon</p>
-          </div>
-        );
-      
-      case 'media':
-        return (
-          <div className="text-center py-12">
-            <h2>Media Library</h2>
-            <p className="text-muted-foreground">Media library functionality coming soon</p>
-          </div>
-        );
-      
-      default:
-        return (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Page not found</p>
-          </div>
-        );
-    }
-  };
-
+  const { user } = useUser();
+  
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardLayout 
-        activeItem={getActiveItem()} 
-        onNavigate={navigate}
-      >
-        {renderCurrentPage()}
-      </DashboardLayout>
-      <Toaster />
-    </div>
+    <ThemeProvider defaultTheme="system" storageKey="tugascms-theme">
+      <SignedOut>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <SignIn routing="hash" />
+        </div>
+      </SignedOut>
+      
+      <SignedIn>
+        <div className="min-h-screen bg-background">
+          <DashboardLayout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/posts" replace />} />
+              <Route path="/posts" element={<PostsListPage />} />
+              <Route path="/posts/new" element={<PostEditorPage />} />
+              <Route path="/posts/edit/:id" element={<PostEditorPage />} />
+              <Route path="/settings/profile" element={<ProfileSettings />} />
+              <Route path="/settings/tokens" element={<ApiTokens />} />
+              <Route path="/categories" element={
+                <div className="text-center py-12">
+                  <h2 className="text-2xl font-semibold mb-2">Categories Management</h2>
+                  <p className="text-muted-foreground">Category management functionality coming soon</p>
+                </div>
+              } />
+              <Route path="/tags" element={
+                <div className="text-center py-12">
+                  <h2 className="text-2xl font-semibold mb-2">Tags Management</h2>
+                  <p className="text-muted-foreground">Tag management functionality coming soon</p>
+                </div>
+              } />
+              <Route path="/media" element={
+                <div className="text-center py-12">
+                  <h2 className="text-2xl font-semibold mb-2">Media Library</h2>
+                  <p className="text-muted-foreground">Media library functionality coming soon</p>
+                </div>
+              } />
+            </Routes>
+          </DashboardLayout>
+          <Toaster />
+        </div>
+      </SignedIn>
+    </ThemeProvider>
   );
 }

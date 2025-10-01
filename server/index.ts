@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
+import { clerkMiddleware } from '@clerk/express';
 import { postsRouter } from './routes/posts';
 import { categoriesRouter } from './routes/categories';
 import { tagsRouter } from './routes/tags';
@@ -14,6 +15,7 @@ const PORT = process.env.BACKEND_PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+app.use(clerkMiddleware());
 
 app.use('/api/posts', postsRouter);
 app.use('/api/categories', categoriesRouter);
@@ -25,6 +27,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend API server running on port ${PORT}`);
+app.listen(PORT, 'localhost', () => {
+  console.log(`Backend API server running on http://localhost:${PORT}`);
 });

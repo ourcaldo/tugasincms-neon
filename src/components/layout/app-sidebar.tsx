@@ -1,3 +1,5 @@
+import { Link, useLocation } from 'react-router-dom';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import {
   FileText,
   Settings,
@@ -50,17 +52,10 @@ const menuItems = [
   },
 ];
 
-interface AppSidebarProps {
-  activeItem?: string;
-  onNavigate?: (href: string) => void;
-}
-
-export function AppSidebar({ activeItem, onNavigate }: AppSidebarProps) {
-  const handleNavigation = (href: string) => {
-    if (onNavigate) {
-      onNavigate(href);
-    }
-  };
+export function AppSidebar() {
+  const location = useLocation();
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
   return (
     <TooltipProvider>
@@ -88,17 +83,20 @@ export function AppSidebar({ activeItem, onNavigate }: AppSidebarProps) {
               <SidebarMenu>
                 {group.items.map((item) => {
                   const ItemIcon = item.icon;
+                  const isActive = location.pathname === item.href || 
+                                 (item.href === '/posts' && location.pathname.startsWith('/posts'));
                   return (
                     <SidebarMenuItem key={item.href}>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <SidebarMenuButton 
-                            onClick={() => handleNavigation(item.href)}
-                            isActive={activeItem === item.href}
-                            className="cursor-pointer"
+                            asChild
+                            isActive={isActive}
                           >
-                            {ItemIcon && <ItemIcon className="w-4 h-4" />}
-                            {item.title}
+                            <Link to={item.href}>
+                              {ItemIcon && <ItemIcon className="w-4 h-4" />}
+                              {item.title}
+                            </Link>
                           </SidebarMenuButton>
                         </TooltipTrigger>
                         <TooltipContent side="right">
@@ -117,18 +115,18 @@ export function AppSidebar({ activeItem, onNavigate }: AppSidebarProps) {
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent">
           <Avatar className="w-8 h-8">
-            <AvatarImage src="https://github.com/shadcn.png" />
+            <AvatarImage src={user?.imageUrl} />
             <AvatarFallback>
               <User className="w-4 h-4" />
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">John Doe</p>
-            <p className="text-xs text-muted-foreground truncate">john@example.com</p>
+            <p className="text-sm font-medium truncate">{user?.fullName || 'User'}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</p>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => signOut()}>
                 <LogOut className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
