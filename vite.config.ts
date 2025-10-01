@@ -60,5 +60,18 @@
       hmr: {
         clientPort: 443,
       },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
+    },
+    define: {
+      'import.meta.env.VITE_DATABASE_URL': JSON.stringify(process.env.DATABASE_URL),
+      'import.meta.env.VITE_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY': JSON.stringify(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY),
+      'import.meta.env.VITE_NEXT_PUBLIC_APPWRITE_ENDPOINT': JSON.stringify(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT),
+      'import.meta.env.VITE_NEXT_PUBLIC_APPWRITE_PROJECT_ID': JSON.stringify(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID),
+      'import.meta.env.VITE_NEXT_PUBLIC_BUCKET_ID': JSON.stringify(process.env.NEXT_PUBLIC_BUCKET_ID),
     },
   });
