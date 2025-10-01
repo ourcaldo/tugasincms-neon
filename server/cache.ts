@@ -15,6 +15,8 @@ export function getValkeyClient(): Redis | null {
 
   if (!valkeyClient) {
     try {
+      const useTLS = process.env.VALKEY_URL.startsWith('rediss://');
+      
       valkeyClient = new Redis(process.env.VALKEY_URL, {
         connectTimeout: 10000,
         maxRetriesPerRequest: 3,
@@ -25,9 +27,11 @@ export function getValkeyClient(): Redis | null {
           }
           return Math.min(times * 100, 2000);
         },
-        tls: {
-          rejectUnauthorized: false,
-        },
+        ...(useTLS && {
+          tls: {
+            rejectUnauthorized: false,
+          },
+        }),
         enableReadyCheck: false,
         lazyConnect: true,
       });
