@@ -59,7 +59,7 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[300px] max-w-none p-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[600px] max-w-none p-4',
       },
     },
   });
@@ -86,7 +86,7 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
 
   return (
     <div className="border rounded-lg overflow-hidden">
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30">
+      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30 sticky top-0 z-10">
         <Button
           type="button"
           variant="ghost"
