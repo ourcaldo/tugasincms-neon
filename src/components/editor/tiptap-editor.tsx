@@ -60,7 +60,7 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4',
-        style: 'min-height: 1200px;',
+        style: 'min-height: 600px;',
       },
     },
   });
