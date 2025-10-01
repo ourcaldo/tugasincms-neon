@@ -92,8 +92,8 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30 sticky top-0 z-10">
+    <div className="border rounded-lg">
+      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/30 sticky top-0 z-10 bg-background">
         <Button
           type="button"
           variant="ghost"
