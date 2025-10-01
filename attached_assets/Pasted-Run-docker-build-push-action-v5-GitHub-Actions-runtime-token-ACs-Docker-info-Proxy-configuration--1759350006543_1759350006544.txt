@@ -1,0 +1,138 @@
+Run docker/build-push-action@v5
+GitHub Actions runtime token ACs
+Docker info
+Proxy configuration
+Buildx version
+Builder info
+/usr/bin/docker buildx build --cache-from type=gha --cache-to type=gha,mode=max --iidfile /home/runner/work/_temp/docker-actions-toolkit-YG2SxE/build-iidfile-e087531f88.txt --label org.opencontainers.image.created=2025-10-01T20:15:27.999Z --label org.opencontainers.image.description= --label org.opencontainers.image.licenses= --label org.opencontainers.image.revision=4e15d22242986402864148924281a031482092ac --label org.opencontainers.image.source=https://github.com/ourcaldo/tugasincms --label org.opencontainers.image.title=tugasincms --label org.opencontainers.image.url=https://github.com/ourcaldo/tugasincms --label org.opencontainers.image.version=main --attest type=provenance,mode=max,builder-id=https://github.com/ourcaldo/tugasincms/actions/runs/18174400643 --tag ghcr.io/ourcaldo/tugasincms:main --tag ghcr.io/ourcaldo/tugasincms:latest --metadata-file /home/runner/work/_temp/docker-actions-toolkit-YG2SxE/build-metadata-136221a335.json --push .
+#0 building with "builder-b3f5aa1e-840f-4541-9010-a022583dc157" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 211B done
+#1 DONE 0.0s
+
+#2 [auth] library/node:pull token for registry-1.docker.io
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-alpine
+#3 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 166B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [1/6] FROM docker.io/library/node:20-alpine@sha256:eabac870db94f7342d6c33560d6613f188bbcf4bbe1f4eb47d5e2a08e1a37722
+#6 resolve docker.io/library/node:20-alpine@sha256:eabac870db94f7342d6c33560d6613f188bbcf4bbe1f4eb47d5e2a08e1a37722 done
+#6 DONE 0.0s
+
+#7 importing cache manifest from gha:7303148134215282385
+#7 DONE 0.3s
+
+#5 [internal] load build context
+#5 transferring context: 3.65MB 0.1s done
+#5 DONE 0.1s
+
+#8 [2/6] WORKDIR /app
+#8 CACHED
+
+#8 [2/6] WORKDIR /app
+#8 sha256:9f6fd785c9653764b1e9f77664b4f96b925955b2e1519b7066f358a4a61ee59c 93B / 93B 0.1s done
+#8 sha256:fd345d7e43c58474c833bee593321ab1097dd720bebd8032e75fbf5b81b1e554 0B / 1.26MB 0.2s
+#8 sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82 0B / 42.75MB 0.2s
+#8 sha256:9824c27679d3b27c5e1cb00a73adb6f4f8d556994111c12db3c5d61a0c843df8 0B / 3.80MB 0.2s
+#8 sha256:0de821d16564893ff12fae9499550711d92157ed1e6705a8c7f7e63eac0a2bb9 449B / 449B 0.1s done
+#8 sha256:fd345d7e43c58474c833bee593321ab1097dd720bebd8032e75fbf5b81b1e554 1.26MB / 1.26MB 0.4s done
+#8 sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82 6.29MB / 42.75MB 0.5s
+#8 sha256:9824c27679d3b27c5e1cb00a73adb6f4f8d556994111c12db3c5d61a0c843df8 3.80MB / 3.80MB 0.5s done
+#8 sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82 26.21MB / 42.75MB 0.8s
+#8 extracting sha256:9824c27679d3b27c5e1cb00a73adb6f4f8d556994111c12db3c5d61a0c843df8 0.1s done
+#8 sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82 40.89MB / 42.75MB 0.9s
+#8 sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82 42.75MB / 42.75MB 0.9s done
+#8 extracting sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82
+#8 extracting sha256:c88300f8759af46375ccc157a0a0dbf7cdaeded52394b5ce2ce074e3b773fe82 0.9s done
+#8 DONE 1.9s
+
+#8 [2/6] WORKDIR /app
+#8 extracting sha256:fd345d7e43c58474c833bee593321ab1097dd720bebd8032e75fbf5b81b1e554 0.0s done
+#8 extracting sha256:0de821d16564893ff12fae9499550711d92157ed1e6705a8c7f7e63eac0a2bb9 done
+#8 extracting sha256:9f6fd785c9653764b1e9f77664b4f96b925955b2e1519b7066f358a4a61ee59c done
+#8 DONE 1.9s
+
+#9 [3/6] COPY package*.json ./
+#9 DONE 0.1s
+
+#10 [4/6] RUN npm ci
+#10 10.83 
+#10 10.83 added 334 packages, and audited 335 packages in 11s
+#10 10.83 
+#10 10.83 63 packages are looking for funding
+#10 10.83   run `npm fund` for details
+#10 10.83 
+#10 10.83 found 0 vulnerabilities
+#10 10.83 npm notice
+#10 10.83 npm notice New major version of npm available! 10.8.2 -> 11.6.1
+#10 10.83 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.1
+#10 10.83 npm notice To update run: npm install -g npm@11.6.1
+#10 10.83 npm notice
+#10 DONE 12.3s
+
+#11 [5/6] COPY . .
+#11 DONE 0.2s
+
+#12 [6/6] RUN npm run build
+#12 0.205 
+#12 0.205 > Build Professional CMS@0.1.0 build
+#12 0.205 > next build
+#12 0.205 
+#12 0.935 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#12 0.936 This information is used to shape Next.js' roadmap and prioritize features.
+#12 0.936 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#12 0.936 https://nextjs.org/telemetry
+#12 0.936 
+#12 0.999    ▲ Next.js 15.5.4
+#12 0.999    - Experiments (use with caution):
+#12 1.000      · serverActions
+#12 1.000 
+#12 1.104    Creating an optimized production build ...
+#12 16.81 <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (175kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+#12 27.06  ✓ Compiled successfully in 22.7s
+#12 27.07    Skipping linting
+#12 27.07    Checking validity of types ...
+#12 34.76    Collecting page data ...
+#12 37.83    Generating static pages (0/15) ...
+#12 38.54    Generating static pages (3/15) 
+#12 38.70 Error occurred prerendering page "/_not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+#12 38.70 Error: @clerk/clerk-react: Missing publishableKey. You can get your key at https://dashboard.clerk.com/last-active?path=api-keys.
+#12 38.70     at Object.throwMissingPublishableKeyError (.next/server/chunks/278.js:9:3088)
+#12 38.70     at <unknown> (.next/server/chunks/278.js:44:73909) {
+#12 38.70   digest: '2009558714'
+#12 38.70 }
+#12 38.70 Export encountered an error on /_not-found/page: /_not-found, exiting the build.
+#12 38.71  ⨯ Next.js build worker exited with code: 1 and signal: null
+#12 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [6/6] RUN npm run build:
+37.83    Generating static pages (0/15) ...
+38.54    Generating static pages (3/15) 
+38.70 Error occurred prerendering page "/_not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+38.70 Error: @clerk/clerk-react: Missing publishableKey. You can get your key at https://dashboard.clerk.com/last-active?path=api-keys.
+38.70     at Object.throwMissingPublishableKeyError (.next/server/chunks/278.js:9:3088)
+38.70     at <unknown> (.next/server/chunks/278.js:44:73909) {
+38.70   digest: '2009558714'
+38.70 }
+38.70 Export encountered an error on /_not-found/page: /_not-found, exiting the build.
+38.71  ⨯ Next.js build worker exited with code: 1 and signal: null
+------
+Dockerfile:14
+--------------------
+  12 |     ENV PORT=5000
+  13 |     
+  14 | >>> RUN npm run build
+  15 |     
+  16 |     EXPOSE 5000
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+Error: buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
