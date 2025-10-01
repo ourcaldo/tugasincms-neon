@@ -1,0 +1,21 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/src/lib/supabase'
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { tokenId: string } }
+) {
+  try {
+    const { error } = await supabase
+      .from('api_tokens')
+      .delete()
+      .eq('id', params.tokenId)
+    
+    if (error) throw error
+    
+    return new NextResponse(null, { status: 204 })
+  } catch (error) {
+    console.error('Error deleting token:', error)
+    return NextResponse.json({ error: 'Failed to delete token' }, { status: 500 })
+  }
+}
