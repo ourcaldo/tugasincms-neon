@@ -15,9 +15,11 @@ import { format } from 'date-fns';
 import { Post, Category, Tag } from '../../types';
 import { mockCategories, mockTags } from '../../lib/mock-data';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { TiptapEditor } from '../editor/tiptap-editor';
 
 interface PostEditorProps {
   post?: Post;
+  postId?: string;
   onSave: (post: Partial<Post>) => void;
   onPreview?: () => void;
   onPublish?: () => void;
@@ -220,12 +222,10 @@ export function PostEditor({ post, onSave, onPreview, onPublish }: PostEditorPro
 
               <div>
                 <Label htmlFor="content">Content</Label>
-                <Textarea
-                  id="content"
-                  value={formData.content}
-                  onChange={(e) => handleInputChange('content', e.target.value)}
+                <TiptapEditor
+                  content={formData.content}
+                  onChange={(content) => handleInputChange('content', content)}
                   placeholder="Write your post content..."
-                  rows={15}
                 />
               </div>
 
