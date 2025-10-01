@@ -4,9 +4,10 @@ import { deleteCachedData } from '@/lib/cache'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { data: post, error } = await supabase
       .from('posts')
       .select(`
@@ -14,7 +15,7 @@ export async function GET(
         categories:post_categories(category:categories(*)),
         tags:post_tags(tag:tags(*))
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
     
     if (error) throw error
@@ -51,9 +52,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = body
     
@@ -72,18 +74,18 @@ export async function PUT(
         focus_keyword: seo?.focusKeyword,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
     
     if (error) throw error
     
-    await supabase.from('post_categories').delete().eq('post_id', params.id)
-    await supabase.from('post_tags').delete().eq('post_id', params.id)
+    await supabase.from('post_categories').delete().eq('post_id', id)
+    await supabase.from('post_tags').delete().eq('post_id', id)
     
     if (categories && categories.length > 0) {
       const categoryInserts = categories.map((catId: string) => ({
-        post_id: params.id,
+        post_id: id,
         category_id: catId,
       }))
       await supabase.from('post_categories').insert(categoryInserts)
@@ -91,7 +93,7 @@ export async function PUT(
     
     if (tags && tags.length > 0) {
       const tagInserts = tags.map((tagId: string) => ({
-        post_id: params.id,
+        post_id: id,
         tag_id: tagId,
       }))
       await supabase.from('post_tags').insert(tagInserts)
@@ -128,13 +130,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { error } = await supabase
       .from('posts')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
     
     if (error) throw error
     

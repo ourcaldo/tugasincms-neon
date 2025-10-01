@@ -3,9 +3,10 @@ import { supabase } from '@/lib/supabase'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { name, slug } = await request.json()
     
     const { data: updatedTag, error } = await supabase
@@ -14,7 +15,7 @@ export async function PUT(
         name,
         slug,
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
     
@@ -29,13 +30,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { error } = await supabase
       .from('tags')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
     
     if (error) throw error
     

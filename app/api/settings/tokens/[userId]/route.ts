@@ -3,13 +3,14 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params
     const { data: tokens, error } = await supabase
       .from('api_tokens')
       .select('*')
-      .eq('user_id', params.userId)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
     
     if (error) throw error

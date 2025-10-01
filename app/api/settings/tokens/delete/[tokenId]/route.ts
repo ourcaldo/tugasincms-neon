@@ -3,13 +3,14 @@ import { supabase } from '@/lib/supabase'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { tokenId: string } }
+  { params }: { params: Promise<{ tokenId: string }> }
 ) {
   try {
+    const { tokenId } = await params
     const { error } = await supabase
       .from('api_tokens')
       .delete()
-      .eq('id', params.tokenId)
+      .eq('id', tokenId)
     
     if (error) throw error
     
