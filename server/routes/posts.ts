@@ -16,7 +16,23 @@ postsRouter.get('/', async (req, res) => {
     if (error) throw error;
     
     const postsWithRelations = posts?.map(post => ({
-      ...post,
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      excerpt: post.excerpt,
+      slug: post.slug,
+      featuredImage: post.featured_image,
+      publishDate: post.publish_date,
+      status: post.status,
+      authorId: post.author_id,
+      createdAt: post.created_at,
+      updatedAt: post.updated_at,
+      seo: {
+        title: post.seo_title,
+        metaDescription: post.meta_description,
+        focusKeyword: post.focus_keyword,
+        slug: post.slug,
+      },
       categories: post.categories?.map((pc: any) => pc.category).filter(Boolean) || [],
       tags: post.tags?.map((pt: any) => pt.tag).filter(Boolean) || [],
     }));
@@ -44,7 +60,23 @@ postsRouter.get('/:id', async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Post not found' });
     
     const postWithRelations = {
-      ...post,
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      excerpt: post.excerpt,
+      slug: post.slug,
+      featuredImage: post.featured_image,
+      publishDate: post.publish_date,
+      status: post.status,
+      authorId: post.author_id,
+      createdAt: post.created_at,
+      updatedAt: post.updated_at,
+      seo: {
+        title: post.seo_title,
+        metaDescription: post.meta_description,
+        focusKeyword: post.focus_keyword,
+        slug: post.slug,
+      },
       categories: post.categories?.map((pc: any) => pc.category).filter(Boolean) || [],
       tags: post.tags?.map((pt: any) => pt.tag).filter(Boolean) || [],
     };

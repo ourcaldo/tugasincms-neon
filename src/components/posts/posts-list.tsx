@@ -243,12 +243,12 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4" />
-                      {format(post.publishDate, 'MMM dd, yyyy')}
+                      {post.publishDate ? format(new Date(post.publishDate), 'MMM dd, yyyy') : 'Not set'}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-muted-foreground">
-                      {format(post.updatedAt, 'MMM dd, yyyy')}
+                      {post.updatedAt ? format(new Date(post.updatedAt), 'MMM dd, yyyy') : 'N/A'}
                     </div>
                   </TableCell>
                   <TableCell>
