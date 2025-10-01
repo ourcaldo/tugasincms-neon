@@ -13,15 +13,6 @@ run = ["bash", "-c", "npm run backend & npm run start"]
 [[ports]]
 localPort = 3001
 externalPort = 3001
-exposeLocalhost = true
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 34139
-externalPort = 3002
 
 [[ports]]
 localPort = 38963
@@ -54,24 +45,25 @@ args = "Backend"
 name = "Dev Server"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[workflows.workflow]]
 name = "Backend"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run backend"
-
-[workflows.workflow.metadata]
-outputType = "console"
+waitForPort = 3001
 
 [agent]
 expertMode = true
