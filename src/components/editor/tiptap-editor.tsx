@@ -270,7 +270,7 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
         </Button>
       </div>
 
-      <div className="overflow-y-auto max-h-[500px] min-h-[400px]">
+      <div className="min-h-[600px]">
         <EditorContent editor={editor} />
       </div>
     </div>
