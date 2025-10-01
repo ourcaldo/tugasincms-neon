@@ -1,14 +1,18 @@
 import { Router } from 'express';
-import { db } from '../db';
-import { categories } from '../../src/db/schema';
-import { eq } from 'drizzle-orm';
+import { supabase } from '../db';
 
 export const categoriesRouter = Router();
 
 categoriesRouter.get('/', async (req, res) => {
   try {
-    const allCategories = await db.select().from(categories);
-    res.json(allCategories);
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    
+    res.json(categories || []);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
@@ -19,22 +23,58 @@ categoriesRouter.post('/', async (req, res) => {
   try {
     const { name, slug, description } = req.body;
     
-    const newCategory = await db.insert(categories).values({
-      name,
-      slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-      description,
-    }).returning();
+    const { data: newCategory, error } = await supabase
+      .from('categories')
+      .insert({
+        name,
+        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
+        description,
+      })
+      .select()
+      .single();
     
-    res.status(201).json(newCategory[0]);
+    if (error) throw error;
+    
+    res.status(201).json(newCategory);
   } catch (error) {
     console.error('Error creating category:', error);
     res.status(500).json({ error: 'Failed to create category' });
   }
 });
 
+categoriesRouter.put('/:id', async (req, res) => {
+  try {
+    const { name, slug, description } = req.body;
+    
+    const { data: updatedCategory, error } = await supabase
+      .from('categories')
+      .update({
+        name,
+        slug,
+        description,
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.json(updatedCategory);
+  } catch (error) {
+    console.error('Error updating category:', error);
+    res.status(500).json({ error: 'Failed to update category' });
+  }
+});
+
 categoriesRouter.delete('/:id', async (req, res) => {
   try {
-    await db.delete(categories).where(eq(categories.id, req.params.id));
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', req.params.id);
+    
+    if (error) throw error;
+    
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting category:', error);

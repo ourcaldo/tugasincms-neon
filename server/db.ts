@@ -1,15 +1,9 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from '../src/db/schema';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ubspwwvwsdrlbhrxibpj.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVic3B3d3Z3c2RybGJocnhpYnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyOTcxMzIsImV4cCI6MjA3NDg3MzEzMn0.C8l9br1rsG6R04T5O5hf-NyAU2Ecih6KPZ_61xggmC4';
 
-const connectionString = `postgresql://postgres.ubspwwvwsdrlbhrxibpj:${supabaseKey}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`;
-
-const client = postgres(connectionString);
-
-export const db = drizzle(client, { schema });
+export const supabase = createClient(supabaseUrl, supabaseKey);
