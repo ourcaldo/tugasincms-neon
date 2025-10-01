@@ -6,19 +6,35 @@ export const settingsRouter = Router();
 
 settingsRouter.get('/profile/:userId', async (req, res) => {
   try {
+    console.log('🔍 Fetching user profile:', req.params.userId);
+    
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', req.params.userId)
       .single();
     
-    if (error) throw error;
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log('❌ User not found:', req.params.userId);
+        return res.status(404).json({ error: 'User not found' });
+      }
+      throw error;
+    }
     
+    if (!user) {
+      console.log('❌ User not found:', req.params.userId);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log('✅ User profile found:', user.email);
     res.json(user);
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    res.status(500).json({ error: 'Failed to fetch profile' });
+  } catch (error: any) {
+    console.error('❌ Error fetching profile:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch profile',
+      details: error.message 
+    });
   }
 });
 
@@ -51,6 +67,8 @@ settingsRouter.post('/profile', async (req, res) => {
   try {
     const { id, email, name, avatar } = req.body;
     
+    console.log('📝 Creating new user profile:', { id, email, name });
+    
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
@@ -62,12 +80,19 @@ settingsRouter.post('/profile', async (req, res) => {
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error creating profile:', error);
+      throw error;
+    }
     
+    console.log('✅ User profile created successfully:', newUser);
     res.status(201).json(newUser);
-  } catch (error) {
-    console.error('Error creating profile:', error);
-    res.status(500).json({ error: 'Failed to create profile' });
+  } catch (error: any) {
+    console.error('❌ Failed to create profile:', error);
+    res.status(500).json({ 
+      error: 'Failed to create profile',
+      details: error.message 
+    });
   }
 });
 
