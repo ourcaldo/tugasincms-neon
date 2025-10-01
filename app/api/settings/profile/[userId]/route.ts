@@ -3,27 +3,28 @@ import { supabase } from '@/src/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    console.log('🔍 Fetching user profile:', params.userId)
+    const { userId } = await params
+    console.log('🔍 Fetching user profile:', userId)
     
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single()
     
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log('❌ User not found:', params.userId)
+        console.log('❌ User not found:', userId)
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
       }
       throw error
     }
     
     if (!user) {
-      console.log('❌ User not found:', params.userId)
+      console.log('❌ User not found:', userId)
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     
@@ -40,9 +41,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const { userId } = await params
     const { name, bio, avatar } = await request.json()
     
     const { data: updatedUser, error } = await supabase
@@ -53,7 +55,7 @@ export async function PUT(
         avatar,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', params.userId)
+      .eq('id', userId)
       .select()
       .single()
     
