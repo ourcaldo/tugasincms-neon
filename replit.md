@@ -1,22 +1,27 @@
 # TugasCMS - Professional Content Management System
 
 ## Overview
-This is a professional CMS application built with React, TypeScript, and Vite. It provides a modern interface for managing blog posts, categories, tags, and media. The application uses Appwrite as a backend service for data storage and authentication.
+This is a professional CMS application built with React, TypeScript, and Vite. It provides a modern interface for managing blog posts, categories, tags, and media. The application uses Supabase for database, Clerk for authentication, and Appwrite for image storage.
 
 ## Project Setup - October 1, 2025
 - **Framework**: React 18.3.1 with TypeScript
 - **Build Tool**: Vite 6.3.5
 - **UI Components**: Radix UI with Tailwind CSS
-- **Backend**: Appwrite (optional - currently using mock data)
-- **Dev Server Port**: 5000
+- **Backend**: Express server with Supabase (PostgreSQL)
+- **Authentication**: Clerk
+- **Image Storage**: Appwrite
+- **Dev Server Port**: 5000 (Frontend), 3001 (Backend)
 - **Production Server**: serve (static file server)
 
 ## Architecture
 - **Frontend**: Single Page Application (SPA) using React
+- **Backend**: Express API server on port 3001
+- **Database**: Supabase (PostgreSQL) with Drizzle ORM schema
+- **Authentication**: Clerk middleware
+- **Image Storage**: Appwrite cloud storage
 - **Styling**: Tailwind CSS with custom components
 - **State Management**: React Hooks
-- **Routing**: Client-side routing (if implemented)
-- **API Integration**: Appwrite SDK (optional)
+- **API Communication**: Custom API client with Clerk auth tokens
 
 ## Key Features
 - Posts management (create, edit, delete, filter)

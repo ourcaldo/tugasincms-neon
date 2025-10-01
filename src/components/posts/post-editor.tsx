@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { CalendarIcon, Upload, X, Save, Eye, Send } from 'lucide-react';
 import { format } from 'date-fns';
-import { Post, Category, Tag } from '../../types';
+import { Post, Category } from '../../types';
 import { mockTags } from '../../lib/mock-data';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { TiptapEditor } from '../editor/tiptap-editor';
@@ -418,7 +418,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                <Select value={formData.status} onValueChange={(value: string) => handleInputChange('status', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -443,7 +443,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                     <Calendar
                       mode="single"
                       selected={formData.publishDate}
-                      onSelect={(date) => {
+                      onSelect={(date: Date | undefined) => {
                         if (date) {
                           handleInputChange('publishDate', date);
                           setIsCalendarOpen(false);
