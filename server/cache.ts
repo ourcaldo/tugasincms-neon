@@ -3,26 +3,26 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-let valkeyClient: Redis | null = null;
+let redisClient: Redis | null = null;
 
 const CACHE_TTL = 3600;
 
-export function getValkeyClient(): Redis | null {
-  if (!process.env.VALKEY_URL) {
-    console.warn('Valkey URL not configured, caching disabled');
+export function getRedisClient(): Redis | null {
+  if (!process.env.REDIS_URL) {
+    console.warn('Redis URL not configured, caching disabled');
     return null;
   }
 
-  if (!valkeyClient) {
+  if (!redisClient) {
     try {
-      const useTLS = process.env.VALKEY_URL.startsWith('rediss://');
+      const useTLS = process.env.REDIS_URL.startsWith('rediss://');
       
-      valkeyClient = new Redis(process.env.VALKEY_URL, {
+      redisClient = new Redis(process.env.REDIS_URL, {
         connectTimeout: 10000,
         maxRetriesPerRequest: 3,
         retryStrategy: (times) => {
           if (times > 3) {
-            console.error('Valkey connection failed after 3 retries');
+            console.error('Redis connection failed after 3 retries');
             return null;
           }
           return Math.min(times * 100, 2000);
@@ -36,28 +36,28 @@ export function getValkeyClient(): Redis | null {
         lazyConnect: true,
       });
 
-      valkeyClient.on('connect', () => {
-        console.log('✅ Connected to Valkey cache');
+      redisClient.on('connect', () => {
+        console.log('✅ Connected to Redis cache');
       });
 
-      valkeyClient.on('error', (error) => {
-        console.error('Valkey connection error:', error.message);
+      redisClient.on('error', (error) => {
+        console.error('Redis connection error:', error.message);
       });
 
-      valkeyClient.on('close', () => {
-        console.log('Valkey connection closed');
+      redisClient.on('close', () => {
+        console.log('Redis connection closed');
       });
     } catch (error) {
-      console.error('Failed to initialize Valkey client:', error);
+      console.error('Failed to initialize Redis client:', error);
       return null;
     }
   }
 
-  return valkeyClient;
+  return redisClient;
 }
 
 export async function getCachedData<T>(key: string): Promise<T | null> {
-  const client = getValkeyClient();
+  const client = getRedisClient();
   if (!client) return null;
 
   try {
@@ -75,7 +75,7 @@ export async function getCachedData<T>(key: string): Promise<T | null> {
 }
 
 export async function setCachedData(key: string, data: any, ttl: number = CACHE_TTL): Promise<boolean> {
-  const client = getValkeyClient();
+  const client = getRedisClient();
   if (!client) return false;
 
   try {
@@ -89,7 +89,7 @@ export async function setCachedData(key: string, data: any, ttl: number = CACHE_
 }
 
 export async function deleteCachedData(pattern: string): Promise<boolean> {
-  const client = getValkeyClient();
+  const client = getRedisClient();
   if (!client) return false;
 
   try {
@@ -111,8 +111,8 @@ export async function deleteCachedData(pattern: string): Promise<boolean> {
 }
 
 export function closeCacheConnection(): void {
-  if (valkeyClient) {
-    valkeyClient.disconnect();
-    valkeyClient = null;
+  if (redisClient) {
+    redisClient.disconnect();
+    redisClient = null;
   }
 }
