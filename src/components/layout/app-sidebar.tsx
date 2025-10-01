@@ -1,5 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useUser, useClerk } from '@clerk/clerk-react';
+'use client'
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useUser, useClerk } from '@clerk/nextjs';
 import {
   FileText,
   Settings,
@@ -53,7 +56,7 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const location = useLocation();
+  const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
 
@@ -83,8 +86,8 @@ export function AppSidebar() {
               <SidebarMenu>
                 {group.items.map((item) => {
                   const ItemIcon = item.icon;
-                  const isActive = location.pathname === item.href || 
-                                 (item.href === '/posts' && location.pathname.startsWith('/posts'));
+                  const isActive = pathname === item.href || 
+                                 (item.href === '/posts' && pathname?.startsWith('/posts'));
                   return (
                     <SidebarMenuItem key={item.href}>
                       <Tooltip>
@@ -93,7 +96,7 @@ export function AppSidebar() {
                             asChild
                             isActive={isActive}
                           >
-                            <Link to={item.href}>
+                            <Link href={item.href}>
                               {ItemIcon && <ItemIcon className="w-4 h-4" />}
                               {item.title}
                             </Link>
