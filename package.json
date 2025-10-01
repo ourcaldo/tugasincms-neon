@@ -39,6 +39,8 @@
             "@tiptap/extension-placeholder": "^3.6.2",
             "@tiptap/react": "^3.6.2",
             "@tiptap/starter-kit": "^3.6.2",
+            "@types/cors": "^2.8.19",
+            "@types/express": "^5.0.3",
             "appwrite": "*",
             "bcryptjs": "^3.0.2",
             "class-variance-authority": "^0.7.1",
