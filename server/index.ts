@@ -29,7 +29,7 @@ app.get('/health', (_req, res) => {
 
 // Only start the server if not in production (Vercel)
 if (process.env.NODE_ENV !== 'production') {
-  const HOST = '0.0.0.0';
+  const HOST = process.env.DOCKER_ENV ? '0.0.0.0' : 'localhost';
   app.listen(PORT, HOST, () => {
     console.log(`Backend API server running on http://${HOST}:${PORT}`);
   });
