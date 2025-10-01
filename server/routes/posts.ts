@@ -106,6 +106,20 @@ postsRouter.post('/', async (req, res) => {
       tagIds,
     } = req.body;
     
+    // Determine the actual publish date and status
+    let finalPublishDate = publishDate;
+    let finalStatus = status || 'draft';
+    
+    // If publishing, set publish date to now if not provided
+    if (finalStatus === 'published' && !finalPublishDate) {
+      finalPublishDate = new Date().toISOString();
+    }
+    
+    // If publish date is in the future, status should be scheduled
+    if (finalPublishDate && new Date(finalPublishDate) > new Date() && finalStatus === 'published') {
+      finalStatus = 'scheduled';
+    }
+    
     const { data: newPost, error } = await supabase
       .from('posts')
       .insert({
@@ -114,8 +128,8 @@ postsRouter.post('/', async (req, res) => {
         content,
         excerpt,
         featured_image: featuredImage,
-        status: status || 'draft',
-        publish_date: publishDate || null,
+        status: finalStatus,
+        publish_date: finalPublishDate || null,
         seo_title: seoTitle || title,
         meta_description: metaDescription || excerpt,
         focus_keyword: focusKeyword,
@@ -144,6 +158,7 @@ postsRouter.post('/', async (req, res) => {
       );
     }
     
+    console.log('✅ Post created:', { id: newPost.id, status: finalStatus, publish_date: finalPublishDate });
     res.status(201).json(newPost);
   } catch (error) {
     console.error('Error creating post:', error);
@@ -168,6 +183,20 @@ postsRouter.put('/:id', async (req, res) => {
       tagIds,
     } = req.body;
     
+    // Determine the actual publish date and status
+    let finalPublishDate = publishDate;
+    let finalStatus = status || 'draft';
+    
+    // If publishing, set publish date to now if not provided
+    if (finalStatus === 'published' && !finalPublishDate) {
+      finalPublishDate = new Date().toISOString();
+    }
+    
+    // If publish date is in the future, status should be scheduled
+    if (finalPublishDate && new Date(finalPublishDate) > new Date() && finalStatus === 'published') {
+      finalStatus = 'scheduled';
+    }
+    
     const { data: updatedPost, error } = await supabase
       .from('posts')
       .update({
@@ -176,8 +205,8 @@ postsRouter.put('/:id', async (req, res) => {
         content,
         excerpt,
         featured_image: featuredImage,
-        status,
-        publish_date: publishDate || null,
+        status: finalStatus,
+        publish_date: finalPublishDate || null,
         seo_title: seoTitle,
         meta_description: metaDescription,
         focus_keyword: focusKeyword,
@@ -211,6 +240,7 @@ postsRouter.put('/:id', async (req, res) => {
       );
     }
     
+    console.log('✅ Post updated:', { id: req.params.id, status: finalStatus, publish_date: finalPublishDate });
     res.json(updatedPost);
   } catch (error) {
     console.error('Error updating post:', error);
