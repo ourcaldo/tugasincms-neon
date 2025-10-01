@@ -10,9 +10,8 @@
    - Many-to-many relationships (post_categories, post_tags)
    - API Tokens table for API authentication
 
-2. ✅ **Backend API Server** - Running on port 3001
-   - Express server configured in `server/index.ts`
-   - CORS enabled for frontend communication
+2. ✅ **Backend API Server** - Running on port 5000 (Next.js API routes)
+   - Next.js API routes in app/api directory
    - Clerk middleware integrated for authentication
    - Routes implemented:
      - `/api/posts` - GET, POST, PUT, DELETE
@@ -25,11 +24,10 @@
 
 3. ✅ **Environment Configuration**
    - `.env` file created with all credentials
-   - `.env.example` template with VITE_ prefixed variables
-   - Vite configured with:
-     - `allowedHosts: true` for Replit proxy support
-     - PostCSS with Tailwind CSS v4
-     - Proxy `/api` requests to backend (port 3001)
+   - `.env.example` template with NEXT_PUBLIC_ prefixed variables
+   - Next.js configured with:
+     - API routes in app/api directory
+     - Environment variables accessible via process.env
 
 4. ✅ **Dependencies Installed**
    - Clerk (authentication) - @clerk/clerk-react, @clerk/express
@@ -41,14 +39,13 @@
    - Appwrite SDK
 
 5. ✅ **Workflows Setup**
-   - Backend API: Port 3001 (running)
-   - Frontend: Port 5000 with Vite (running)
+   - Frontend and Backend: Port 5000 with Next.js (running)
 
 ### Frontend Implementation
 1. ✅ **Clerk Authentication** 
-   - ClerkProvider wrapper in `src/main.tsx`
+   - ClerkProvider wrapper in app layout
    - SignIn/SignUp UI working
-   - Environment variables properly configured (VITE_CLERK_PUBLISHABLE_KEY)
+   - Environment variables properly configured (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 
 2. ✅ **React Router** - Configured in `src/App.tsx`
    - Routes: Dashboard, Posts, Settings (Profile, API Tokens)
@@ -155,19 +152,12 @@
 │                       TugasCMS                               │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  FRONTEND (Port 5000) ✅ WORKING                             │
-│  ├── Vite + React + TypeScript                              │
+│  NEXT.JS APP (Port 5000) ✅ WORKING                          │
+│  ├── Next.js + React + TypeScript                           │
 │  ├── Clerk Authentication ✅                                 │
-│  ├── React Router ✅                                         │
+│  ├── App Router ✅                                           │
 │  ├── Tiptap Editor ✅                                        │
-│  └── Proxy /api → localhost:3001 ✅                          │
-│                                                              │
-│  BACKEND (Port 3001) ⚠️ RUNNING (status unknown)             │
-│  ├── Express API Server                                      │
-│  ├── Drizzle ORM                                             │
-│  ├── Clerk Middleware ✅                                     │
-│  ├── Appwrite SDK (media) ❌ not used yet                    │
-│  └── Routes: /api/posts, /api/categories, etc. ✅           │
+│  └── API Routes in app/api ✅                                │
 │                                                              │
 │  DATABASE (Neon PostgreSQL) ⚠️ TABLES NOT CREATED            │
 │  ├── Remote: Neon Cloud ✅                                   │
@@ -219,20 +209,17 @@
 
 - **Database**: Migration SQL is ready in `drizzle/0000_tired_synch.sql` - just needs manual execution in Neon dashboard
 - **Clerk Auth**: Fully working with development keys - shows sign-in UI
-- **Vite Config**: Fixed for Replit with `allowedHosts: true` and proper PostCSS setup
-- **Environment Variables**: All using VITE_ prefix for client-side access
-- **Backend Status**: Workflow running but no output - needs verification
+- **Next.js Config**: Configured with API routes for unified frontend and backend
+- **Environment Variables**: All using NEXT_PUBLIC_ prefix for client-side access
+- **Backend Status**: Integrated into Next.js API routes on port 5000
 
 ---
 
 ## 🛠️ **Development Commands**
 
 ```bash
-# Start frontend (port 5000)
+# Start Next.js app (frontend + backend on port 5000)
 npm run dev
-
-# Start backend (port 3001)
-npm run backend
 
 # Database migrations
 npm run db:generate  # Generate migrations

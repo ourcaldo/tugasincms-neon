@@ -9,15 +9,13 @@ Run `npm i` to install the dependencies.
 
 Run `npm run dev` to start the development server (frontend on port 5000).
 
-Run `npm run backend` to start the backend API server (on port 3001).
-
 ## API Documentation
 
 The CMS provides a public REST API for accessing and creating blog posts programmatically.
 
 ### Base URL
 ```
-http://localhost:3001/api/public
+http://localhost:5000/api/public
 ```
 
 ### Authentication
@@ -299,13 +297,12 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Clerk (Authentication)
-CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
-VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 
 # Appwrite (Image Storage)
-VITE_APPWRITE_PROJECT_ID=your_project_id
-VITE_APPWRITE_ENDPOINT=your_endpoint
-VITE_BUCKET_ID=your_bucket_id
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_APPWRITE_ENDPOINT=your_endpoint
+NEXT_PUBLIC_BUCKET_ID=your_bucket_id
 ```
 
