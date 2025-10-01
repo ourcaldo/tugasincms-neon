@@ -5,46 +5,30 @@ export async function POST(request: NextRequest) {
   try {
     const { id, email, name, avatar } = await request.json()
     
-    console.log('📝 Creating new user profile:', { id, email, name })
+    console.log('📝 Upserting user profile:', { id, email, name })
     
-    const { data: newUser, error } = await supabase
+    const { data: user, error } = await supabase
       .from('users')
-      .insert({
+      .upsert({
         id,
         email,
         name,
         avatar,
+      }, {
+        onConflict: 'id'
       })
       .select()
       .single()
     
     if (error) {
-      console.error('❌ Error creating profile:', error)
-      
-      if (error.code === '23505') {
-        console.log('⚠️ User already exists, fetching existing user...')
-        const { data: existingUser, error: fetchError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', id)
-          .single()
-        
-        if (fetchError) {
-          console.error('❌ Error fetching existing user:', fetchError)
-          throw fetchError
-        }
-        
-        console.log('✅ Returning existing user:', existingUser)
-        return NextResponse.json(existingUser, { status: 200 })
-      }
-      
+      console.error('❌ Error upserting profile:', error)
       throw error
     }
     
-    console.log('✅ User profile created successfully:', newUser)
-    return NextResponse.json(newUser, { status: 201 })
+    console.log('✅ User profile upserted successfully:', user)
+    return NextResponse.json(user, { status: 200 })
   } catch (error: any) {
-    console.error('❌ Failed to create profile:', error)
+    console.error('❌ Failed to upsert profile:', error)
     return NextResponse.json({ 
       error: 'Failed to create profile',
       details: error.message 

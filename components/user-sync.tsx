@@ -15,31 +15,20 @@ export function UserSync() {
         return
       }
 
-      console.log('UserSync: checking if user exists in database...', user.id)
+      console.log('UserSync: syncing user to database...', user.id)
 
       try {
-        const response = await fetch(`/api/settings/profile/${user.id}`)
-        
-        if (response.status === 404) {
-          console.log('UserSync: user not found, creating new user...')
-          
-          const userData = {
-            id: user.id,
-            email: user.primaryEmailAddress?.emailAddress || '',
-            name: user.fullName || user.firstName || 'User',
-            avatar: user.imageUrl || '',
-          }
-          
-          console.log('UserSync: creating user with data:', userData)
-          
-          const newUser = await apiClient.post('/settings/profile', userData)
-          console.log('UserSync: ✅ User created successfully:', newUser)
-        } else if (response.ok) {
-          const existingUser = await response.json()
-          console.log('UserSync: ✅ User already exists:', existingUser)
-        } else {
-          console.error('UserSync: unexpected response status:', response.status)
+        const userData = {
+          id: user.id,
+          email: user.primaryEmailAddress?.emailAddress || '',
+          name: user.fullName || user.firstName || 'User',
+          avatar: user.imageUrl || '',
         }
+        
+        console.log('UserSync: upserting user with data:', userData)
+        
+        const syncedUser = await apiClient.post('/settings/profile', userData)
+        console.log('UserSync: ✅ User synced successfully:', syncedUser)
       } catch (error) {
         console.error('UserSync: ❌ Error syncing user:', error)
         setTimeout(() => {
