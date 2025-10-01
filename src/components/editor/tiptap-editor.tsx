@@ -59,7 +59,7 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 min-h-[1200px]',
       },
     },
   });
