@@ -5,7 +5,7 @@ dotenv.config();
 
 let valkeyClient: Redis | null = null;
 
-const CACHE_TTL = 300;
+const CACHE_TTL = 3600;
 
 export function getValkeyClient(): Redis | null {
   if (!process.env.VALKEY_URL) {
