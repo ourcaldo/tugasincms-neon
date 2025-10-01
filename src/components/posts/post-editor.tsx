@@ -18,6 +18,7 @@ import { mockTags } from '../../lib/mock-data';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { TiptapEditor } from '../editor/tiptap-editor';
 import { useApiClient } from '../../lib/api-client';
+import { uploadImage } from '../../lib/appwrite';
 import { toast } from 'sonner';
 
 interface PostEditorProps {
@@ -209,12 +210,23 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     }));
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // In a real implementation, this would upload to Appwrite
-      const mockUrl = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, featuredImage: mockUrl }));
+      try {
+        setLoading(true);
+        toast.loading('Uploading image...');
+        const imageUrl = await uploadImage(file);
+        setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
+        toast.dismiss();
+        toast.success('Image uploaded successfully');
+      } catch (error) {
+        toast.dismiss();
+        console.error('Error uploading image:', error);
+        toast.error('Failed to upload image');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
