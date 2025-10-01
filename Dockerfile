@@ -5,14 +5,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies needed for build)
+# Install all dependencies (including dev dependencies for build)
 RUN npm ci && npm cache clean --force
 
 # Copy all source files
 COPY . .
-
-# Build the frontend
-RUN npm run build
 
 # Environment variables (with defaults for detection)
 ENV NODE_ENV=production
@@ -45,5 +42,5 @@ ENV REDIS_URL=""
 # Expose ports for frontend and backend
 EXPOSE 5000 3001
 
-# Start both backend and frontend
-CMD sh -c "npm run backend & npm run start"
+# Build frontend at startup (so it has access to runtime env vars) and start services
+CMD sh -c "npm run build && npm run backend & npm run start"
