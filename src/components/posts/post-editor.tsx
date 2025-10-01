@@ -220,10 +220,15 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
         setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
         toast.dismiss();
         toast.success('Image uploaded successfully');
-      } catch (error) {
+      } catch (error: any) {
         toast.dismiss();
         console.error('Error uploading image:', error);
-        toast.error('Failed to upload image');
+        
+        if (error?.message === 'APPWRITE_NOT_CONFIGURED') {
+          toast.error('Image upload not available. Please use an external image URL instead.');
+        } else {
+          toast.error('Failed to upload image. Use external URL instead.');
+        }
       } finally {
         setLoading(false);
       }
