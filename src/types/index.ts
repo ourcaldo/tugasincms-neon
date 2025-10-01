@@ -53,7 +53,9 @@ export interface APIToken {
   id: string;
   name: string;
   token: string;
+  userId: string;
   lastUsed?: Date;
+  expiresAt?: Date;
   createdAt: Date;
 }
 

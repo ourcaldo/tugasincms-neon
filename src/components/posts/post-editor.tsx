@@ -302,11 +302,11 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
               <TooltipTrigger asChild>
                 <Button onClick={handlePublish}>
                   <Send className="w-4 h-4 mr-2" />
-                  Publish
+                  {postId || post ? 'Update' : 'Publish'}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Publish your post immediately</p>
+                <p>{postId || post ? 'Update your post' : 'Publish your post immediately'}</p>
               </TooltipContent>
             </Tooltip>
           </div>

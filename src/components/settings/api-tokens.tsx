@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -10,32 +11,87 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Plus, Copy, MoreHorizontal, Trash, Key, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { APIToken } from '../../types';
-import { mockApiTokens } from '../../lib/mock-data';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { useApiClient } from '../../lib/api-client';
+
+interface ApiTokenResponse {
+  id: string;
+  token: string;
+  name: string;
+  user_id: string;
+  created_at: string;
+  last_used_at?: string | null;
+  expires_at?: string | null;
+}
+
+const mapApiTokenToClient = (apiToken: ApiTokenResponse): APIToken => ({
+  id: apiToken.id,
+  token: apiToken.token,
+  name: apiToken.name,
+  userId: apiToken.user_id,
+  createdAt: new Date(apiToken.created_at),
+  lastUsed: apiToken.last_used_at ? new Date(apiToken.last_used_at) : undefined,
+  expiresAt: apiToken.expires_at ? new Date(apiToken.expires_at) : undefined,
+});
 
 export function ApiTokens() {
-  const [tokens, setTokens] = useState<APIToken[]>(mockApiTokens);
+  const [tokens, setTokens] = useState<APIToken[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newTokenName, setNewTokenName] = useState('');
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const apiClient = useApiClient();
+  const { user } = useUser();
 
-  const generateToken = () => {
+  useEffect(() => {
+    if (user?.id) {
+      fetchTokens();
+    }
+  }, [user?.id]);
+
+  const fetchTokens = async () => {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      const data = await apiClient.get<ApiTokenResponse[]>(`/settings/tokens/${user.id}`);
+      setTokens(data.map(mapApiTokenToClient));
+    } catch (error) {
+      console.error('Error fetching tokens:', error);
+      toast.error('Failed to load tokens');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateToken = async () => {
     if (!newTokenName.trim()) {
       toast.error('Token name is required');
       return;
     }
 
-    const newToken: APIToken = {
-      id: Date.now().toString(),
-      name: newTokenName.trim(),
-      token: `tk_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
-    };
+    if (!user?.id) {
+      toast.error('User not authenticated');
+      return;
+    }
 
-    setTokens(prev => [...prev, newToken]);
-    setGeneratedToken(newToken.token);
-    setNewTokenName('');
-    toast.success('API token generated successfully');
+    try {
+      setLoading(true);
+      const response = await apiClient.post<ApiTokenResponse>('/settings/tokens', {
+        name: newTokenName.trim(),
+        userId: user.id,
+      });
+
+      const newToken = mapApiTokenToClient(response);
+      setTokens(prev => [...prev, newToken]);
+      setGeneratedToken(newToken.token);
+      setNewTokenName('');
+      toast.success('API token generated successfully');
+    } catch (error) {
+      console.error('Error generating token:', error);
+      toast.error('Failed to generate token');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const copyToken = (token: string) => {
@@ -43,9 +99,18 @@ export function ApiTokens() {
     toast.success('Token copied to clipboard');
   };
 
-  const deleteToken = (tokenId: string) => {
-    setTokens(prev => prev.filter(token => token.id !== tokenId));
-    toast.success('Token deleted successfully');
+  const deleteToken = async (tokenId: string) => {
+    try {
+      setLoading(true);
+      await apiClient.delete(`/settings/tokens/${tokenId}`);
+      setTokens(prev => prev.filter(token => token.id !== tokenId));
+      toast.success('Token deleted successfully');
+    } catch (error) {
+      console.error('Error deleting token:', error);
+      toast.error('Failed to delete token');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateDialogClose = () => {
@@ -87,10 +152,10 @@ export function ApiTokens() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={generateToken} className="flex-1">
-                      Generate Token
+                    <Button onClick={generateToken} className="flex-1" disabled={loading}>
+                      {loading ? 'Generating...' : 'Generate Token'}
                     </Button>
-                    <Button variant="outline" onClick={handleCreateDialogClose}>
+                    <Button variant="outline" onClick={handleCreateDialogClose} disabled={loading}>
                       Cancel
                     </Button>
                   </div>

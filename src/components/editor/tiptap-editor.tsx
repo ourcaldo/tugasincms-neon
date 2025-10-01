@@ -24,7 +24,7 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface TiptapEditorProps {
   content: string;
@@ -59,10 +59,16 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[600px] max-w-none p-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4',
       },
     },
   });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  }, [content, editor]);
 
   if (!editor) {
     return null;
@@ -264,7 +270,9 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
         </Button>
       </div>
 
-      <EditorContent editor={editor} />
+      <div className="overflow-y-auto max-h-[500px] min-h-[400px]">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
