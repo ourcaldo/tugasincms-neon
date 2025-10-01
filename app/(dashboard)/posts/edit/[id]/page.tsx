@@ -3,6 +3,8 @@
 import { useRouter, useParams } from 'next/navigation'
 import { PostEditor } from '@/components/posts/post-editor'
 
+export const dynamic = 'force-dynamic'
+
 export default function EditPostPage() {
   const router = useRouter()
   const params = useParams()
