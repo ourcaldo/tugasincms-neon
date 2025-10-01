@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/src/lib/supabase'
-import { deleteCachedData } from '@/src/lib/cache'
+import { supabase } from '@/lib/supabase'
+import { deleteCachedData } from '@/lib/cache'
 
 export async function GET() {
   try {

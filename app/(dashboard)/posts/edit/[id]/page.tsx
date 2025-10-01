@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useParams } from 'next/navigation'
-import { PostEditor } from '@/src/components/posts/post-editor'
+import { PostEditor } from '@/components/posts/post-editor'
 
 export default function EditPostPage() {
   const router = useRouter()

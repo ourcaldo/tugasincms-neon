@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { PostsList } from '@/src/components/posts/posts-list'
+import { PostsList } from '@/components/posts/posts-list'
 
 export default function PostsPage() {
   const router = useRouter()

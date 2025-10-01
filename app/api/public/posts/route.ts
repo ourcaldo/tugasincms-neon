@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/src/lib/supabase'
-import { getCachedData, setCachedData, deleteCachedData } from '@/src/lib/cache'
+import { supabase } from '@/lib/supabase'
+import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 
 const verifyApiToken = async (token: string) => {
   if (!token) return null

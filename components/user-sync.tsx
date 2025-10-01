@@ -2,7 +2,7 @@
 
 import { useUser } from '@clerk/nextjs'
 import { useEffect } from 'react'
-import { useApiClient } from '@/src/lib/api-client'
+import { useApiClient } from '@/lib/api-client'
 
 export function UserSync() {
   const { user, isLoaded } = useUser()
