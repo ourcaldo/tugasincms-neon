@@ -1,0 +1,144 @@
+import {
+  FileText,
+  Settings,
+  PlusCircle,
+  BarChart3,
+  User,
+  LogOut,
+} from 'lucide-react';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+} from '../ui/sidebar';
+import { Button } from '../ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
+const menuItems = [
+  {
+    title: 'Posts',
+    icon: FileText,
+    items: [
+      { title: 'All Posts', href: '/posts', tooltip: 'View and manage all blog posts' },
+      { title: 'Add New Post', href: '/posts/new', icon: PlusCircle, tooltip: 'Create a new blog post' },
+    ],
+  },
+  {
+    title: 'Management',
+    icon: BarChart3,
+    items: [
+      { title: 'Categories', href: '/categories', tooltip: 'Organize posts with categories' },
+      { title: 'Tags', href: '/tags', tooltip: 'Manage post tags for better organization' },
+      { title: 'Media Library', href: '/media', tooltip: 'Upload and manage images and files' },
+    ],
+  },
+  {
+    title: 'Settings',
+    icon: Settings,
+    items: [
+      { title: 'Profile', href: '/settings/profile', tooltip: 'Update your profile information' },
+      { title: 'API Tokens', href: '/settings/tokens', tooltip: 'Manage API access tokens' },
+    ],
+  },
+];
+
+interface AppSidebarProps {
+  activeItem?: string;
+  onNavigate?: (href: string) => void;
+}
+
+export function AppSidebar({ activeItem, onNavigate }: AppSidebarProps) {
+  const handleNavigation = (href: string) => {
+    if (onNavigate) {
+      onNavigate(href);
+    }
+  };
+
+  return (
+    <TooltipProvider>
+      <Sidebar>
+        <SidebarHeader className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <FileText className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="font-semibold">TugasCMS</h2>
+              <p className="text-sm text-muted-foreground">Content Management</p>
+            </div>
+          </div>
+        </SidebarHeader>
+
+      <SidebarContent>
+        {menuItems.map((group) => (
+          <SidebarGroup key={group.title}>
+            <SidebarGroupLabel className="flex items-center gap-2">
+              <group.icon className="w-4 h-4" />
+              {group.title}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const ItemIcon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton 
+                            onClick={() => handleNavigation(item.href)}
+                            isActive={activeItem === item.href}
+                            className="cursor-pointer"
+                          >
+                            {ItemIcon && <ItemIcon className="w-4 h-4" />}
+                            {item.title}
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>{item.tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+      </SidebarContent>
+
+      <SidebarFooter className="p-4">
+        <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent">
+          <Avatar className="w-8 h-8">
+            <AvatarImage src="https://github.com/shadcn.png" />
+            <AvatarFallback>
+              <User className="w-4 h-4" />
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">John Doe</p>
+            <p className="text-xs text-muted-foreground truncate">john@example.com</p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Sign out</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </SidebarFooter>
+      </Sidebar>
+    </TooltipProvider>
+  );
+}
