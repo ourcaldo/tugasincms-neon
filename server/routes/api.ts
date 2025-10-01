@@ -96,7 +96,7 @@ apiRouter.post('/posts', async (req, res) => {
       seoTitle,
       metaDescription,
       focusKeyword,
-      categoryIds,
+      categories,
       tagIds,
     } = req.body;
     
@@ -120,13 +120,46 @@ apiRouter.post('/posts', async (req, res) => {
     
     if (postError) throw postError;
     
-    if (categoryIds && categoryIds.length > 0) {
-      const categoryInserts = categoryIds.map((catId: string) => ({
-        post_id: newPost.id,
-        category_id: catId,
-      }));
+    if (categories && categories.length > 0) {
+      const categoryIdsToAssociate = [];
       
-      await supabase.from('post_categories').insert(categoryInserts);
+      for (const categoryName of categories) {
+        const trimmedName = categoryName.trim();
+        if (!trimmedName) continue;
+        
+        const { data: existingCategory } = await supabase
+          .from('categories')
+          .select('id')
+          .ilike('name', trimmedName)
+          .single();
+        
+        if (existingCategory) {
+          categoryIdsToAssociate.push(existingCategory.id);
+        } else {
+          const categorySlug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          const { data: newCategory, error: catError } = await supabase
+            .from('categories')
+            .insert({
+              name: trimmedName,
+              slug: categorySlug,
+            })
+            .select('id')
+            .single();
+          
+          if (!catError && newCategory) {
+            categoryIdsToAssociate.push(newCategory.id);
+          }
+        }
+      }
+      
+      if (categoryIdsToAssociate.length > 0) {
+        const categoryInserts = categoryIdsToAssociate.map((catId: string) => ({
+          post_id: newPost.id,
+          category_id: catId,
+        }));
+        
+        await supabase.from('post_categories').insert(categoryInserts);
+      }
     }
     
     if (tagIds && tagIds.length > 0) {
