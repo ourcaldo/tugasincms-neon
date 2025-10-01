@@ -16,13 +16,13 @@ app.use(cors());
 app.use(express.json());
 app.use(clerkMiddleware());
 
-app.use('/api/posts', postsRouter);
-app.use('/api/categories', categoriesRouter);
-app.use('/api/tags', tagsRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/public', apiRouter);
+app.use('/posts', postsRouter);
+app.use('/categories', categoriesRouter);
+app.use('/tags', tagsRouter);
+app.use('/settings', settingsRouter);
+app.use('/public', apiRouter);
 
-app.get('/api/health', (_req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
