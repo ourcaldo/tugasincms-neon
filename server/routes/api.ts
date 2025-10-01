@@ -43,31 +43,21 @@ apiRouter.get('/posts', async (req, res) => {
     
     const { data: publishedPosts, error } = await supabase
       .from('posts')
-      .select('*')
+      .select(`
+        *,
+        categories:post_categories(category:categories(*)),
+        tags:post_tags(tag:tags(*))
+      `)
       .eq('status', 'published')
       .order('publish_date', { ascending: false });
     
     if (error) throw error;
     
-    const postsWithRelations = await Promise.all(
-      (publishedPosts || []).map(async (post) => {
-        const { data: postCats } = await supabase
-          .from('post_categories')
-          .select('category_id, categories(*)')
-          .eq('post_id', post.id);
-        
-        const { data: postTagsList } = await supabase
-          .from('post_tags')
-          .select('tag_id, tags(*)')
-          .eq('post_id', post.id);
-        
-        return {
-          ...post,
-          categories: (postCats || []).map(pc => pc.categories).filter(Boolean),
-          tags: (postTagsList || []).map(pt => pt.tags).filter(Boolean),
-        };
-      })
-    );
+    const postsWithRelations = (publishedPosts || []).map((post) => ({
+      ...post,
+      categories: (post.categories || []).map((pc: any) => pc.category).filter(Boolean),
+      tags: (post.tags || []).map((pt: any) => pt.tag).filter(Boolean),
+    }));
     
     res.json({ success: true, data: postsWithRelations });
   } catch (error) {
