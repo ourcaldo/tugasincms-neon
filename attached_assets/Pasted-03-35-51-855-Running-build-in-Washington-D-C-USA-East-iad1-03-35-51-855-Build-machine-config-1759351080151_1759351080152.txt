@@ -1,0 +1,91 @@
+03:35:51.855 Running build in Washington, D.C., USA (East) – iad1
+03:35:51.855 Build machine configuration: 2 cores, 8 GB
+03:35:51.876 Cloning github.com/ourcaldo/tugasincms (Branch: main, Commit: ca10cf6)
+03:35:51.999 Previous build caches not available
+03:35:53.027 Cloning completed: 1.150s
+03:35:53.091 Found .vercelignore
+03:35:53.096 Removed 25 ignored files defined in .vercelignore
+03:35:53.097   /.git/config
+03:35:53.097   /.git/description
+03:35:53.097   /.git/FETCH_HEAD
+03:35:53.097   /.git/HEAD
+03:35:53.097   /.git/hooks/applypatch-msg.sample
+03:35:53.097   /.git/hooks/commit-msg.sample
+03:35:53.097   /.git/hooks/fsmonitor-watchman.sample
+03:35:53.097   /.git/hooks/post-update.sample
+03:35:53.097   /.git/hooks/pre-applypatch.sample
+03:35:53.097   /.git/hooks/pre-commit.sample
+03:35:53.381 Running "vercel build"
+03:35:53.790 Vercel CLI 48.1.6
+03:35:54.137 Running "install" command: `npm install`...
+03:36:08.017 
+03:36:08.018 added 334 packages, and audited 335 packages in 14s
+03:36:08.019 
+03:36:08.019 63 packages are looking for funding
+03:36:08.020   run `npm fund` for details
+03:36:08.020 
+03:36:08.020 found 0 vulnerabilities
+03:36:08.066 Detected Next.js version: 15.5.4
+03:36:08.067 Running "npm run build"
+03:36:08.190 
+03:36:08.191 > Build Professional CMS@0.1.0 build
+03:36:08.192 > next build
+03:36:08.192 
+03:36:08.781 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+03:36:08.782 This information is used to shape Next.js' roadmap and prioritize features.
+03:36:08.783 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+03:36:08.783 https://nextjs.org/telemetry
+03:36:08.783 
+03:36:08.841    ▲ Next.js 15.5.4
+03:36:08.842    - Experiments (use with caution):
+03:36:08.842      · serverActions
+03:36:08.842 
+03:36:08.913    Creating an optimized production build ...
+03:36:25.748 <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (175kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+03:36:37.017  ✓ Compiled successfully in 25.5s
+03:36:37.025    Skipping linting
+03:36:37.026    Checking validity of types ...
+03:36:45.414    Collecting page data ...
+03:36:48.438    Generating static pages (0/11) ...
+03:36:49.097    Generating static pages (2/11) 
+03:36:49.115    Generating static pages (5/11) 
+03:36:49.256    Generating static pages (8/11) 
+03:36:49.331  ✓ Generating static pages (11/11)
+03:36:50.316    Finalizing page optimization ...
+03:36:50.317    Collecting build traces ...
+03:37:07.796 
+03:37:07.809 Route (app)                                   Size  First Load JS
+03:37:07.809 ┌ ○ /                                        156 B         102 kB
+03:37:07.809 ├ ○ /_not-found                              994 B         103 kB
+03:37:07.809 ├ ƒ /api/categories                          156 B         102 kB
+03:37:07.809 ├ ƒ /api/categories/[id]                     156 B         102 kB
+03:37:07.809 ├ ƒ /api/health                              156 B         102 kB
+03:37:07.809 ├ ƒ /api/posts                               156 B         102 kB
+03:37:07.809 ├ ƒ /api/posts/[id]                          156 B         102 kB
+03:37:07.810 ├ ƒ /api/public/posts                        156 B         102 kB
+03:37:07.810 ├ ƒ /api/settings/profile                    156 B         102 kB
+03:37:07.810 ├ ƒ /api/settings/profile/[userId]           156 B         102 kB
+03:37:07.810 ├ ƒ /api/settings/tokens                     156 B         102 kB
+03:37:07.810 ├ ƒ /api/settings/tokens/[userId]            156 B         102 kB
+03:37:07.810 ├ ƒ /api/settings/tokens/delete/[tokenId]    156 B         102 kB
+03:37:07.810 ├ ƒ /api/tags                                156 B         102 kB
+03:37:07.810 ├ ƒ /api/tags/[id]                           156 B         102 kB
+03:37:07.810 ├ ƒ /posts                                 3.42 kB         200 kB
+03:37:07.810 ├ ƒ /posts/edit/[id]                         371 B         329 kB
+03:37:07.810 ├ ƒ /posts/new                               352 B         329 kB
+03:37:07.810 ├ ƒ /settings/profile                      4.64 kB         126 kB
+03:37:07.810 ├ ƒ /settings/tokens                       7.47 kB         190 kB
+03:37:07.810 └ ƒ /sign-in/[[...sign-in]]                  390 B         137 kB
+03:37:07.810 + First Load JS shared by all               102 kB
+03:37:07.810   ├ chunks/255-112b0fabacdea389.js         45.7 kB
+03:37:07.810   ├ chunks/4bd1b696-c023c6e3521b1417.js    54.2 kB
+03:37:07.810   └ other shared chunks (total)               2 kB
+03:37:07.810 
+03:37:07.810 
+03:37:07.811 ƒ Middleware                               81.6 kB
+03:37:07.811 
+03:37:07.811 ○  (Static)   prerendered as static content
+03:37:07.811 ƒ  (Dynamic)  server-rendered on demand
+03:37:07.811 
+03:37:07.849 Error: The file "/vercel/path0/build/routes-manifest.json" couldn't be found. This is often caused by a misconfiguration in your project.
+03:37:07.849 Learn More: https://err.sh/vercel/vercel/now-next-routes-manifest
