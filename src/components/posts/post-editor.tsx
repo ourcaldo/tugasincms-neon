@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { CalendarIcon, Upload, X, Save, Eye, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { Post, Category, Tag } from '../../types';
-import { mockCategories, mockTags } from '../../lib/mock-data';
+import { mockTags } from '../../lib/mock-data';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { TiptapEditor } from '../editor/tiptap-editor';
 import { useApiClient } from '../../lib/api-client';
@@ -49,8 +49,10 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [newTag, setNewTag] = useState('');
+  const [newCategory, setNewCategory] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const apiClient = useApiClient();
   const { user } = useUser();
 
@@ -59,6 +61,19 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
       fetchPost();
     }
   }, [postId]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const data = await apiClient.get<Category[]>('/categories');
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchPost = async () => {
     if (!postId) return;
@@ -128,14 +143,37 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     }));
   };
 
-  const addCategory = (categoryId: string) => {
-    const category = mockCategories.find(c => c.id === categoryId);
-    if (category && !formData.categories.find(c => c.id === categoryId)) {
-      setFormData(prev => ({
-        ...prev,
-        categories: [...prev.categories, category]
-      }));
+  const addCategory = async (categoryName: string) => {
+    const trimmedName = categoryName.trim();
+    if (!trimmedName) return;
+
+    const existingCategory = categories.find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
+    
+    if (existingCategory) {
+      if (!formData.categories.find(c => c.id === existingCategory.id)) {
+        setFormData(prev => ({
+          ...prev,
+          categories: [...prev.categories, existingCategory]
+        }));
+      }
+    } else {
+      try {
+        const newCat = await apiClient.post<Category>('/categories', {
+          name: trimmedName,
+          slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        });
+        setCategories(prev => [...prev, newCat]);
+        setFormData(prev => ({
+          ...prev,
+          categories: [...prev.categories, newCat]
+        }));
+        toast.success(`Category "${trimmedName}" created`);
+      } catch (error) {
+        console.error('Error creating category:', error);
+        toast.error('Failed to create category');
+      }
     }
+    setNewCategory('');
   };
 
   const removeCategory = (categoryId: string) => {
@@ -491,18 +529,50 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
               <CardTitle>Categories</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Select onValueChange={addCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select categories..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type to search or add new category..."
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newCategory.trim()) {
+                        e.preventDefault();
+                        addCategory(newCategory.trim());
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => newCategory.trim() && addCategory(newCategory.trim())}
+                    size="sm"
+                  >
+                    Add
+                  </Button>
+                </div>
+                {newCategory && (
+                  <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {categories
+                      .filter(c => 
+                        c.name.toLowerCase().includes(newCategory.toLowerCase()) &&
+                        !formData.categories.find(fc => fc.id === c.id)
+                      )
+                      .map((category) => (
+                        <div
+                          key={category.id}
+                          className="px-3 py-2 hover:bg-muted cursor-pointer"
+                          onClick={() => addCategory(category.name)}
+                        >
+                          {category.name}
+                        </div>
+                      ))}
+                    {!categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase()) && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground border-t">
+                        Press Enter or click Add to create "{newCategory}"
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex flex-wrap gap-2">
                 {formData.categories.map((category) => (
