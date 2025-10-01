@@ -20,6 +20,24 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('❌ Error creating profile:', error)
+      
+      if (error.code === '23505') {
+        console.log('⚠️ User already exists, fetching existing user...')
+        const { data: existingUser, error: fetchError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', id)
+          .single()
+        
+        if (fetchError) {
+          console.error('❌ Error fetching existing user:', fetchError)
+          throw fetchError
+        }
+        
+        console.log('✅ Returning existing user:', existingUser)
+        return NextResponse.json(existingUser, { status: 200 })
+      }
+      
       throw error
     }
     
