@@ -33,6 +33,14 @@ const verifyApiToken = async (token: string) => {
 
 apiRouter.get('/posts', async (req, res) => {
   try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    const validToken = await verifyApiToken(token || '');
+    
+    if (!validToken) {
+      return res.status(401).json({ success: false, error: 'Invalid or expired API token' });
+    }
+    
     const { data: publishedPosts, error } = await supabase
       .from('posts')
       .select('*')
