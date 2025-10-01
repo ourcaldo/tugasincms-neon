@@ -59,7 +59,8 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 min-h-[1200px]',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4',
+        style: 'min-height: 1200px;',
       },
     },
   });
@@ -270,9 +271,7 @@ export function TiptapEditor({ content, onChange, placeholder = 'Write your cont
         </Button>
       </div>
 
-      <div className="min-h-[1200px]">
-        <EditorContent editor={editor} />
-      </div>
+      <EditorContent editor={editor} />
     </div>
   );
 }
