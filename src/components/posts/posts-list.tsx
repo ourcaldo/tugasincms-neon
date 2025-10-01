@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
@@ -7,11 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Post, PostFilters } from '../../types';
-import { mockPosts, mockCategories } from '../../lib/mock-data';
+import { mockCategories } from '../../lib/mock-data';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { useApiClient } from '../../lib/api-client';
+import { toast } from 'sonner';
 
 interface PostsListProps {
   onCreatePost: () => void;
@@ -21,12 +23,44 @@ interface PostsListProps {
 }
 
 export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }: PostsListProps) {
-  const [posts] = useState<Post[]>(mockPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<PostFilters>({
     search: '',
     status: undefined,
     category: undefined,
   });
+  const apiClient = useApiClient();
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const data = await apiClient.get<Post[]>('/posts');
+      setPosts(data);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      toast.error('Failed to fetch posts');
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (postId: string) => {
+    try {
+      await apiClient.delete(`/posts/${postId}`);
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      toast.success('Post deleted successfully');
+      onDeletePost(postId);
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      toast.error('Failed to delete post');
+    }
+  };
 
   const filteredPosts = posts.filter(post => {
     const matchesSearch = !filters.search || 
@@ -241,7 +275,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => onDeletePost(post.id)}
+                          onClick={() => handleDelete(post.id)}
                           className="text-destructive"
                         >
                           <Trash className="w-4 h-4 mr-2" />

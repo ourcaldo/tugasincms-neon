@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -16,6 +17,8 @@ import { Post, Category, Tag } from '../../types';
 import { mockCategories, mockTags } from '../../lib/mock-data';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { TiptapEditor } from '../editor/tiptap-editor';
+import { useApiClient } from '../../lib/api-client';
+import { toast } from 'sonner';
 
 interface PostEditorProps {
   post?: Post;
@@ -25,7 +28,7 @@ interface PostEditorProps {
   onPublish?: () => void;
 }
 
-export function PostEditor({ post, onSave, onPreview, onPublish }: PostEditorProps) {
+export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostEditorProps) {
   const [formData, setFormData] = useState({
     title: post?.title || '',
     content: post?.content || '',
@@ -47,6 +50,45 @@ export function PostEditor({ post, onSave, onPreview, onPublish }: PostEditorPro
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const apiClient = useApiClient();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (postId && !post) {
+      fetchPost();
+    }
+  }, [postId]);
+
+  const fetchPost = async () => {
+    if (!postId) return;
+    try {
+      setLoading(true);
+      const data = await apiClient.get<Post>(`/posts/${postId}`);
+      setFormData({
+        title: data.title,
+        content: data.content,
+        excerpt: data.excerpt || '',
+        slug: data.slug,
+        featuredImage: data.featuredImage || '',
+        publishDate: data.publishDate || new Date(),
+        status: data.status,
+        categories: data.categories || [],
+        tags: data.tags || [],
+        seo: {
+          title: data.seo?.title || '',
+          metaDescription: data.seo?.metaDescription || '',
+          focusKeyword: data.seo?.focusKeyword || '',
+          slug: data.seo?.slug || '',
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching post:', error);
+      toast.error('Failed to load post');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -145,19 +187,87 @@ export function PostEditor({ post, onSave, onPreview, onPublish }: PostEditorPro
     }
   };
 
-  const handleSave = () => {
-    onSave(formData);
+  const handleSave = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const postData = {
+        title: formData.title,
+        slug: formData.slug,
+        content: formData.content,
+        excerpt: formData.excerpt,
+        featuredImage: formData.featuredImage,
+        status: formData.status,
+        publishDate: formData.publishDate,
+        seoTitle: formData.seo.title,
+        metaDescription: formData.seo.metaDescription,
+        focusKeyword: formData.seo.focusKeyword,
+        authorId: user.id,
+        categoryIds: formData.categories.map(c => c.id),
+        tagIds: formData.tags.map(t => t.id),
+      };
+
+      if (postId) {
+        await apiClient.put(`/posts/${postId}`, postData);
+        toast.success('Post updated successfully');
+      } else {
+        await apiClient.post('/posts', postData);
+        toast.success('Post created successfully');
+      }
+      
+      onSave(formData);
+    } catch (error) {
+      console.error('Error saving post:', error);
+      toast.error('Failed to save post');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
+    if (!user) return;
+    
     const publishData = {
       ...formData,
       status: 'published' as const,
       publishDate: new Date(),
     };
-    setFormData(publishData);
-    onSave(publishData);
-    if (onPublish) onPublish();
+    
+    try {
+      setLoading(true);
+      const postData = {
+        title: publishData.title,
+        slug: publishData.slug,
+        content: publishData.content,
+        excerpt: publishData.excerpt,
+        featuredImage: publishData.featuredImage,
+        status: publishData.status,
+        publishDate: publishData.publishDate,
+        seoTitle: publishData.seo.title,
+        metaDescription: publishData.seo.metaDescription,
+        focusKeyword: publishData.seo.focusKeyword,
+        authorId: user.id,
+        categoryIds: publishData.categories.map(c => c.id),
+        tagIds: publishData.tags.map(t => t.id),
+      };
+
+      if (postId) {
+        await apiClient.put(`/posts/${postId}`, postData);
+      } else {
+        await apiClient.post('/posts', postData);
+      }
+      
+      setFormData(publishData);
+      toast.success('Post published successfully');
+      onSave(publishData);
+      if (onPublish) onPublish();
+    } catch (error) {
+      console.error('Error publishing post:', error);
+      toast.error('Failed to publish post');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
