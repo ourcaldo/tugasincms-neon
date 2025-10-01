@@ -2,6 +2,7 @@
       "name": "Build Professional CMS",
       "version": "0.1.0",
       "private": true,
+      "type": "module",
       "dependencies": {
             "@clerk/clerk-react": "^5.49.1",
             "@clerk/express": "^1.7.35",
