@@ -25,6 +25,11 @@ export function getValkeyClient(): Redis | null {
           }
           return Math.min(times * 100, 2000);
         },
+        tls: {
+          rejectUnauthorized: false,
+        },
+        enableReadyCheck: false,
+        lazyConnect: true,
       });
 
       valkeyClient.on('connect', () => {
