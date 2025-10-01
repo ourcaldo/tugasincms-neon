@@ -3,9 +3,9 @@ import { Client, Storage, ID } from 'appwrite';
 // Check if Appwrite is configured
 const isAppwriteConfigured = () => {
   return !!(
-    import.meta.env.VITE_APPWRITE_ENDPOINT &&
-    import.meta.env.VITE_APPWRITE_PROJECT_ID &&
-    import.meta.env.VITE_BUCKET_ID
+    process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT &&
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID &&
+    process.env.NEXT_PUBLIC_BUCKET_ID
   );
 };
 
@@ -15,8 +15,8 @@ let storage: Storage | null = null;
 
 if (isAppwriteConfigured()) {
   client = new Client()
-    .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT!)
-    .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID!);
+    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
   
   storage = new Storage(client);
 }
@@ -32,12 +32,12 @@ export const uploadImage = async (file: File): Promise<string> => {
   try {
     const fileId = ID.unique();
     const response = await storage.createFile({
-      bucketId: import.meta.env.VITE_BUCKET_ID!,
+      bucketId: process.env.NEXT_PUBLIC_BUCKET_ID!,
       fileId: fileId,
       file: file
     });
     
-    return `${import.meta.env.VITE_APPWRITE_ENDPOINT}/storage/buckets/${import.meta.env.VITE_BUCKET_ID}/files/${response.$id}/view?project=${import.meta.env.VITE_APPWRITE_PROJECT_ID}`;
+    return `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${process.env.NEXT_PUBLIC_BUCKET_ID}/files/${response.$id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
   } catch (error) {
     console.error('Error uploading image:', error);
     throw new Error('Failed to upload image');
@@ -53,7 +53,7 @@ export const deleteImage = async (fileId: string): Promise<void> => {
 
   try {
     await storage.deleteFile({
-      bucketId: import.meta.env.VITE_BUCKET_ID!,
+      bucketId: process.env.NEXT_PUBLIC_BUCKET_ID!,
       fileId: fileId
     });
   } catch (error) {
