@@ -74,24 +74,28 @@ app/
 ├── layout.tsx         # Root layout
 └── page.tsx           # Home page
 
-src/
-├── components/   # React components
-│   ├── figma/    # Figma-specific components
-│   ├── layout/   # Layout components
-│   ├── posts/    # Post management components
-│   ├── settings/ # Settings components
-│   └── ui/       # Reusable UI components
-├── hooks/        # Custom React hooks
-├── lib/          # Utilities (Supabase, cache, API client)
-├── styles/       # Global styles
-└── types/        # TypeScript type definitions
+components/       # React components
+├── figma/        # Figma-specific components
+├── layout/       # Layout components
+├── posts/        # Post management components
+├── settings/     # Settings components
+└── ui/           # Reusable UI components
+
+lib/              # Utilities (Supabase, cache, API client)
+├── db/           # Database connection
+├── supabase.ts   # Supabase client
+├── cache.ts      # Redis cache
+└── api-client.ts # API client
+
+hooks/            # Custom React hooks
+styles/           # Global styles
+types/            # TypeScript type definitions
 ```
 
 ## Recent Changes
-- October 1, 2025: Migrated from Vite to Next.js
-  - Converted to Next.js 15 with App Router
-  - Migrated Express API routes to Next.js API routes
-  - Single port architecture on port 5000
-  - Removed Vite, Express, and react-router-dom
-  - Updated authentication to use @clerk/nextjs
-  - Added .next to .gitignore
+- October 1, 2025: Project cleanup and restructuring
+  - Removed Drizzle ORM (using Supabase directly)
+  - Migrated from Vite src/ structure to proper Next.js structure
+  - Moved components/, lib/, hooks/, types/, styles/ to root level
+  - Updated all imports from @/src/ to @/ throughout codebase
+  - Follows Next.js App Router conventions
