@@ -3,7 +3,7 @@ import { supabase } from '../db.js';
 
 export const categoriesRouter = Router();
 
-categoriesRouter.get('/', async (req, res) => {
+categoriesRouter.get('/', async (_req, res) => {
   try {
     const { data: categories, error } = await supabase
       .from('categories')

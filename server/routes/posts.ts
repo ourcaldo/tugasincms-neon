@@ -4,7 +4,7 @@ import { deleteCachedData } from '../cache.js';
 
 export const postsRouter = Router();
 
-postsRouter.get('/', async (req, res) => {
+postsRouter.get('/', async (_req, res) => {
   try {
     const { data: posts, error } = await supabase
       .from('posts')

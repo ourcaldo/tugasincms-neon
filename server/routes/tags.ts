@@ -3,7 +3,7 @@ import { supabase } from '../db.js';
 
 export const tagsRouter = Router();
 
-tagsRouter.get('/', async (req, res) => {
+tagsRouter.get('/', async (_req, res) => {
   try {
     const { data: tags, error } = await supabase
       .from('tags')

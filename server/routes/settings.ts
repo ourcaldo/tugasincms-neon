@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { supabase } from '../db.js';
-import { nanoid } from 'nanoid';
 
 export const settingsRouter = Router();
 
@@ -115,6 +114,7 @@ settingsRouter.get('/tokens/:userId', async (req, res) => {
 settingsRouter.post('/tokens', async (req, res) => {
   try {
     const { name, userId } = req.body;
+    const { nanoid } = await import('nanoid');
     const token = `cms_${nanoid(32)}`;
     
     const { data: newToken, error } = await supabase
