@@ -128,7 +128,7 @@ Content-Type: application/json
     "focusKeyword": "main keyword"
   },
   "categories": "Technology, Tutorial",
-  "tags": ["tag-uuid-1", "tag-uuid-2"]
+  "tags": "AI, Machine Learning"
 }
 ```
 
@@ -148,7 +148,7 @@ Content-Type: application/json
   - `metaDescription`: Meta description for search engines
   - `focusKeyword`: Primary keyword for SEO
 - `categories` (optional): Comma-separated string of category names (e.g., `"Technology, Tutorial"` or `"Kursus dan Pelatihan, AI, Edukasi"`). If a category doesn't exist, it will be created automatically
-- `tags` (optional): Array of tag UUIDs to associate with the post
+- `tags` (optional): Comma-separated string of tag names (e.g., `"AI, Machine Learning, Tutorial"`). If a tag doesn't exist, it will be created automatically
 
 **Status Behavior:**
 - If you don't specify `status` and `publishDate` is in the future, status will be set to `"scheduled"`
@@ -182,7 +182,7 @@ curl -X POST http://localhost:5000/api/public/posts \
     "excerpt": "Brief summary",
     "status": "published",
     "categories": "Kursus dan Pelatihan, Technology",
-    "tags": ["tag-uuid-1"]
+    "tags": "AI, Tutorial"
   }'
 ```
 
@@ -233,7 +233,7 @@ const response = await fetch('http://localhost:5000/api/public/posts', {
       focusKeyword: 'keyword'
     },
     categories: 'Kursus dan Pelatihan, AI, Edukasi',
-    tags: ['tag-uuid-1', 'tag-uuid-2']
+    tags: 'Machine Learning, Tutorial, Beginner'
   })
 });
 

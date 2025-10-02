@@ -155,12 +155,42 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    if (Array.isArray(tags) && tags.length > 0) {
-      const tagInserts = tags.map((tagId: string) => ({
-        post_id: newPost.id,
-        tag_id: tagId,
-      }))
-      await supabase.from('post_tags').insert(tagInserts)
+    if (tags && typeof tags === 'string' && tags.trim()) {
+      const tagNames = tags.split(',').map((name: string) => name.trim()).filter(Boolean)
+      const tagIds = []
+      
+      for (const tagName of tagNames) {
+        const { data: existingTag } = await supabase
+          .from('tags')
+          .select('id')
+          .eq('name', tagName)
+          .single()
+        
+        if (existingTag) {
+          tagIds.push(existingTag.id)
+        } else {
+          const { data: newTag } = await supabase
+            .from('tags')
+            .insert({
+              name: tagName,
+              slug: tagName.toLowerCase().replace(/\s+/g, '-'),
+            })
+            .select('id')
+            .single()
+          
+          if (newTag) {
+            tagIds.push(newTag.id)
+          }
+        }
+      }
+      
+      if (tagIds.length > 0) {
+        const tagInserts = tagIds.map((tagId: string) => ({
+          post_id: newPost.id,
+          tag_id: tagId,
+        }))
+        await supabase.from('post_tags').insert(tagInserts)
+      }
     }
     
     await deleteCachedData('api:public:posts:*')
