@@ -82,13 +82,13 @@ Authorization: Bearer YOUR_API_TOKEN
 
 **Example using cURL:**
 ```bash
-curl -X GET http://localhost:3001/api/public/posts \
+curl -X GET http://localhost:5000/api/public/posts \
   -H "Authorization: Bearer YOUR_API_TOKEN"
 ```
 
 **Example using JavaScript:**
 ```javascript
-const response = await fetch('http://localhost:3001/api/public/posts', {
+const response = await fetch('http://localhost:5000/api/public/posts', {
   headers: {
     'Authorization': 'Bearer YOUR_API_TOKEN'
   }
@@ -121,11 +121,14 @@ Content-Type: application/json
   "excerpt": "Brief summary of the post...",
   "featuredImage": "https://example.com/image.jpg",
   "publishDate": "2025-01-01T00:00:00.000Z",
-  "seoTitle": "SEO optimized title",
-  "metaDescription": "SEO meta description",
-  "focusKeyword": "main keyword",
-  "categories": ["Category Name", "Another Category"],
-  "tagIds": ["tag-uuid-1", "tag-uuid-2"]
+  "status": "published",
+  "seo": {
+    "title": "SEO optimized title",
+    "metaDescription": "SEO meta description",
+    "focusKeyword": "main keyword"
+  },
+  "categories": ["category-uuid-1", "category-uuid-2"],
+  "tags": ["tag-uuid-1", "tag-uuid-2"]
 }
 ```
 
@@ -135,12 +138,23 @@ Content-Type: application/json
 - `content` (required): Full post content
 - `excerpt` (optional): Short summary
 - `featuredImage` (optional): URL to featured image
-- `publishDate` (optional): Publish date (defaults to now)
-- `seoTitle` (optional): SEO title (defaults to title)
-- `metaDescription` (optional): SEO description (defaults to excerpt)
-- `focusKeyword` (optional): Focus keyword for SEO
-- `categories` (optional): Array of category names (will be created if they don't exist)
-- `tagIds` (optional): Array of existing tag UUIDs
+- `publishDate` (optional): Publish date in ISO format (defaults to current date/time)
+- `status` (optional): Post status - one of:
+  - `"published"` - Post is live and visible
+  - `"draft"` - Post is saved but not published (default if not specified and publishDate is not in future)
+  - `"scheduled"` - Post will be published automatically (set automatically if publishDate is in the future)
+- `seo` (optional): SEO settings object containing:
+  - `title`: SEO title override
+  - `metaDescription`: Meta description for search engines
+  - `focusKeyword`: Primary keyword for SEO
+- `categories` (optional): Array of category UUIDs to associate with the post
+- `tags` (optional): Array of tag UUIDs to associate with the post
+
+**Status Behavior:**
+- If you don't specify `status` and `publishDate` is in the future, status will be set to `"scheduled"`
+- If you don't specify `status` and `publishDate` is current or past, status will be set to `"draft"`
+- If you explicitly set `status: "published"`, the post will be immediately visible regardless of publishDate
+- If you set `status: "scheduled"` with a past publishDate, it will automatically be converted to `"published"`
 
 **Response:**
 ```json
@@ -156,9 +170,9 @@ Content-Type: application/json
 }
 ```
 
-**Example using cURL:**
+**Example 1 - Create a Published Post:**
 ```bash
-curl -X POST http://localhost:3001/api/public/posts \
+curl -X POST http://localhost:5000/api/public/posts \
   -H "Authorization: Bearer YOUR_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -166,13 +180,42 @@ curl -X POST http://localhost:3001/api/public/posts \
     "slug": "my-new-post",
     "content": "Post content goes here...",
     "excerpt": "Brief summary",
-    "categories": ["Technology", "Tutorial"]
+    "status": "published",
+    "categories": ["category-uuid-1", "category-uuid-2"],
+    "tags": ["tag-uuid-1"]
   }'
 ```
 
-**Example using JavaScript:**
+**Example 2 - Create a Draft:**
+```bash
+curl -X POST http://localhost:5000/api/public/posts \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Draft Post",
+    "slug": "draft-post",
+    "content": "This is a draft...",
+    "status": "draft"
+  }'
+```
+
+**Example 3 - Schedule a Post for Future:**
+```bash
+curl -X POST http://localhost:5000/api/public/posts \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Scheduled Post",
+    "slug": "scheduled-post",
+    "content": "This will be published later...",
+    "publishDate": "2025-12-31T00:00:00.000Z",
+    "status": "scheduled"
+  }'
+```
+
+**JavaScript Example:**
 ```javascript
-const response = await fetch('http://localhost:3001/api/public/posts', {
+const response = await fetch('http://localhost:5000/api/public/posts', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_TOKEN',
@@ -183,7 +226,14 @@ const response = await fetch('http://localhost:3001/api/public/posts', {
     slug: 'my-new-post',
     content: 'Post content goes here...',
     excerpt: 'Brief summary',
-    categories: ['Technology', 'Tutorial']
+    status: 'published',
+    seo: {
+      title: 'SEO Title',
+      metaDescription: 'SEO description',
+      focusKeyword: 'keyword'
+    },
+    categories: ['category-uuid-1'],
+    tags: ['tag-uuid-1', 'tag-uuid-2']
   })
 });
 

@@ -87,6 +87,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = body
     
+    const postPublishDate = publishDate || new Date().toISOString()
+    const isFutureDate = new Date(postPublishDate) > new Date()
+    
+    let postStatus = status
+    if (!postStatus) {
+      postStatus = isFutureDate ? 'scheduled' : 'draft'
+    } else if (postStatus === 'scheduled' && !isFutureDate) {
+      postStatus = 'published'
+    }
+    
     const { data: newPost, error } = await supabase
       .from('posts')
       .insert({
@@ -95,8 +105,8 @@ export async function POST(request: NextRequest) {
         excerpt,
         slug,
         featured_image: featuredImage,
-        publish_date: publishDate || new Date().toISOString(),
-        status: status || 'draft',
+        publish_date: postPublishDate,
+        status: postStatus,
         author_id: validToken.user_id,
         seo_title: seo?.title,
         meta_description: seo?.metaDescription,
