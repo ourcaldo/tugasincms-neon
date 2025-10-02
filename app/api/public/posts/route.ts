@@ -118,11 +118,40 @@ export async function POST(request: NextRequest) {
     if (error) throw error
     
     if (Array.isArray(categories) && categories.length > 0) {
-      const categoryInserts = categories.map((catId: string) => ({
-        post_id: newPost.id,
-        category_id: catId,
-      }))
-      await supabase.from('post_categories').insert(categoryInserts)
+      const categoryIds = []
+      
+      for (const categoryName of categories) {
+        const { data: existingCategory } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('name', categoryName)
+          .single()
+        
+        if (existingCategory) {
+          categoryIds.push(existingCategory.id)
+        } else {
+          const { data: newCategory } = await supabase
+            .from('categories')
+            .insert({
+              name: categoryName,
+              slug: categoryName.toLowerCase().replace(/\s+/g, '-'),
+            })
+            .select('id')
+            .single()
+          
+          if (newCategory) {
+            categoryIds.push(newCategory.id)
+          }
+        }
+      }
+      
+      if (categoryIds.length > 0) {
+        const categoryInserts = categoryIds.map((catId: string) => ({
+          post_id: newPost.id,
+          category_id: catId,
+        }))
+        await supabase.from('post_categories').insert(categoryInserts)
+      }
     }
     
     if (Array.isArray(tags) && tags.length > 0) {

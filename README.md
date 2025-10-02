@@ -127,7 +127,7 @@ Content-Type: application/json
     "metaDescription": "SEO meta description",
     "focusKeyword": "main keyword"
   },
-  "categories": ["category-uuid-1", "category-uuid-2"],
+  "categories": ["Technology", "Tutorial"],
   "tags": ["tag-uuid-1", "tag-uuid-2"]
 }
 ```
@@ -147,7 +147,7 @@ Content-Type: application/json
   - `title`: SEO title override
   - `metaDescription`: Meta description for search engines
   - `focusKeyword`: Primary keyword for SEO
-- `categories` (optional): Array of category UUIDs to associate with the post
+- `categories` (optional): Array of category names (e.g., `["Technology", "Tutorial"]`). If a category doesn't exist, it will be created automatically
 - `tags` (optional): Array of tag UUIDs to associate with the post
 
 **Status Behavior:**
@@ -181,7 +181,7 @@ curl -X POST http://localhost:5000/api/public/posts \
     "content": "Post content goes here...",
     "excerpt": "Brief summary",
     "status": "published",
-    "categories": ["category-uuid-1", "category-uuid-2"],
+    "categories": ["Kursus dan Pelatihan", "Technology"],
     "tags": ["tag-uuid-1"]
   }'
 ```
@@ -232,7 +232,7 @@ const response = await fetch('http://localhost:5000/api/public/posts', {
       metaDescription: 'SEO description',
       focusKeyword: 'keyword'
     },
-    categories: ['category-uuid-1'],
+    categories: ['Kursus dan Pelatihan', 'Technology'],
     tags: ['tag-uuid-1', 'tag-uuid-2']
   })
 });
