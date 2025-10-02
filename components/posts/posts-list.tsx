@@ -25,6 +25,8 @@ interface PostsListProps {
 export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }: PostsListProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [filters, setFilters] = useState<PostFilters>({
     search: '',
     status: undefined,
@@ -74,6 +76,15 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
     return matchesSearch && matchesStatus && matchesCategory;
   });
+
+  const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   const getStatusBadge = (status: Post['status']) => {
     const variants = {
@@ -184,12 +195,11 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                 <TableHead>Status</TableHead>
                 <TableHead>Categories</TableHead>
                 <TableHead>Publish Date</TableHead>
-                <TableHead>Modified</TableHead>
                 <TableHead className="w-16"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <TableRow key={post.id}>
                   <TableCell>
                     {post.featuredImage ? (
@@ -247,11 +257,6 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-muted-foreground">
-                      {post.updatedAt ? format(new Date(post.updatedAt), 'MMM dd, yyyy') : 'N/A'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
                     <DropdownMenu>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -303,6 +308,55 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                   <p>Start creating content for your blog</p>
                 </TooltipContent>
               </Tooltip>
+            </div>
+          )}
+
+          {filteredPosts.length > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredPosts.length)} of {filteredPosts.length} posts
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      return page === 1 || 
+                             page === totalPages || 
+                             (page >= currentPage - 1 && page <= currentPage + 1);
+                    })
+                    .map((page, index, array) => (
+                      <div key={page} className="flex items-center">
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      </div>
+                    ))
+                  }
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
