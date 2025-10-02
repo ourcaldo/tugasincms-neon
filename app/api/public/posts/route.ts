@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
-    if (categories && categories.length > 0) {
+    if (Array.isArray(categories) && categories.length > 0) {
       const categoryInserts = categories.map((catId: string) => ({
         post_id: newPost.id,
         category_id: catId,
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('post_categories').insert(categoryInserts)
     }
     
-    if (tags && tags.length > 0) {
+    if (Array.isArray(tags) && tags.length > 0) {
       const tagInserts = tags.map((tagId: string) => ({
         post_id: newPost.id,
         tag_id: tagId,
