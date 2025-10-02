@@ -117,10 +117,11 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
-    if (Array.isArray(categories) && categories.length > 0) {
+    if (categories && typeof categories === 'string' && categories.trim()) {
+      const categoryNames = categories.split(',').map((name: string) => name.trim()).filter(Boolean)
       const categoryIds = []
       
-      for (const categoryName of categories) {
+      for (const categoryName of categoryNames) {
         const { data: existingCategory } = await supabase
           .from('categories')
           .select('id')
