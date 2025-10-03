@@ -128,11 +128,70 @@ Authorization: Bearer <your-api-token>
 - Single post by slug: `api:public:posts:slug:{slug}`
 - TTL: 3600 seconds (1 hour)
 
+## Security & Performance Features
+
+### Authentication & Authorization
+- **Clerk Integration**: All internal API endpoints require Clerk authentication
+- **Ownership Validation**: Users can only edit/delete their own resources:
+  - Posts verified via `author_id` matching
+  - Profiles protected via `userId` matching
+  - API tokens restricted to owner only
+- **Rate Limiting**: Public API limited to 100 requests per 15 minutes per IP
+- **CORS Configuration**: Proper CORS headers for public API endpoints
+
+### Input Validation
+All POST/PUT endpoints validate input using Zod schemas:
+- `postSchema` / `updatePostSchema` - Post creation and updates
+- `categorySchema` - Category management
+- `tagSchema` - Tag management
+- `userProfileSchema` / `updateUserProfileSchema` - Profile management
+- `tokenSchema` - API token generation
+- `publicPostSchema` - Public API post creation
+
+### Caching Strategy
+Redis-based caching with intelligent TTLs:
+- **Public API**: 1 hour (3600s) for published posts
+- **Internal Posts**: 5 minutes (300s) per user
+- **Categories/Tags**: 10 minutes (600s)
+- **Cache Invalidation**: Automatic clearing when data changes
+  - Post changes invalidate post and public API caches
+  - Category/tag updates invalidate related post caches
+
+### API Response Format
+Standardized response structure across all endpoints:
+```json
+{
+  "success": true/false,
+  "data": {...},
+  "error": "error message",
+  "cached": true/false
+}
+```
+
+### Utility Files (lib/)
+- `auth.ts` - Clerk authentication helpers
+- `validation.ts` - Zod validation schemas
+- `response.ts` - Standardized API response formatting
+- `post-mapper.ts` - Database to API response mapping
+- `rate-limit.ts` - Rate limiting implementation
+- `cors.ts` - CORS configuration
+- `cache.ts` - Redis caching utilities
+
 ## Recent Changes
+- October 3, 2025: Security & Performance Enhancements
+  - Added Clerk authentication to all internal API endpoints
+  - Implemented Zod validation for all POST/PUT requests
+  - Added ownership checks - users can only modify their own data
+  - Implemented Redis caching for internal API endpoints (5min posts, 10min categories/tags)
+  - Added rate limiting (100 req/15min) and CORS to public API
+  - Improved cache invalidation - category/tag updates clear related caches
+  - Standardized response format across all endpoints
+  - Created shared utility files for auth, validation, and response formatting
+
 - October 3, 2025: Enhanced public API
   - Added `/api/public/posts/[id]` endpoint for fetching single posts
   - Supports lookup by both UUID and slug
-  - Implemented Redis caching with intelligent key strategy
+  - Implemented Redis caching with intelligent key strategy (1 hour TTL)
   - Maintains same authentication and response format as list endpoint
 
 - October 1, 2025: Project cleanup and restructuring
