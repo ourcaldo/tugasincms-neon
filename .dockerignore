@@ -4,7 +4,6 @@ npm-debug.log
 .gitignore
 .env
 .env.local
-.env.example
 README.md
 .vscode
 .idea
