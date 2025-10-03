@@ -42,7 +42,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     try {
       setLoading(true);
       const data = await apiClient.get<Post[]>('/posts');
-      setPosts(data);
+      setPosts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching posts:', error);
       toast.error('Failed to fetch posts');
@@ -64,7 +64,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     }
   };
 
-  const filteredPosts = posts.filter(post => {
+  const filteredPosts = Array.isArray(posts) ? posts.filter(post => {
     const matchesSearch = !filters.search || 
       post.title.toLowerCase().includes(filters.search.toLowerCase()) ||
       post.excerpt?.toLowerCase().includes(filters.search.toLowerCase());
@@ -75,7 +75,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       post.categories.some(cat => cat.id === filters.category);
 
     return matchesSearch && matchesStatus && matchesCategory;
-  });
+  }) : [];
 
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
