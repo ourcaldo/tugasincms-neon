@@ -180,7 +180,6 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16"></TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Categories</TableHead>
@@ -191,19 +190,6 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
             <TableBody>
               {paginatedPosts.map((post) => (
                 <TableRow key={post.id}>
-                  <TableCell>
-                    {post.featuredImage ? (
-                      <ImageWithFallback
-                        src={post.featuredImage}
-                        alt={post.title}
-                        className="w-12 h-12 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                        <div className="w-6 h-6 bg-muted-foreground/20 rounded"></div>
-                      </div>
-                    )}
-                  </TableCell>
                   <TableCell>
                     <div>
                       <p className="font-medium">{post.title}</p>
