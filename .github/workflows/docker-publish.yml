@@ -48,22 +48,3 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        build-args: |
-          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
-          NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-          NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-          NEXT_PUBLIC_CLERK_SIGN_IN_FORCE_REDIRECT_URL=/posts
-          NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL=/posts
-          NEXT_PUBLIC_APPWRITE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_ID }}
-          NEXT_PUBLIC_APPWRITE_PROJECT_NAME=${{ secrets.NEXT_PUBLIC_APPWRITE_PROJECT_NAME }}
-          NEXT_PUBLIC_APPWRITE_ENDPOINT=${{ secrets.NEXT_PUBLIC_APPWRITE_ENDPOINT }}
-          NEXT_PUBLIC_BUCKET_NAME=${{ secrets.NEXT_PUBLIC_BUCKET_NAME }}
-          NEXT_PUBLIC_BUCKET_ID=${{ secrets.NEXT_PUBLIC_BUCKET_ID }}
-          REDIS_HOST=${{ secrets.REDIS_HOST }}
-          REDIS_PORT=${{ secrets.REDIS_PORT }}
-          REDIS_USER=${{ secrets.REDIS_USER }}
-          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          REDIS_URL=${{ secrets.REDIS_URL }}
