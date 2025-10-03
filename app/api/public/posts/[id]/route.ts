@@ -87,7 +87,7 @@ export async function GET(
       tags: (post.tags || []).map((pt: any) => pt.tag).filter(Boolean),
     }
     
-    await setCachedData(cacheKey, postWithRelations, 300)
+    await setCachedData(cacheKey, postWithRelations, 3600)
     
     return NextResponse.json({ success: true, data: postWithRelations, cached: false })
   } catch (error) {

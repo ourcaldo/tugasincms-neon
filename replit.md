@@ -106,14 +106,14 @@ Authorization: Bearer <your-api-token>
 
 #### Get All Published Posts
 - **Endpoint**: `GET /api/public/posts`
-- **Cache**: 300 seconds (5 minutes)
+- **Cache**: 3600 seconds (1 hour)
 - **Response**: Returns all published posts with categories and tags
 
 #### Get Single Published Post
 - **Endpoint**: `GET /api/public/posts/[id]`
 - **Parameters**: 
   - `id` - Post ID (UUID) or slug
-- **Cache**: 300 seconds (5 minutes)
+- **Cache**: 3600 seconds (1 hour)
 - **Response**: Returns a single published post with categories and tags
 - **Features**:
   - Supports lookup by UUID or slug
@@ -126,7 +126,7 @@ Authorization: Bearer <your-api-token>
 - All posts list: `api:public:posts:all`
 - Single post by ID: `api:public:posts:id:{uuid}`
 - Single post by slug: `api:public:posts:slug:{slug}`
-- TTL: 300 seconds (5 minutes) for optimal balance between freshness and performance
+- TTL: 3600 seconds (1 hour)
 
 ## Recent Changes
 - October 3, 2025: Enhanced public API
