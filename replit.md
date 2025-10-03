@@ -92,7 +92,49 @@ styles/           # Global styles
 types/            # TypeScript type definitions
 ```
 
+## Public API Endpoints
+
+The application provides public API endpoints with token-based authentication and Redis caching for optimal performance.
+
+### Authentication
+All public API endpoints require an API token in the Authorization header:
+```
+Authorization: Bearer <your-api-token>
+```
+
+### Available Endpoints
+
+#### Get All Published Posts
+- **Endpoint**: `GET /api/public/posts`
+- **Cache**: 300 seconds (5 minutes)
+- **Response**: Returns all published posts with categories and tags
+
+#### Get Single Published Post
+- **Endpoint**: `GET /api/public/posts/[id]`
+- **Parameters**: 
+  - `id` - Post ID (UUID) or slug
+- **Cache**: 300 seconds (5 minutes)
+- **Response**: Returns a single published post with categories and tags
+- **Features**:
+  - Supports lookup by UUID or slug
+  - Only returns published posts
+  - Includes full post data with related categories and tags
+  - Redis caching with separate keys for ID and slug lookups
+
+### Redis Caching Strategy
+- Cache keys follow pattern: `api:public:posts:*`
+- All posts list: `api:public:posts:all`
+- Single post by ID: `api:public:posts:id:{uuid}`
+- Single post by slug: `api:public:posts:slug:{slug}`
+- TTL: 300 seconds (5 minutes) for optimal balance between freshness and performance
+
 ## Recent Changes
+- October 3, 2025: Enhanced public API
+  - Added `/api/public/posts/[id]` endpoint for fetching single posts
+  - Supports lookup by both UUID and slug
+  - Implemented Redis caching with intelligent key strategy
+  - Maintains same authentication and response format as list endpoint
+
 - October 1, 2025: Project cleanup and restructuring
   - Removed Drizzle ORM (using Supabase directly)
   - Migrated from Vite src/ structure to proper Next.js structure
