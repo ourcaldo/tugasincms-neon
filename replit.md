@@ -65,11 +65,15 @@ app/
 │   ├── settings/      # Settings pages
 │   └── layout.tsx     # Dashboard layout
 ├── api/               # API routes
-│   ├── posts/         # Posts API
-│   ├── categories/    # Categories API
-│   ├── tags/          # Tags API
-│   ├── settings/      # Settings API
-│   ├── public/        # Public API
+│   ├── posts/         # Posts API (internal)
+│   ├── categories/    # Categories API (internal)
+│   ├── tags/          # Tags API (internal)
+│   ├── settings/      # Settings API (internal)
+│   ├── public/        # Legacy public API
+│   ├── v1/            # Public API v1
+│   │   ├── posts/     # Posts endpoints
+│   │   ├── categories/# Categories endpoints
+│   │   └── tags/      # Tags endpoints
 │   └── health/        # Health check
 ├── layout.tsx         # Root layout
 └── page.tsx           # Home page
@@ -94,7 +98,7 @@ types/            # TypeScript type definitions
 
 ## Public API Endpoints
 
-The application provides public API endpoints with token-based authentication and Redis caching for optimal performance.
+The application provides two versions of public API endpoints with token-based authentication and Redis caching for optimal performance.
 
 ### Authentication
 All public API endpoints require an API token in the Authorization header:
@@ -102,7 +106,37 @@ All public API endpoints require an API token in the Authorization header:
 Authorization: Bearer <your-api-token>
 ```
 
-### Available Endpoints
+### API v1 (Recommended)
+
+The v1 API includes pagination, filtering, and new endpoints for categories and tags. See `API_DOCUMENTATION.md` for full documentation.
+
+#### Posts Endpoints
+- **GET /api/v1/posts** - Get all published posts with pagination and filtering
+  - Query params: `page`, `limit`, `search`, `category`, `tag`, `status`
+  - Returns: Posts array with pagination metadata and applied filters
+- **GET /api/v1/posts/[id]** - Get single post by ID or slug
+  - Supports UUID or slug lookup
+  - Returns: Single post with categories and tags
+
+#### Categories Endpoints
+- **GET /api/v1/categories** - Get all categories with post counts
+  - Query params: `page`, `limit`, `search`
+  - Returns: Categories array with pagination metadata
+- **GET /api/v1/categories/[id]** - Get category with its posts
+  - Supports UUID or slug lookup
+  - Query params: `page`, `limit` (for posts pagination)
+  - Returns: Category details with paginated posts
+
+#### Tags Endpoints
+- **GET /api/v1/tags** - Get all tags with post counts
+  - Query params: `page`, `limit`, `search`
+  - Returns: Tags array with pagination metadata
+- **GET /api/v1/tags/[id]** - Get tag with its posts
+  - Supports UUID or slug lookup
+  - Query params: `page`, `limit` (for posts pagination)
+  - Returns: Tag details with paginated posts
+
+### Legacy API (/api/public)
 
 #### Get All Published Posts
 - **Endpoint**: `GET /api/public/posts`
@@ -115,18 +149,12 @@ Authorization: Bearer <your-api-token>
   - `id` - Post ID (UUID) or slug
 - **Cache**: 3600 seconds (1 hour)
 - **Response**: Returns a single published post with categories and tags
-- **Features**:
-  - Supports lookup by UUID or slug
-  - Only returns published posts
-  - Includes full post data with related categories and tags
-  - Redis caching with separate keys for ID and slug lookups
 
 ### Redis Caching Strategy
-- Cache keys follow pattern: `api:public:posts:*`
-- All posts list: `api:public:posts:all`
-- Single post by ID: `api:public:posts:id:{uuid}`
-- Single post by slug: `api:public:posts:slug:{slug}`
-- TTL: 3600 seconds (1 hour)
+- **v1 API**: Cache keys follow pattern: `api:v1:*` (1 hour TTL)
+- **Legacy API**: Cache keys follow pattern: `api:public:posts:*` (1 hour TTL)
+- All responses are cached for 3600 seconds
+- Cache automatically invalidated when content is updated
 
 ## Security & Performance Features
 
@@ -178,6 +206,17 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 3, 2025: Public API v1 Enhancements
+  - Added API versioning with `/api/v1` endpoints
+  - Implemented pagination for all v1 endpoints (page, limit parameters)
+  - Added filtering capabilities (search, category, tag, status filters)
+  - Created `/api/v1/categories` and `/api/v1/categories/[id]` endpoints
+  - Created `/api/v1/tags` and `/api/v1/tags/[id]` endpoints
+  - Enhanced posts endpoint with comprehensive filtering options
+  - All endpoints support lookup by UUID or slug
+  - Maintained backward compatibility with legacy `/api/public` endpoints
+  - Created comprehensive API documentation in `API_DOCUMENTATION.md`
+
 - October 3, 2025: Security & Performance Enhancements
   - Added Clerk authentication to all internal API endpoints
   - Implemented Zod validation for all POST/PUT requests
