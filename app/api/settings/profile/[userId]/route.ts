@@ -1,12 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { updateUserProfileSchema } from '@/lib/validation'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const currentUserId = await getUserIdFromClerk()
+    if (!currentUserId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
     const { userId } = await params
+    
+    if (currentUserId !== userId) {
+      return forbiddenResponse('You can only view your own profile')
+    }
+    
     console.log('🔍 Fetching user profile:', userId)
     
     const { data: user, error } = await supabase
@@ -18,24 +31,21 @@ export async function GET(
     if (error) {
       if (error.code === 'PGRST116') {
         console.log('❌ User not found:', userId)
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+        return notFoundResponse('User not found')
       }
       throw error
     }
     
     if (!user) {
       console.log('❌ User not found:', userId)
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      return notFoundResponse('User not found')
     }
     
     console.log('✅ User profile found:', user.email)
-    return NextResponse.json(user)
+    return successResponse(user, false)
   } catch (error: any) {
     console.error('❌ Error fetching profile:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch profile',
-      details: error.message 
-    }, { status: 500 })
+    return errorResponse('Failed to fetch profile')
   }
 }
 
@@ -44,8 +54,25 @@ export async function PUT(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    const currentUserId = await getUserIdFromClerk()
+    if (!currentUserId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
     const { userId } = await params
-    const { name, bio, avatar } = await request.json()
+    
+    if (currentUserId !== userId) {
+      return forbiddenResponse('You can only update your own profile')
+    }
+    
+    const body = await request.json()
+    
+    const validation = updateUserProfileSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { name, bio, avatar } = validation.data
     
     const { data: updatedUser, error } = await supabase
       .from('users')
@@ -61,9 +88,9 @@ export async function PUT(
     
     if (error) throw error
     
-    return NextResponse.json(updatedUser)
+    return successResponse(updatedUser, false)
   } catch (error) {
     console.error('Error updating profile:', error)
-    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    return errorResponse('Failed to update profile')
   }
 }

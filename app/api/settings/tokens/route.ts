@@ -1,10 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { tokenSchema } from '@/lib/validation'
 import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, name, expiresAt } = await request.json()
+    const currentUserId = await getUserIdFromClerk()
+    if (!currentUserId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const body = await request.json()
+    
+    const validation = tokenSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { userId, name, expiresAt } = validation.data
     
     const token = nanoid(32)
     
@@ -21,9 +36,9 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
-    return NextResponse.json(newToken, { status: 201 })
+    return successResponse(newToken, false, 201)
   } catch (error) {
     console.error('Error creating token:', error)
-    return NextResponse.json({ error: 'Failed to create token' }, { status: 500 })
+    return errorResponse('Failed to create token')
   }
 }

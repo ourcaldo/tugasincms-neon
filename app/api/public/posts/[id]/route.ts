@@ -1,46 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { verifyApiToken, extractBearerToken } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/lib/response'
+import { mapPostFromDB } from '@/lib/post-mapper'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
-const verifyApiToken = async (token: string) => {
-  if (!token) return null
-  
-  try {
-    const { data: apiToken, error } = await supabase
-      .from('api_tokens')
-      .select('*')
-      .eq('token', token)
-      .single()
-    
-    if (error || !apiToken) return null
-    
-    if (apiToken.expires_at && new Date(apiToken.expires_at) < new Date()) {
-      return null
-    }
-    
-    await supabase
-      .from('api_tokens')
-      .update({ last_used_at: new Date().toISOString() })
-      .eq('id', apiToken.id)
-    
-    return apiToken
-  } catch (error) {
-    console.error('Error verifying token:', error)
-    return null
-  }
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return handleCorsPreflightRequest(origin)
 }
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const origin = request.headers.get('origin')
+  
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    const token = extractBearerToken(request)
     
     const validToken = await verifyApiToken(token || '')
     
     if (!validToken) {
-      return NextResponse.json({ success: false, error: 'Invalid or expired API token' }, { status: 401 })
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
     }
     
     const { id } = await params
@@ -50,7 +42,7 @@ export async function GET(
     
     const cachedPost = await getCachedData(cacheKey)
     if (cachedPost) {
-      return NextResponse.json({ success: true, data: cachedPost, cached: true })
+      return setCorsHeaders(successResponse(cachedPost, true), origin)
     }
     
     let query = supabase
@@ -72,26 +64,22 @@ export async function GET(
     
     if (error) {
       if (error.code === 'PGRST116') {
-        return NextResponse.json({ success: false, error: 'Post not found' }, { status: 404 })
+        return setCorsHeaders(notFoundResponse('Post not found'), origin)
       }
       throw error
     }
     
     if (!post) {
-      return NextResponse.json({ success: false, error: 'Post not found' }, { status: 404 })
+      return setCorsHeaders(notFoundResponse('Post not found'), origin)
     }
     
-    const postWithRelations = {
-      ...post,
-      categories: (post.categories || []).map((pc: any) => pc.category).filter(Boolean),
-      tags: (post.tags || []).map((pt: any) => pt.tag).filter(Boolean),
-    }
+    const postWithRelations = mapPostFromDB(post)
     
     await setCachedData(cacheKey, postWithRelations, 3600)
     
-    return NextResponse.json({ success: true, data: postWithRelations, cached: false })
+    return setCorsHeaders(successResponse(postWithRelations, false), origin)
   } catch (error) {
     console.error('Error fetching post:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch post' }, { status: 500 })
+    return setCorsHeaders(errorResponse('Failed to fetch post'), origin)
   }
 }

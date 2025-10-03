@@ -1,9 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { userProfileSchema } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
-    const { id, email, name, avatar } = await request.json()
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const body = await request.json()
+    
+    const validation = userProfileSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { id, email, name, avatar } = validation.data
     
     console.log('📝 Upserting user profile:', { id, email, name })
     
@@ -26,12 +41,9 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('✅ User profile upserted successfully:', user)
-    return NextResponse.json(user, { status: 200 })
+    return successResponse(user, false, 200)
   } catch (error: any) {
     console.error('❌ Failed to upsert profile:', error)
-    return NextResponse.json({ 
-      error: 'Failed to create profile',
-      details: error.message 
-    }, { status: 500 })
+    return errorResponse('Failed to create profile')
   }
 }

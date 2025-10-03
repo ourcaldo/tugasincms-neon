@@ -1,8 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { categorySchema } from '@/lib/validation'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const cacheKey = 'api:categories:all'
+    
+    const cachedCategories = await getCachedData(cacheKey)
+    if (cachedCategories) {
+      return successResponse(cachedCategories, true)
+    }
+    
     const { data: categories, error } = await supabase
       .from('categories')
       .select('*')
@@ -10,16 +26,30 @@ export async function GET() {
     
     if (error) throw error
     
-    return NextResponse.json(categories || [])
+    await setCachedData(cacheKey, categories || [], 600)
+    
+    return successResponse(categories || [], false)
   } catch (error) {
     console.error('Error fetching categories:', error)
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })
+    return errorResponse('Failed to fetch categories')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, slug, description } = await request.json()
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const body = await request.json()
+    
+    const validation = categorySchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { name, slug, description } = validation.data
     
     const { data: newCategory, error } = await supabase
       .from('categories')
@@ -33,9 +63,11 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
-    return NextResponse.json(newCategory, { status: 201 })
+    await deleteCachedData('api:categories:*')
+    
+    return successResponse(newCategory, false, 201)
   } catch (error) {
     console.error('Error creating category:', error)
-    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 })
+    return errorResponse('Failed to create category')
   }
 }

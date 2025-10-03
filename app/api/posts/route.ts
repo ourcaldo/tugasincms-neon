@@ -1,9 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { deleteCachedData } from '@/lib/cache'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { mapPostsFromDB, mapPostFromDB } from '@/lib/post-mapper'
+import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { postSchema } from '@/lib/validation'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const cacheKey = `api:posts:user:${userId}`
+    
+    const cachedPosts = await getCachedData(cacheKey)
+    if (cachedPosts) {
+      return successResponse(cachedPosts, true)
+    }
+    
     const { data: posts, error } = await supabase
       .from('posts')
       .select(`
@@ -11,42 +27,37 @@ export async function GET() {
         categories:post_categories(category:categories(*)),
         tags:post_tags(tag:tags(*))
       `)
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false })
     
     if (error) throw error
     
-    const postsWithRelations = posts?.map(post => ({
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      excerpt: post.excerpt,
-      slug: post.slug,
-      featuredImage: post.featured_image,
-      publishDate: post.publish_date,
-      status: post.status,
-      authorId: post.author_id,
-      createdAt: post.created_at,
-      updatedAt: post.updated_at,
-      seo: {
-        title: post.seo_title,
-        metaDescription: post.meta_description,
-        focusKeyword: post.focus_keyword,
-        slug: post.slug,
-      },
-      categories: post.categories?.map((pc: any) => pc.category).filter(Boolean) || [],
-      tags: post.tags?.map((pt: any) => pt.tag).filter(Boolean) || [],
-    }))
+    const postsWithRelations = mapPostsFromDB(posts || [])
     
-    return NextResponse.json(postsWithRelations || [])
+    await setCachedData(cacheKey, postsWithRelations, 300)
+    
+    return successResponse(postsWithRelations, false)
   } catch (error) {
     console.error('Error fetching posts:', error)
-    return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 })
+    return errorResponse('Failed to fetch posts')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
     const body = await request.json()
-    const { title, content, excerpt, slug, featuredImage, publishDate, status, authorId, seo, categories, tags } = body
+    
+    const validation = postSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = validation.data
     
     const { data: newPost, error } = await supabase
       .from('posts')
@@ -56,9 +67,9 @@ export async function POST(request: NextRequest) {
         excerpt,
         slug,
         featured_image: featuredImage,
-        publish_date: publishDate,
-        status,
-        author_id: authorId,
+        publish_date: publishDate || new Date().toISOString(),
+        status: status || 'draft',
+        author_id: userId,
         seo_title: seo?.title,
         meta_description: seo?.metaDescription,
         focus_keyword: seo?.focusKeyword,
@@ -85,30 +96,23 @@ export async function POST(request: NextRequest) {
     }
     
     await deleteCachedData('api:public:posts:*')
+    await deleteCachedData(`api:posts:user:${userId}`)
     
-    return NextResponse.json({
-      id: newPost.id,
-      title: newPost.title,
-      content: newPost.content,
-      excerpt: newPost.excerpt,
-      slug: newPost.slug,
-      featuredImage: newPost.featured_image,
-      publishDate: newPost.publish_date,
-      status: newPost.status,
-      authorId: newPost.author_id,
-      createdAt: newPost.created_at,
-      updatedAt: newPost.updated_at,
-      seo: {
-        title: newPost.seo_title,
-        metaDescription: newPost.meta_description,
-        focusKeyword: newPost.focus_keyword,
-        slug: newPost.slug,
-      },
-      categories: categories || [],
-      tags: tags || [],
-    }, { status: 201 })
+    const { data: fullPost, error: fetchError } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        categories:post_categories(category:categories(*)),
+        tags:post_tags(tag:tags(*))
+      `)
+      .eq('id', newPost.id)
+      .single()
+    
+    if (fetchError) throw fetchError
+    
+    return successResponse(mapPostFromDB(fullPost), false, 201)
   } catch (error) {
     console.error('Error creating post:', error)
-    return NextResponse.json({ error: 'Failed to create post' }, { status: 500 })
+    return errorResponse('Failed to create post')
   }
 }

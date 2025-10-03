@@ -1,8 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { tagSchema } from '@/lib/validation'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const cacheKey = 'api:tags:all'
+    
+    const cachedTags = await getCachedData(cacheKey)
+    if (cachedTags) {
+      return successResponse(cachedTags, true)
+    }
+    
     const { data: tags, error } = await supabase
       .from('tags')
       .select('*')
@@ -10,16 +26,30 @@ export async function GET() {
     
     if (error) throw error
     
-    return NextResponse.json(tags || [])
+    await setCachedData(cacheKey, tags || [], 600)
+    
+    return successResponse(tags || [], false)
   } catch (error) {
     console.error('Error fetching tags:', error)
-    return NextResponse.json({ error: 'Failed to fetch tags' }, { status: 500 })
+    return errorResponse('Failed to fetch tags')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, slug } = await request.json()
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const body = await request.json()
+    
+    const validation = tagSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { name, slug } = validation.data
     
     const { data: newTag, error } = await supabase
       .from('tags')
@@ -32,9 +62,11 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
-    return NextResponse.json(newTag, { status: 201 })
+    await deleteCachedData('api:tags:*')
+    
+    return successResponse(newTag, false, 201)
   } catch (error) {
     console.error('Error creating tag:', error)
-    return NextResponse.json({ error: 'Failed to create tag' }, { status: 500 })
+    return errorResponse('Failed to create tag')
   }
 }

@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { deleteCachedData } from '@/lib/cache'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { mapPostFromDB } from '@/lib/post-mapper'
+import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { updatePostSchema } from '@/lib/validation'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
     const { id } = await params
+    
+    const cacheKey = `api:posts:id:${id}`
+    const cachedPost = await getCachedData(cacheKey)
+    if (cachedPost) {
+      return successResponse(cachedPost, true)
+    }
+    
     const { data: post, error } = await supabase
       .from('posts')
       .select(`
@@ -16,37 +32,28 @@ export async function GET(
         tags:post_tags(tag:tags(*))
       `)
       .eq('id', id)
+      .eq('author_id', userId)
       .single()
     
-    if (error) throw error
-    if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
-    
-    const postWithRelations = {
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      excerpt: post.excerpt,
-      slug: post.slug,
-      featuredImage: post.featured_image,
-      publishDate: post.publish_date,
-      status: post.status,
-      authorId: post.author_id,
-      createdAt: post.created_at,
-      updatedAt: post.updated_at,
-      seo: {
-        title: post.seo_title,
-        metaDescription: post.meta_description,
-        focusKeyword: post.focus_keyword,
-        slug: post.slug,
-      },
-      categories: post.categories?.map((pc: any) => pc.category).filter(Boolean) || [],
-      tags: post.tags?.map((pt: any) => pt.tag).filter(Boolean) || [],
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return notFoundResponse('Post not found')
+      }
+      throw error
     }
     
-    return NextResponse.json(postWithRelations)
+    if (!post) {
+      return notFoundResponse('Post not found')
+    }
+    
+    const mappedPost = mapPostFromDB(post)
+    
+    await setCachedData(cacheKey, mappedPost, 300)
+    
+    return successResponse(mappedPost, false)
   } catch (error) {
     console.error('Error fetching post:', error)
-    return NextResponse.json({ error: 'Failed to fetch post' }, { status: 500 })
+    return errorResponse('Failed to fetch post')
   }
 }
 
@@ -55,9 +62,35 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
     const { id } = await params
+    
+    const { data: existingPost } = await supabase
+      .from('posts')
+      .select('author_id')
+      .eq('id', id)
+      .single()
+    
+    if (!existingPost) {
+      return notFoundResponse('Post not found')
+    }
+    
+    if (existingPost.author_id !== userId) {
+      return forbiddenResponse('You can only edit your own posts')
+    }
+    
     const body = await request.json()
-    const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = body
+    
+    const validation = updatePostSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = validation.data
     
     const { data: updatedPost, error } = await supabase
       .from('posts')
@@ -100,31 +133,25 @@ export async function PUT(
     }
     
     await deleteCachedData('api:public:posts:*')
+    await deleteCachedData(`api:posts:user:${userId}`)
+    await deleteCachedData(`api:posts:id:${id}`)
     
-    return NextResponse.json({
-      id: updatedPost.id,
-      title: updatedPost.title,
-      content: updatedPost.content,
-      excerpt: updatedPost.excerpt,
-      slug: updatedPost.slug,
-      featuredImage: updatedPost.featured_image,
-      publishDate: updatedPost.publish_date,
-      status: updatedPost.status,
-      authorId: updatedPost.author_id,
-      createdAt: updatedPost.created_at,
-      updatedAt: updatedPost.updated_at,
-      seo: {
-        title: updatedPost.seo_title,
-        metaDescription: updatedPost.meta_description,
-        focusKeyword: updatedPost.focus_keyword,
-        slug: updatedPost.slug,
-      },
-      categories: categories || [],
-      tags: tags || [],
-    })
+    const { data: fullPost, error: fetchError } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        categories:post_categories(category:categories(*)),
+        tags:post_tags(tag:tags(*))
+      `)
+      .eq('id', id)
+      .single()
+    
+    if (fetchError) throw fetchError
+    
+    return successResponse(mapPostFromDB(fullPost), false)
   } catch (error) {
     console.error('Error updating post:', error)
-    return NextResponse.json({ error: 'Failed to update post' }, { status: 500 })
+    return errorResponse('Failed to update post')
   }
 }
 
@@ -133,7 +160,27 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
     const { id } = await params
+    
+    const { data: existingPost } = await supabase
+      .from('posts')
+      .select('author_id')
+      .eq('id', id)
+      .single()
+    
+    if (!existingPost) {
+      return notFoundResponse('Post not found')
+    }
+    
+    if (existingPost.author_id !== userId) {
+      return forbiddenResponse('You can only delete your own posts')
+    }
+    
     const { error } = await supabase
       .from('posts')
       .delete()
@@ -142,10 +189,12 @@ export async function DELETE(
     if (error) throw error
     
     await deleteCachedData('api:public:posts:*')
+    await deleteCachedData(`api:posts:user:${userId}`)
+    await deleteCachedData(`api:posts:id:${id}`)
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('Error deleting post:', error)
-    return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 })
+    return errorResponse('Failed to delete post')
   }
 }
