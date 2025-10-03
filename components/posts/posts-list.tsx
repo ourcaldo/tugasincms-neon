@@ -64,23 +64,12 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     }
   };
 
-  const filteredPosts = Array.isArray(posts) ? posts.filter(post => {
-    const matchesSearch = !filters.search || 
-      post.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-      post.excerpt?.toLowerCase().includes(filters.search.toLowerCase());
-    
-    const matchesStatus = !filters.status || post.status === filters.status;
-    
-    const matchesCategory = !filters.category || 
-      post.categories.some(cat => cat.id === filters.category);
+  const displayPosts = Array.isArray(posts) ? posts : [];
 
-    return matchesSearch && matchesStatus && matchesCategory;
-  }) : [];
-
-  const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
+  const totalPages = Math.ceil(displayPosts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+  const paginatedPosts = displayPosts.slice(startIndex, endIndex);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -294,7 +283,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
             </TableBody>
           </Table>
 
-          {filteredPosts.length === 0 && (
+          {displayPosts.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No posts found</p>
               <Tooltip>
@@ -311,10 +300,10 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
             </div>
           )}
 
-          {filteredPosts.length > 0 && (
+          {displayPosts.length > 0 && (
             <div className="flex items-center justify-between px-6 py-4 border-t">
               <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredPosts.length)} of {filteredPosts.length} posts
+                Showing {startIndex + 1} to {Math.min(endIndex, displayPosts.length)} of {displayPosts.length} posts
               </div>
               <div className="flex gap-2">
                 <Button

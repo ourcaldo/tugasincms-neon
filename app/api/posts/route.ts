@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('author_id', userId)
       .order('created_at', { ascending: false })
+      .limit(20)
     
     if (error) throw error
     
