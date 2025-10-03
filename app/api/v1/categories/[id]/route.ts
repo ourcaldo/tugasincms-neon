@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { getCachedData, setCachedData } from '@/lib/cache'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/lib/response'
-import { mapPostsFromDB } from '@/lib/post-mapper'
+import { mapPostsFromDB, MappedPost } from '@/lib/post-mapper'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
@@ -80,7 +80,7 @@ export async function GET(
     
     const postIds = (postCategories || []).map((pc: any) => pc.post_id)
     
-    let postsData = []
+    let postsData: MappedPost[] = []
     if (postIds.length > 0) {
       const { data: posts, error: postsError } = await supabase
         .from('posts')
