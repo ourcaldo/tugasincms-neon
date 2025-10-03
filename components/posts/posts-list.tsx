@@ -41,7 +41,8 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.get<Post[]>('/posts');
+      const response = await apiClient.get<any>('/posts');
+      const data = response?.data || response;
       setPosts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching posts:', error);
