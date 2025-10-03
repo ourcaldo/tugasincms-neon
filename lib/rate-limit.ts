@@ -1,7 +1,7 @@
 import { getRedisClient } from './cache'
 
 const RATE_LIMIT_WINDOW = 60
-const MAX_REQUESTS = 100
+const MAX_REQUESTS = 1000
 
 interface RateLimitResult {
   success: boolean
