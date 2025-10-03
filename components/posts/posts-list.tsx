@@ -26,7 +26,8 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(20);
+  const [totalPosts, setTotalPosts] = useState(0);
   const [filters, setFilters] = useState<PostFilters>({
     search: '',
     status: undefined,
@@ -36,18 +37,20 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   useEffect(() => {
     fetchPosts();
-  }, []);
+  }, [currentPage]);
 
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<any>('/posts');
+      const response = await apiClient.get<any>(`/posts?page=${currentPage}&limit=${itemsPerPage}`);
       const data = response?.data || response;
-      setPosts(Array.isArray(data) ? data : []);
+      setPosts(Array.isArray(data.posts) ? data.posts : []);
+      setTotalPosts(data.total || 0);
     } catch (error) {
       console.error('Error fetching posts:', error);
       toast.error('Failed to fetch posts');
       setPosts([]);
+      setTotalPosts(0);
     } finally {
       setLoading(false);
     }
@@ -66,15 +69,9 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   };
 
   const displayPosts = Array.isArray(posts) ? posts : [];
-
-  const totalPages = Math.ceil(displayPosts.length / itemsPerPage);
+  const totalPages = Math.ceil(totalPosts / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedPosts = displayPosts.slice(startIndex, endIndex);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
+  const endIndex = Math.min(startIndex + itemsPerPage, totalPosts);
 
   const getStatusBadge = (status: Post['status']) => {
     const variants = {
@@ -188,7 +185,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedPosts.map((post) => (
+              {displayPosts.map((post) => (
                 <TableRow key={post.id}>
                   <TableCell>
                     <div>
@@ -290,7 +287,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
           {displayPosts.length > 0 && (
             <div className="flex items-center justify-between px-6 py-4 border-t">
               <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, displayPosts.length)} of {displayPosts.length} posts
+                Showing {startIndex + 1} to {endIndex} of {totalPosts} posts
               </div>
               <div className="flex gap-2">
                 <Button

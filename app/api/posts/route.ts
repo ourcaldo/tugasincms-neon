@@ -13,30 +13,45 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse('You must be logged in')
     }
     
-    const cacheKey = `api:posts:user:${userId}`
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
     
-    const cachedPosts = await getCachedData(cacheKey)
-    if (cachedPosts) {
-      return successResponse(cachedPosts, true)
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+    
+    const cacheKey = `api:posts:user:${userId}:page:${page}:limit:${limit}`
+    
+    const cachedData = await getCachedData(cacheKey)
+    if (cachedData) {
+      return successResponse(cachedData, true)
     }
     
-    const { data: posts, error } = await supabase
+    const { data: posts, error, count } = await supabase
       .from('posts')
       .select(`
         *,
         categories:post_categories(category:categories(*)),
         tags:post_tags(tag:tags(*))
-      `)
+      `, { count: 'exact' })
       .eq('author_id', userId)
       .order('created_at', { ascending: false })
+      .range(from, to)
     
     if (error) throw error
     
     const postsWithRelations = mapPostsFromDB(posts || [])
     
-    await setCachedData(cacheKey, postsWithRelations, 300)
+    const responseData = {
+      posts: postsWithRelations,
+      total: count || 0,
+      page,
+      limit
+    }
     
-    return successResponse(postsWithRelations, false)
+    await setCachedData(cacheKey, responseData, 300)
+    
+    return successResponse(responseData, false)
   } catch (error) {
     console.error('Error fetching posts:', error)
     return errorResponse('Failed to fetch posts')
