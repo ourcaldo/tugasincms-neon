@@ -22,8 +22,8 @@ function getBaseUrl(requestHost?: string): string {
     return `https://${requestHost}`
   }
   
-  if (process.env.CMS_DOMAIN) {
-    return `https://${process.env.CMS_DOMAIN}`
+  if (process.env.SITEMAP_HOST) {
+    return `https://${process.env.SITEMAP_HOST}`
   }
   
   if (process.env.NEXT_PUBLIC_CMS_URL) {
