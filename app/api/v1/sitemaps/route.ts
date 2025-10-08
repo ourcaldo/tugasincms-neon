@@ -1,20 +1,40 @@
 import { NextRequest } from 'next/server'
-import { getUserIdFromClerk } from '@/lib/auth'
+import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 import { getSitemapInfo } from '@/lib/sitemap'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return handleCorsPreflightRequest(origin)
+}
 
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  
   try {
-    const userId = await getUserIdFromClerk()
-    if (!userId) {
-      return unauthorizedResponse('You must be logged in to access sitemaps')
+    const token = extractBearerToken(request)
+    
+    const validToken = await verifyApiToken(token || '')
+    
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
     }
     
     const sitemaps = await getSitemapInfo()
     
-    return successResponse({ sitemaps }, false)
+    return setCorsHeaders(successResponse({ sitemaps }, false), origin)
   } catch (error) {
     console.error('Error fetching sitemap info:', error)
-    return errorResponse('Failed to fetch sitemap information')
+    return setCorsHeaders(errorResponse('Failed to fetch sitemap information'), origin)
   }
 }
