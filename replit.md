@@ -73,7 +73,8 @@ app/
 │   ├── v1/            # Public API v1
 │   │   ├── posts/     # Posts endpoints
 │   │   ├── categories/# Categories endpoints
-│   │   └── tags/      # Tags endpoints
+│   │   ├── tags/      # Tags endpoints
+│   │   └── sitemaps/  # Sitemap endpoints
 │   └── health/        # Health check
 ├── layout.tsx         # Root layout
 └── page.tsx           # Home page
@@ -206,19 +207,26 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 8, 2025: Sitemap API Migration to v1
+  - **FIXED**: Moved sitemap endpoints from `/api/sitemaps` to `/api/v1/sitemaps` for consistency with other API endpoints
+  - **FIXED**: Resolved Redis cache TTL error when storing sitemaps with permanent caching (TTL=0)
+  - Sitemap endpoints now use Bearer token authentication like other v1 API endpoints
+  - All sitemap XML URLs updated to point to v1 endpoints
+  - Sitemaps generate with real blog post data from Supabase
+
 - October 8, 2025: Enhanced CMS Features & Sitemap System
   - Fixed sign-in/sign-up redirect URL issues using forceRedirectUrl prop with environment variables
   - Enhanced search functionality to search posts by title with real-time filtering
   - Added checkbox, check all, and bulk delete features to posts list
   - Implemented comprehensive sitemap generation system:
-    - Root sitemap index at `/api/sitemaps/root.xml`
-    - Pages sitemap at `/api/sitemaps/pages.xml`
-    - Blog sitemap with chunking (200 posts per file) at `/api/sitemaps/blog.xml` and `/api/sitemaps/blog-N.xml`
+    - Root sitemap index at `/api/v1/sitemaps/root.xml`
+    - Pages sitemap at `/api/v1/sitemaps/pages.xml`
+    - Blog sitemap with chunking (200 posts per file) at `/api/v1/sitemaps/blog.xml` and `/api/v1/sitemaps/blog-N.xml`
     - Sitemaps stored in Redis with persistent storage (no TTL)
     - Auto-generation on cache miss ensures sitemaps are always available
     - Automatic regeneration when posts are created, updated, or deleted
-    - Authorized API endpoint `/api/sitemaps` to access sitemap information
-    - Manual regeneration endpoint `/api/sitemaps/generate`
+    - Authorized API endpoint `/api/v1/sitemaps` to access sitemap information
+    - Manual regeneration endpoint `/api/v1/sitemaps/generate`
 
 - October 3, 2025: Public API v1 Enhancements
   - Added API versioning with `/api/v1` endpoints
