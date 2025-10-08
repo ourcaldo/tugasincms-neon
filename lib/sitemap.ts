@@ -98,7 +98,7 @@ export async function generateBlogSitemaps(): Promise<{ index: string, chunks: s
     const chunkPosts = blogUrls.slice(i, i + POSTS_PER_SITEMAP)
     const chunkXml = generateSitemapXML(chunkPosts)
     chunks.push(chunkXml)
-    chunkUrls.push(`${SITEMAP_BASE_URL}/api/sitemaps/blog-${chunkIndex}.xml`)
+    chunkUrls.push(`${SITEMAP_BASE_URL}/api/v1/sitemaps/blog-${chunkIndex}.xml`)
   }
 
   const indexXml = generateSitemapIndexXML(chunkUrls)
@@ -124,8 +124,8 @@ export async function generateAllSitemaps(): Promise<void> {
     }
 
     const rootSitemaps = [
-      `${SITEMAP_BASE_URL}/api/sitemaps/pages.xml`,
-      ...(blogIndex ? [`${SITEMAP_BASE_URL}/api/sitemaps/blog.xml`] : [])
+      `${SITEMAP_BASE_URL}/api/v1/sitemaps/pages.xml`,
+      ...(blogIndex ? [`${SITEMAP_BASE_URL}/api/v1/sitemaps/blog.xml`] : [])
     ]
     const rootSitemap = generateSitemapIndexXML(rootSitemaps)
     await setCachedData('sitemap:root', rootSitemap, 0)
@@ -133,22 +133,22 @@ export async function generateAllSitemaps(): Promise<void> {
     const sitemapInfo: SitemapInfo[] = [
       {
         type: 'root',
-        url: `${SITEMAP_BASE_URL}/api/sitemaps/root.xml`
+        url: `${SITEMAP_BASE_URL}/api/v1/sitemaps/root.xml`
       },
       {
         type: 'pages',
-        url: `${SITEMAP_BASE_URL}/api/sitemaps/pages.xml`
+        url: `${SITEMAP_BASE_URL}/api/v1/sitemaps/pages.xml`
       }
     ]
 
     if (blogIndex) {
       const blogChunkUrls = blogChunks.map((_, i) => 
-        `${SITEMAP_BASE_URL}/api/sitemaps/blog-${i + 1}.xml`
+        `${SITEMAP_BASE_URL}/api/v1/sitemaps/blog-${i + 1}.xml`
       )
       sitemapInfo.push({
         type: 'blog',
-        url: `${SITEMAP_BASE_URL}/api/sitemaps/blog.xml`,
-        index: `${SITEMAP_BASE_URL}/api/sitemaps/blog.xml`,
+        url: `${SITEMAP_BASE_URL}/api/v1/sitemaps/blog.xml`,
+        index: `${SITEMAP_BASE_URL}/api/v1/sitemaps/blog.xml`,
         chunks: blogChunkUrls
       })
     }

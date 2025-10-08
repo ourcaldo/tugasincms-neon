@@ -76,8 +76,13 @@ export async function setCachedData(key: string, data: any, ttl: number = CACHE_
   if (!client) return false
 
   try {
-    await client.set(key, JSON.stringify(data), 'EX', ttl)
-    console.log(`💾 Cached: ${key} (TTL: ${ttl}s)`)
+    if (ttl === 0) {
+      await client.set(key, JSON.stringify(data))
+      console.log(`💾 Cached: ${key} (No expiration)`)
+    } else {
+      await client.set(key, JSON.stringify(data), 'EX', ttl)
+      console.log(`💾 Cached: ${key} (TTL: ${ttl}s)`)
+    }
     return true
   } catch (error) {
     console.error(`Cache write error for key ${key}:`, error)
