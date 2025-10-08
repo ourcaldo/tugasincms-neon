@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Loader2 } from 'lucide-react';
+import { Checkbox } from '../ui/checkbox';
+import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Post, PostFilters } from '../../types';
 import { mockCategories } from '../../lib/mock-data';
@@ -28,6 +29,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalPosts, setTotalPosts] = useState(0);
+  const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<PostFilters>({
     search: '',
     status: undefined,
@@ -70,11 +72,49 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     try {
       await apiClient.delete(`/posts/${postId}`);
       setPosts(prev => prev.filter(p => p.id !== postId));
+      setTotalPosts(prev => prev - 1);
       toast.success('Post deleted successfully');
       onDeletePost(postId);
     } catch (error) {
       console.error('Error deleting post:', error);
       toast.error('Failed to delete post');
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedPosts(new Set(displayPosts.map(p => p.id)));
+    } else {
+      setSelectedPosts(new Set());
+    }
+  };
+
+  const handleSelectPost = (postId: string, checked: boolean) => {
+    const newSelected = new Set(selectedPosts);
+    if (checked) {
+      newSelected.add(postId);
+    } else {
+      newSelected.delete(postId);
+    }
+    setSelectedPosts(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedPosts.size === 0) return;
+    
+    try {
+      const postIds = Array.from(selectedPosts);
+      await apiClient.post('/posts/bulk-delete', { postIds });
+      
+      setPosts(prev => prev.filter(p => !selectedPosts.has(p.id)));
+      setTotalPosts(prev => prev - selectedPosts.size);
+      setSelectedPosts(new Set());
+      
+      toast.success(`${postIds.length} post(s) deleted successfully`);
+      postIds.forEach(id => onDeletePost(id));
+    } catch (error) {
+      console.error('Error bulk deleting posts:', error);
+      toast.error('Failed to delete posts');
     }
   };
 
@@ -182,12 +222,42 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
         </CardContent>
       </Card>
 
+      {/* Bulk Actions */}
+      {selectedPosts.size > 0 && (
+        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+          <p className="text-sm">
+            {selectedPosts.size} post(s) selected
+          </p>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleBulkDelete}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Selected
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedPosts(new Set())}
+          >
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Posts Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={displayPosts.length > 0 && selectedPosts.size === displayPosts.length}
+                    onCheckedChange={handleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Categories</TableHead>
@@ -198,6 +268,12 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
             <TableBody>
               {displayPosts.map((post) => (
                 <TableRow key={post.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedPosts.has(post.id)}
+                      onCheckedChange={(checked) => handleSelectPost(post.id, checked as boolean)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div>
                       <p className="font-medium">{post.title}</p>
