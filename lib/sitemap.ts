@@ -11,11 +11,8 @@ export interface SitemapUrl {
 export interface SitemapInfo {
   type: string
   url: string
-  proxy_url: string
   index?: string
-  proxy_index?: string
   references?: string[]
-  proxy_references?: string[]
 }
 
 const POSTS_PER_SITEMAP = 200
@@ -191,13 +188,11 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
     const sitemapInfo: SitemapInfo[] = [
       {
         type: 'root',
-        url: `${cmsHost}/api/v1/sitemaps/sitemap.xml`,
-        proxy_url: `${sitemapHost}/api/v1/sitemaps/sitemap.xml`
+        url: `${cmsHost}/api/v1/sitemaps/sitemap.xml`
       },
       {
         type: 'pages',
-        url: `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
-        proxy_url: `${sitemapHost}/api/v1/sitemaps/sitemap-pages.xml`
+        url: `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`
       }
     ]
 
@@ -205,17 +200,11 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
       const blogChunkUrls = blogChunks.map((_, i) => 
         `${cmsHost}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
       )
-      const proxyBlogChunkUrls = blogChunks.map((_, i) => 
-        `${sitemapHost}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
-      )
       sitemapInfo.push({
         type: 'blog',
         url: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
-        proxy_url: `${sitemapHost}/api/v1/sitemaps/sitemap-post.xml`,
         index: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
-        proxy_index: `${sitemapHost}/api/v1/sitemaps/sitemap-post.xml`,
-        references: blogChunkUrls,
-        proxy_references: proxyBlogChunkUrls
+        references: blogChunkUrls
       })
     }
 
