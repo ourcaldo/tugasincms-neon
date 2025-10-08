@@ -11,23 +11,18 @@ export interface SitemapUrl {
 export interface SitemapInfo {
   type: string
   url: string
+  proxy_url: string
   index?: string
+  proxy_index?: string
   references?: string[]
+  proxy_references?: string[]
 }
 
 const POSTS_PER_SITEMAP = 200
 
-function getBaseUrl(requestHost?: string): string {
-  if (requestHost) {
-    return `https://${requestHost}`
-  }
-  
-  if (process.env.SITEMAP_HOST) {
-    return `https://${process.env.SITEMAP_HOST}`
-  }
-  
-  if (process.env.NEXT_PUBLIC_CMS_URL) {
-    return process.env.NEXT_PUBLIC_CMS_URL
+function getCmsHost(): string {
+  if (process.env.CMS_HOST) {
+    return `https://${process.env.CMS_HOST}`
   }
   
   const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS
@@ -36,6 +31,31 @@ function getBaseUrl(requestHost?: string): string {
   }
   
   return 'http://localhost:5000'
+}
+
+function getSitemapHost(): string {
+  if (process.env.SITEMAP_HOST) {
+    return `https://${process.env.SITEMAP_HOST}`
+  }
+  
+  if (process.env.CMS_HOST) {
+    return `https://${process.env.CMS_HOST}`
+  }
+  
+  const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS
+  if (replitDomain) {
+    return `https://${replitDomain.split(',')[0]}`
+  }
+  
+  return 'http://localhost:5000'
+}
+
+function getBaseUrl(requestHost?: string): string {
+  if (requestHost) {
+    return `https://${requestHost}`
+  }
+  
+  return getSitemapHost()
 }
 
 export function generateSitemapXML(urls: SitemapUrl[]): string {
@@ -143,11 +163,13 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
 
 export async function generateAllSitemaps(requestHost?: string): Promise<void> {
   try {
-    const baseUrl = getBaseUrl(requestHost)
-    const pagesSitemap = await generatePagesSitemap(baseUrl)
+    const sitemapHost = getSitemapHost()
+    const cmsHost = getCmsHost()
+    
+    const pagesSitemap = await generatePagesSitemap(sitemapHost)
     await setCachedData('sitemap:pages', pagesSitemap, 0)
 
-    const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(baseUrl)
+    const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost)
     
     if (blogIndex) {
       await setCachedData('sitemap:post:index', blogIndex, 0)
@@ -160,8 +182,8 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
     }
 
     const rootSitemaps = [
-      `${baseUrl}/api/v1/sitemaps/sitemap-pages.xml`,
-      ...(blogIndex ? [`${baseUrl}/api/v1/sitemaps/sitemap-post.xml`] : [])
+      `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
+      ...(blogIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-post.xml`] : [])
     ]
     const rootSitemap = generateSitemapIndexXML(rootSitemaps)
     await setCachedData('sitemap:root', rootSitemap, 0)
@@ -169,29 +191,37 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
     const sitemapInfo: SitemapInfo[] = [
       {
         type: 'root',
-        url: `${baseUrl}/api/v1/sitemaps/sitemap.xml`
+        url: `${cmsHost}/api/v1/sitemaps/sitemap.xml`,
+        proxy_url: `${sitemapHost}/api/v1/sitemaps/sitemap.xml`
       },
       {
         type: 'pages',
-        url: `${baseUrl}/api/v1/sitemaps/sitemap-pages.xml`
+        url: `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
+        proxy_url: `${sitemapHost}/api/v1/sitemaps/sitemap-pages.xml`
       }
     ]
 
     if (blogIndex) {
       const blogChunkUrls = blogChunks.map((_, i) => 
-        `${baseUrl}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
+        `${cmsHost}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
+      )
+      const proxyBlogChunkUrls = blogChunks.map((_, i) => 
+        `${sitemapHost}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
       )
       sitemapInfo.push({
         type: 'blog',
-        url: `${baseUrl}/api/v1/sitemaps/sitemap-post.xml`,
-        index: `${baseUrl}/api/v1/sitemaps/sitemap-post.xml`,
-        references: blogChunkUrls
+        url: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
+        proxy_url: `${sitemapHost}/api/v1/sitemaps/sitemap-post.xml`,
+        index: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
+        proxy_index: `${sitemapHost}/api/v1/sitemaps/sitemap-post.xml`,
+        references: blogChunkUrls,
+        proxy_references: proxyBlogChunkUrls
       })
     }
 
     await setCachedData('sitemaps:info', sitemapInfo, 0)
 
-    console.log(`Sitemaps generated successfully in Redis using base URL: ${baseUrl}`)
+    console.log(`Sitemaps generated successfully in Redis using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
   } catch (error) {
     console.error('Error generating sitemaps:', error)
     throw error
