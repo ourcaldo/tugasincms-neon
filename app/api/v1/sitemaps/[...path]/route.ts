@@ -12,15 +12,15 @@ export async function GET(
     
     let sitemapKey: string
     
-    if (filename === 'root.xml' || filename === 'sitemap.xml') {
+    if (filename === 'sitemap.xml') {
       sitemapKey = 'sitemap:root'
-    } else if (filename === 'pages.xml') {
+    } else if (filename === 'sitemap-pages.xml') {
       sitemapKey = 'sitemap:pages'
-    } else if (filename === 'blog.xml') {
-      sitemapKey = 'sitemap:blog:index'
-    } else if (filename.match(/^blog-(\d+)\.xml$/)) {
-      const chunkNum = filename.match(/^blog-(\d+)\.xml$/)![1]
-      sitemapKey = `sitemap:blog:chunk:${chunkNum}`
+    } else if (filename === 'sitemap-post.xml') {
+      sitemapKey = 'sitemap:post:index'
+    } else if (filename.match(/^sitemap-post-(\d+)\.xml$/)) {
+      const chunkNum = filename.match(/^sitemap-post-(\d+)\.xml$/)![1]
+      sitemapKey = `sitemap:post:chunk:${chunkNum}`
     } else {
       return new NextResponse('Not Found', { status: 404 })
     }

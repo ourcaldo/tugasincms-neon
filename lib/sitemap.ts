@@ -12,7 +12,7 @@ export interface SitemapInfo {
   type: string
   url: string
   index?: string
-  chunks?: string[]
+  references?: string[]
 }
 
 const POSTS_PER_SITEMAP = 200
@@ -20,6 +20,10 @@ const POSTS_PER_SITEMAP = 200
 function getBaseUrl(requestHost?: string): string {
   if (requestHost) {
     return `https://${requestHost}`
+  }
+  
+  if (process.env.CMS_DOMAIN) {
+    return `https://${process.env.CMS_DOMAIN}`
   }
   
   if (process.env.NEXT_PUBLIC_CMS_URL) {
@@ -92,7 +96,7 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
   const url = baseUrl || getBaseUrl()
   const { data: posts, error } = await supabase
     .from('posts')
-    .select('id, slug, updated_at')
+    .select('id, slug, updated_at, categories')
     .eq('status', 'published')
     .order('updated_at', { ascending: false })
 
@@ -101,12 +105,18 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
     return { index: '', chunks: [] }
   }
 
-  const blogUrls: SitemapUrl[] = (posts || []).map(post => ({
-    loc: `${url}/blog/${post.slug}`,
-    lastmod: new Date(post.updated_at).toISOString(),
-    changefreq: 'weekly' as const,
-    priority: 0.8
-  }))
+  const blogUrls: SitemapUrl[] = (posts || []).map(post => {
+    const categorySlug = post.categories && post.categories.length > 0 
+      ? post.categories[0].slug 
+      : 'uncategorized'
+    
+    return {
+      loc: `${url}/blog/${categorySlug}/${post.slug}`,
+      lastmod: new Date(post.updated_at).toISOString(),
+      changefreq: 'weekly' as const,
+      priority: 0.8
+    }
+  })
 
   const chunks: string[] = []
   const chunkUrls: string[] = []
@@ -116,7 +126,7 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
     const chunkPosts = blogUrls.slice(i, i + POSTS_PER_SITEMAP)
     const chunkXml = generateSitemapXML(chunkPosts)
     chunks.push(chunkXml)
-    chunkUrls.push(`${url}/api/v1/sitemaps/blog-${chunkIndex}.xml`)
+    chunkUrls.push(`${url}/api/v1/sitemaps/sitemap-post-${chunkIndex}.xml`)
   }
 
   const indexXml = generateSitemapIndexXML(chunkUrls)
@@ -133,18 +143,18 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
     const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(baseUrl)
     
     if (blogIndex) {
-      await setCachedData('sitemap:blog:index', blogIndex, 0)
+      await setCachedData('sitemap:post:index', blogIndex, 0)
       
       for (let i = 0; i < blogChunks.length; i++) {
-        await setCachedData(`sitemap:blog:chunk:${i + 1}`, blogChunks[i], 0)
+        await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], 0)
       }
       
-      await setCachedData('sitemap:blog:chunk:count', blogChunks.length.toString(), 0)
+      await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), 0)
     }
 
     const rootSitemaps = [
-      `${baseUrl}/api/v1/sitemaps/pages.xml`,
-      ...(blogIndex ? [`${baseUrl}/api/v1/sitemaps/blog.xml`] : [])
+      `${baseUrl}/api/v1/sitemaps/sitemap-pages.xml`,
+      ...(blogIndex ? [`${baseUrl}/api/v1/sitemaps/sitemap-post.xml`] : [])
     ]
     const rootSitemap = generateSitemapIndexXML(rootSitemaps)
     await setCachedData('sitemap:root', rootSitemap, 0)
@@ -152,23 +162,23 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
     const sitemapInfo: SitemapInfo[] = [
       {
         type: 'root',
-        url: `${baseUrl}/api/v1/sitemaps/root.xml`
+        url: `${baseUrl}/api/v1/sitemaps/sitemap.xml`
       },
       {
         type: 'pages',
-        url: `${baseUrl}/api/v1/sitemaps/pages.xml`
+        url: `${baseUrl}/api/v1/sitemaps/sitemap-pages.xml`
       }
     ]
 
     if (blogIndex) {
       const blogChunkUrls = blogChunks.map((_, i) => 
-        `${baseUrl}/api/v1/sitemaps/blog-${i + 1}.xml`
+        `${baseUrl}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
       )
       sitemapInfo.push({
         type: 'blog',
-        url: `${baseUrl}/api/v1/sitemaps/blog.xml`,
-        index: `${baseUrl}/api/v1/sitemaps/blog.xml`,
-        chunks: blogChunkUrls
+        url: `${baseUrl}/api/v1/sitemaps/sitemap-post.xml`,
+        index: `${baseUrl}/api/v1/sitemaps/sitemap-post.xml`,
+        references: blogChunkUrls
       })
     }
 
