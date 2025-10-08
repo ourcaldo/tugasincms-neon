@@ -206,6 +206,20 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 8, 2025: Enhanced CMS Features & Sitemap System
+  - Fixed sign-in/sign-up redirect URL issues using forceRedirectUrl prop with environment variables
+  - Enhanced search functionality to search posts by title with real-time filtering
+  - Added checkbox, check all, and bulk delete features to posts list
+  - Implemented comprehensive sitemap generation system:
+    - Root sitemap index at `/api/sitemaps/root.xml`
+    - Pages sitemap at `/api/sitemaps/pages.xml`
+    - Blog sitemap with chunking (200 posts per file) at `/api/sitemaps/blog.xml` and `/api/sitemaps/blog-N.xml`
+    - Sitemaps stored in Redis with persistent storage (no TTL)
+    - Auto-generation on cache miss ensures sitemaps are always available
+    - Automatic regeneration when posts are created, updated, or deleted
+    - Authorized API endpoint `/api/sitemaps` to access sitemap information
+    - Manual regeneration endpoint `/api/sitemaps/generate`
+
 - October 3, 2025: Public API v1 Enhancements
   - Added API versioning with `/api/v1` endpoints
   - Implemented pagination for all v1 endpoints (page, limit parameters)
