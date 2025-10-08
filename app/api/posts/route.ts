@@ -16,18 +16,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
+    const search = searchParams.get('search') || ''
+    const status = searchParams.get('status') || ''
+    const category = searchParams.get('category') || ''
     
     const from = (page - 1) * limit
     const to = from + limit - 1
     
-    const cacheKey = `api:posts:user:${userId}:page:${page}:limit:${limit}`
+    const cacheKey = `api:posts:user:${userId}:page:${page}:limit:${limit}:search:${search}:status:${status}:category:${category}`
     
     const cachedData = await getCachedData(cacheKey)
     if (cachedData) {
       return successResponse(cachedData, true)
     }
     
-    const { data: posts, error, count } = await supabase
+    let query = supabase
       .from('posts')
       .select(`
         *,
@@ -35,6 +38,20 @@ export async function GET(request: NextRequest) {
         tags:post_tags(tag:tags(*))
       `, { count: 'exact' })
       .eq('author_id', userId)
+    
+    if (search) {
+      query = query.ilike('title', `%${search}%`)
+    }
+    
+    if (status) {
+      query = query.eq('status', status)
+    }
+    
+    if (category) {
+      query = query.contains('post_categories', [{ category_id: category }])
+    }
+    
+    const { data: posts, error, count } = await query
       .order('created_at', { ascending: false })
       .range(from, to)
     

@@ -37,12 +37,22 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   useEffect(() => {
     fetchPosts();
-  }, [currentPage]);
+  }, [currentPage, filters.search, filters.status, filters.category]);
 
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<any>(`/posts?page=${currentPage}&limit=${itemsPerPage}`);
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      });
+      
+      if (filters.search) params.append('search', filters.search);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.category) params.append('category', filters.category);
+      
+      const response = await apiClient.get<any>(`/posts?${params.toString()}`);
       const data = response?.data || response;
       setPosts(Array.isArray(data.posts) ? data.posts : []);
       setTotalPosts(data.total || 0);
@@ -89,6 +99,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   const handleFilterChange = (key: keyof PostFilters, value: string | undefined) => {
     setFilters(prev => ({ ...prev, [key]: value || undefined }));
+    setCurrentPage(1);
   };
 
   return (
