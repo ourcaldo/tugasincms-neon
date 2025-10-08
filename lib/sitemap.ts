@@ -96,7 +96,14 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
   const url = baseUrl || getBaseUrl()
   const { data: posts, error } = await supabase
     .from('posts')
-    .select('id, slug, updated_at, categories')
+    .select(`
+      id, 
+      slug, 
+      updated_at,
+      post_categories!inner(
+        categories(slug)
+      )
+    `)
     .eq('status', 'published')
     .order('updated_at', { ascending: false })
 
@@ -105,9 +112,9 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
     return { index: '', chunks: [] }
   }
 
-  const blogUrls: SitemapUrl[] = (posts || []).map(post => {
-    const categorySlug = post.categories && post.categories.length > 0 
-      ? post.categories[0].slug 
+  const blogUrls: SitemapUrl[] = (posts || []).map((post: any) => {
+    const categorySlug = post.post_categories && post.post_categories.length > 0 && post.post_categories[0].categories
+      ? post.post_categories[0].categories.slug 
       : 'uncategorized'
     
     return {
