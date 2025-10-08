@@ -5,6 +5,7 @@ import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse
 import { mapPostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { updatePostSchema } from '@/lib/validation'
+import { invalidateSitemaps } from '@/lib/sitemap'
 
 export async function GET(
   request: NextRequest,
@@ -71,7 +72,7 @@ export async function PUT(
     
     const { data: existingPost } = await supabase
       .from('posts')
-      .select('author_id')
+      .select('author_id, status')
       .eq('id', id)
       .single()
     
@@ -136,6 +137,10 @@ export async function PUT(
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData(`api:posts:id:${id}`)
     
+    if (status === 'published' || existingPost.status === 'published') {
+      await invalidateSitemaps()
+    }
+    
     const { data: fullPost, error: fetchError } = await supabase
       .from('posts')
       .select(`
@@ -169,7 +174,7 @@ export async function DELETE(
     
     const { data: existingPost } = await supabase
       .from('posts')
-      .select('author_id')
+      .select('author_id, status')
       .eq('id', id)
       .single()
     
@@ -191,6 +196,10 @@ export async function DELETE(
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData(`api:posts:id:${id}`)
+    
+    if (existingPost.status === 'published') {
+      await invalidateSitemaps()
+    }
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {

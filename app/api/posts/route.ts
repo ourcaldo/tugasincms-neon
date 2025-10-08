@@ -5,6 +5,7 @@ import { successResponse, errorResponse, unauthorizedResponse, validationErrorRe
 import { mapPostsFromDB, mapPostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { postSchema } from '@/lib/validation'
+import { invalidateSitemaps } from '@/lib/sitemap'
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,6 +130,10 @@ export async function POST(request: NextRequest) {
     
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
+    
+    if (status === 'published') {
+      await invalidateSitemaps()
+    }
     
     const { data: fullPost, error: fetchError } = await supabase
       .from('posts')

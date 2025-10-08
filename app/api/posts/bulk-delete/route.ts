@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { deleteCachedData } from '@/lib/cache'
+import { invalidateSitemaps } from '@/lib/sitemap'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     
     const { data: ownedPosts, error: fetchError } = await supabase
       .from('posts')
-      .select('id')
+      .select('id, status')
       .in('id', postIds)
       .eq('author_id', userId)
     
@@ -56,6 +57,11 @@ export async function POST(request: NextRequest) {
     
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
+    
+    const hadPublishedPosts = ownedPosts.some(p => (p as any).status === 'published')
+    if (hadPublishedPosts) {
+      await invalidateSitemaps()
+    }
     
     return successResponse({ 
       message: `${ownedPostIds.length} post(s) deleted successfully`,
