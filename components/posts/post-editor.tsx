@@ -70,10 +70,14 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
 
   const fetchCategories = async () => {
     try {
-      const data = await apiClient.get<Category[]>('/categories');
-      setCategories(data);
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      const result = await response.json();
+      const data = result.data || result;
+      setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
+      setCategories([]);
     }
   };
 
@@ -81,14 +85,26 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     if (!postId) return;
     try {
       setLoading(true);
-      const data = await apiClient.get<Post>(`/posts/${postId}`);
+      const response = await fetch(`/api/posts/${postId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch post');
+      }
+      
+      const result = await response.json();
+      const data = result.data || result;
+      
       setFormData({
         title: data.title,
         content: data.content,
         excerpt: data.excerpt || '',
         slug: data.slug,
         featuredImage: data.featuredImage || '',
-        publishDate: data.publishDate || new Date(),
+        publishDate: data.publishDate ? new Date(data.publishDate) : new Date(),
         status: data.status,
         categories: data.categories || [],
         tags: data.tags || [],
