@@ -67,7 +67,7 @@ export function TiptapEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4",
+          "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 [&_h1]:mt-6 [&_h1]:mb-4 [&_h2]:mt-6 [&_h2]:mb-4 [&_h3]:mt-5 [&_h3]:mb-3 [&_h4]:mt-4 [&_h4]:mb-2 [&_p]:mb-4 [&_ul]:my-4 [&_ol]:my-4 [&_blockquote]:my-4",
         style: "min-height: 400px;",
       },
     },
