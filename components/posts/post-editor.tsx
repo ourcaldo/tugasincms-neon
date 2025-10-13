@@ -405,7 +405,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
             <CardTitle>Post Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
@@ -415,7 +415,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="content">Content</Label>
               <TiptapEditor
                 content={formData.content}
@@ -424,7 +424,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Label htmlFor="excerpt">Excerpt</Label>
@@ -452,7 +452,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
               <CardTitle>Publish Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select value={formData.status} onValueChange={(value: string) => handleInputChange('status', value)}>
                   <SelectTrigger>
@@ -466,7 +466,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                 </Select>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label>Publish Date</Label>
                 <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
@@ -491,7 +491,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                 </Popover>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Label htmlFor="slug">Slug</Label>
@@ -541,7 +541,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                 </div>
               )}
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="image-upload">Upload Image</Label>
                 <Input
                   id="image-upload"
@@ -695,7 +695,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                   <TabsTrigger value="preview">Preview</TabsTrigger>
                 </TabsList>
                 <TabsContent value="seo" className="space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="seo-title">SEO Title</Label>
                     <Input
                       id="seo-title"
@@ -704,7 +704,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                       placeholder="SEO optimized title..."
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="seo-description">Meta Description</Label>
                     <Textarea
                       id="seo-description"
@@ -714,7 +714,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                       rows={3}
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Label htmlFor="seo-keyword">Focus Keyword</Label>
