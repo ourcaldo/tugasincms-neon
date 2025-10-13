@@ -207,6 +207,14 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 13, 2025: CMS Enhancement & Bug Fixes
+  - **FIXED**: Delete post functionality - now properly handles 204 No Content responses and shows success notifications
+  - **FIXED**: Post list cache invalidation - refetches posts after deletion to ensure UI reflects database changes
+  - **FIXED**: Edit post content loading - TiptapEditor now properly renders HTML content including headings
+  - **ENHANCED**: Post URL generation - API responses now include full post URL with category slug (e.g., https://domain.com/{category}/{slug})
+  - **ENHANCED**: CMS filters - Replaced mock categories with real API data from backend
+  - Added defensive error handling for category fetching with empty array fallback
+
 - October 8, 2025: Sitemap API Migration to v1
   - **FIXED**: Moved sitemap endpoints from `/api/sitemaps` to `/api/v1/sitemaps` for consistency with other API endpoints
   - **FIXED**: Resolved Redis cache TTL error when storing sitemaps with permanent caching (TTL=0)
