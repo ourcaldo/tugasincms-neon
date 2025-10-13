@@ -10,8 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { Checkbox } from '../ui/checkbox';
 import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Post, PostFilters } from '../../types';
-import { mockCategories } from '../../lib/mock-data';
+import { Post, PostFilters, Category } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { useApiClient } from '../../lib/api-client';
 import { toast } from 'sonner';
@@ -30,6 +29,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   const [itemsPerPage] = useState(20);
   const [totalPosts, setTotalPosts] = useState(0);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
+  const [categories, setCategories] = useState<Category[]>([]);
   const [filters, setFilters] = useState<PostFilters>({
     search: '',
     status: undefined,
@@ -40,6 +40,10 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   useEffect(() => {
     fetchPosts();
   }, [currentPage, filters.search, filters.status, filters.category]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const fetchPosts = async () => {
     try {
@@ -68,12 +72,22 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await apiClient.get<any>('/categories');
+      const categoriesData = response?.data || response || [];
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
+
   const handleDelete = async (postId: string) => {
     try {
       await apiClient.delete(`/posts/${postId}`);
-      setPosts(prev => prev.filter(p => p.id !== postId));
-      setTotalPosts(prev => prev - 1);
       toast.success('Post deleted successfully');
+      await fetchPosts();
       onDeletePost(postId);
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -106,11 +120,9 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       const postIds = Array.from(selectedPosts);
       await apiClient.post('/posts/bulk-delete', { postIds });
       
-      setPosts(prev => prev.filter(p => !selectedPosts.has(p.id)));
-      setTotalPosts(prev => prev - selectedPosts.size);
       setSelectedPosts(new Set());
-      
       toast.success(`${postIds.length} post(s) deleted successfully`);
+      await fetchPosts();
       postIds.forEach(id => onDeletePost(id));
     } catch (error) {
       console.error('Error bulk deleting posts:', error);
@@ -200,7 +212,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {mockCategories.map((category) => (
+                {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
                     {category.name}
                   </SelectItem>

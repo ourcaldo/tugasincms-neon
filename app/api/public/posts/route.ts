@@ -125,9 +125,10 @@ export async function POST(request: NextRequest) {
     
     if (error) throw error
     
+    const categoryIds: string[] = []
+    
     if (categories && typeof categories === 'string' && categories.trim()) {
       const categoryNames = categories.split(',').map((name: string) => name.trim()).filter(Boolean)
-      const categoryIds = []
       
       for (const categoryName of categoryNames) {
         const { data: existingCategory } = await supabase
@@ -204,7 +205,28 @@ export async function POST(request: NextRequest) {
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData('api:posts:*')
     
-    return setCorsHeaders(successResponse(newPost, false, 201), origin)
+    const sitemapHost = process.env.SITEMAP_HOST || process.env.NEXT_PUBLIC_SITEMAP_HOST || 'localhost:5000'
+    
+    let postUrl = `https://${sitemapHost}/${newPost.slug}`
+    
+    if (categoryIds.length > 0) {
+      const { data: firstCategory } = await supabase
+        .from('categories')
+        .select('slug')
+        .eq('id', categoryIds[0])
+        .single()
+      
+      if (firstCategory?.slug) {
+        postUrl = `https://${sitemapHost}/${firstCategory.slug}/${newPost.slug}`
+      }
+    }
+    
+    const responseData = {
+      ...newPost,
+      postUrl
+    }
+    
+    return setCorsHeaders(successResponse(responseData, false, 201), origin)
   } catch (error) {
     console.error('Error creating post:', error)
     return setCorsHeaders(errorResponse('Failed to create post'), origin)

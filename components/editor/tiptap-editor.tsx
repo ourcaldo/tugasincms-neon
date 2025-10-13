@@ -74,8 +74,8 @@ export function TiptapEditor({
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (editor && content && content !== editor.getHTML()) {
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
 
