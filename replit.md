@@ -207,6 +207,12 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 13, 2025: Post Editor Content Loading Fix
+  - **FIXED**: Post content not loading in edit mode - TiptapEditor now properly synchronizes HTML content when switching from empty to filled state
+  - **FIXED**: Editor visibility during async operations - introduced dedicated `isInitialLoad` state to prevent editor from disappearing during save/upload operations
+  - **IMPROVED**: Content synchronization in TiptapEditor - refined useEffect logic to handle content updates reliably, including proper rendering of headings and HTML formatting
+  - **IMPROVED**: Loading UX - added loading indicator specifically for initial post fetch without affecting save/publish workflows
+
 - October 13, 2025: CMS Enhancement & Bug Fixes
   - **FIXED**: Delete post functionality - now properly handles 204 No Content responses and shows success notifications
   - **FIXED**: Post list cache invalidation - refetches posts after deletion to ensure UI reflects database changes
