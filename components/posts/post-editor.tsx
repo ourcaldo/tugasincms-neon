@@ -53,6 +53,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
   const [newCategory, setNewCategory] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(!!postId && !post);
   const [categories, setCategories] = useState<Category[]>([]);
   const apiClient = useApiClient();
   const { user } = useUser();
@@ -98,9 +99,11 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
           slug: data.seo?.slug || '',
         },
       });
+      setIsInitialLoad(false);
     } catch (error) {
       console.error('Error fetching post:', error);
       toast.error('Failed to load post');
+      setIsInitialLoad(false);
     } finally {
       setLoading(false);
     }
@@ -324,6 +327,18 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
       setLoading(false);
     }
   };
+
+  if (isInitialLoad) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-muted-foreground">Loading post...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>

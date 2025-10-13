@@ -59,7 +59,7 @@ export function TiptapEditor({
         placeholder,
       }),
     ],
-    content,
+    content: content || '',
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -74,8 +74,13 @@ export function TiptapEditor({
   });
 
   useEffect(() => {
-    if (editor && content && content !== editor.getHTML()) {
-      editor.commands.setContent(content, { emitUpdate: false });
+    if (!editor) return;
+    
+    const currentContent = editor.getHTML();
+    const newContent = content || '';
+    
+    if (newContent !== currentContent) {
+      editor.commands.setContent(newContent, { emitUpdate: false });
     }
   }, [content, editor]);
 
