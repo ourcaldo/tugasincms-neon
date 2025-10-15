@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Tag } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Edit, Tag, Checkbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 
@@ -35,6 +35,7 @@ export function TagsList() {
     slug: '',
   })
   const apiClient = useApiClient()
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchTags()
@@ -120,18 +121,67 @@ export function TagsList() {
       const newTags = tags.filter(tag => tag.id !== tagId)
       setTags(newTags)
       setTotalTags(newTags.length)
-      
+
       const newTotalPages = Math.ceil(newTags.length / itemsPerPage)
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages)
       }
-      
+
       toast.success('Tag deleted successfully')
     } catch (error) {
       console.error('Error deleting tag:', error)
       toast.error('Failed to delete tag')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedTags.size === 0) return
+
+    if (!confirm(`Are you sure you want to delete ${selectedTags.size} selected tag(s)? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      await apiClient.delete('/tags', { data: { ids: Array.from(selectedTags) } })
+      const newTags = tags.filter(tag => !selectedTags.has(tag.id))
+      setTags(newTags)
+      setTotalTags(newTags.length)
+      setSelectedTags(new Set())
+
+      const newTotalPages = Math.ceil(newTags.length / itemsPerPage)
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages)
+      }
+
+      toast.success('Selected tags deleted successfully')
+    } catch (error) {
+      console.error('Error deleting tags:', error)
+      toast.error('Failed to delete selected tags')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelectTag = (tagId: string) => {
+    setSelectedTags(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(tagId)) {
+        newSet.delete(tagId)
+      } else {
+        newSet.add(tagId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllTags = () => {
+    if (selectedTags.size === paginatedTags.length) {
+      setSelectedTags(new Set())
+    } else {
+      setSelectedTags(new Set(paginatedTags.map(tag => tag.id)))
     }
   }
 
@@ -209,10 +259,31 @@ export function TagsList() {
         </Dialog>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedTags.size > 0 && (
+        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+          <p className="text-sm">
+            {selectedTags.size} tag{selectedTags.size === 1 ? '' : 's'} selected
+          </p>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleBulkDelete}
+          >
+            <Trash className="w-4 h-4 mr-2" />
+            Delete Selected
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedTags(new Set())}
+          >
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       <Card>
-        <CardHeader>
-          <CardTitle>All Tags</CardTitle>
-        </CardHeader>
         <CardContent className="p-0">
           {loading && tags.length === 0 ? (
             <div className="text-center py-12">
@@ -232,6 +303,13 @@ export function TagsList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox 
+                        checked={selectedTags.size === paginatedTags.length && paginatedTags.length > 0}
+                        onCheckedChange={handleSelectAllTags}
+                        aria-label="Select all tags"
+                      />
+                    </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead className="w-16"></TableHead>
@@ -240,6 +318,13 @@ export function TagsList() {
                 <TableBody>
                   {paginatedTags.map((tag) => (
                     <TableRow key={tag.id}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedTags.has(tag.id)}
+                          onCheckedChange={() => handleSelectTag(tag.id)}
+                          aria-label={`Select tag ${tag.name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{tag.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{tag.slug}</Badge>
@@ -270,7 +355,7 @@ export function TagsList() {
                   ))}
                 </TableBody>
               </Table>
-              
+
               {totalTags > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">

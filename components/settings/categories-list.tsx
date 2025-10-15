@@ -13,6 +13,7 @@ import { Plus, MoreHorizontal, Trash, Edit, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 import { Textarea } from '../ui/textarea'
+import { Checkbox } from '../ui/checkbox'
 
 interface Category {
   id: string
@@ -37,6 +38,7 @@ export function CategoriesList() {
     slug: '',
     description: '',
   })
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -125,12 +127,12 @@ export function CategoriesList() {
       const newCategories = categories.filter(cat => cat.id !== categoryId)
       setCategories(newCategories)
       setTotalCategories(newCategories.length)
-      
+
       const newTotalPages = Math.ceil(newCategories.length / itemsPerPage)
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages)
       }
-      
+
       toast.success('Category deleted successfully')
     } catch (error) {
       console.error('Error deleting category:', error)
@@ -139,6 +141,35 @@ export function CategoriesList() {
       setLoading(false)
     }
   }
+
+  const handleBulkDelete = async () => {
+    if (selectedCategories.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedCategories.size} selected categories? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await Promise.all(Array.from(selectedCategories).map(id => apiClient.delete(`/categories/${id}`)));
+
+      const newCategories = categories.filter(cat => !selectedCategories.has(cat.id));
+      setCategories(newCategories);
+      setTotalCategories(newCategories.length);
+      setSelectedCategories(new Set());
+
+      const newTotalPages = Math.ceil(newCategories.length / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+
+      toast.success('Selected categories deleted successfully');
+    } catch (error) {
+      console.error('Error deleting categories:', error);
+      toast.error('Failed to delete selected categories');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openEditDialog = (category: Category) => {
     setEditingCategory(category)
@@ -160,6 +191,27 @@ export function CategoriesList() {
     setEditingCategory(null)
     setFormData({ name: '', slug: '', description: '' })
   }
+
+  const handleSelectAll = () => {
+    if (selectedCategories.size === categories.length) {
+      setSelectedCategories(new Set())
+    } else {
+      setSelectedCategories(new Set(categories.map(cat => cat.id)))
+    }
+  }
+
+  const handleSelectCategory = (categoryId: string) => {
+    setSelectedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId)
+      } else {
+        newSet.add(categoryId)
+      }
+      return newSet
+    })
+  }
+
 
   const paginatedCategories = categories.slice(
     (currentPage - 1) * itemsPerPage,
@@ -225,10 +277,31 @@ export function CategoriesList() {
         </Dialog>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedCategories.size > 0 && (
+        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+          <p className="text-sm">
+            {selectedCategories.size} categor{selectedCategories.size === 1 ? 'y' : 'ies'} selected
+          </p>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleBulkDelete}
+          >
+            <Trash className="w-4 h-4 mr-2" />
+            Delete Selected
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedCategories(new Set())}
+          >
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       <Card>
-        <CardHeader>
-          <CardTitle>All Categories</CardTitle>
-        </CardHeader>
         <CardContent className="p-0">
           {loading && categories.length === 0 ? (
             <div className="text-center py-12">
@@ -248,6 +321,13 @@ export function CategoriesList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox 
+                        checked={selectedCategories.size === categories.length && categories.length > 0}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all categories"
+                      />
+                    </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>Description</TableHead>
@@ -256,7 +336,14 @@ export function CategoriesList() {
                 </TableHeader>
                 <TableBody>
                   {paginatedCategories.map((category) => (
-                    <TableRow key={category.id}>
+                    <TableRow key={category.id} data-state={selectedCategories.has(category.id) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedCategories.has(category.id)}
+                          onCheckedChange={() => handleSelectCategory(category.id)}
+                          aria-label={`Select category ${category.name}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{category.slug}</Badge>
@@ -290,7 +377,7 @@ export function CategoriesList() {
                   ))}
                 </TableBody>
               </Table>
-              
+
               {totalCategories > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
