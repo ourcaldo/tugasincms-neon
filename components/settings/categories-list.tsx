@@ -26,6 +26,9 @@ interface Category {
 export function CategoriesList() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(20)
+  const [totalCategories, setTotalCategories] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -46,9 +49,12 @@ export function CategoriesList() {
       const response = await apiClient.get<{ success: boolean; data: Category[] }>('/categories')
       const categoriesData = response.data || []
       setCategories(categoriesData)
+      setTotalCategories(categoriesData.length)
     } catch (error) {
       console.error('Error fetching categories:', error)
       toast.error('Failed to load categories')
+      setCategories([])
+      setTotalCategories(0)
     } finally {
       setLoading(false)
     }
@@ -69,6 +75,7 @@ export function CategoriesList() {
       })
 
       setCategories(prev => [...prev, response.data])
+      setTotalCategories(prev => prev + 1)
       setFormData({ name: '', slug: '', description: '' })
       setIsCreateDialogOpen(false)
       toast.success('Category created successfully')
@@ -115,7 +122,15 @@ export function CategoriesList() {
     try {
       setLoading(true)
       await apiClient.delete(`/categories/${categoryId}`)
-      setCategories(prev => prev.filter(cat => cat.id !== categoryId))
+      const newCategories = categories.filter(cat => cat.id !== categoryId)
+      setCategories(newCategories)
+      setTotalCategories(newCategories.length)
+      
+      const newTotalPages = Math.ceil(newCategories.length / itemsPerPage)
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages)
+      }
+      
       toast.success('Category deleted successfully')
     } catch (error) {
       console.error('Error deleting category:', error)
@@ -145,6 +160,11 @@ export function CategoriesList() {
     setEditingCategory(null)
     setFormData({ name: '', slug: '', description: '' })
   }
+
+  const paginatedCategories = categories.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -224,51 +244,103 @@ export function CategoriesList() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Slug</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-16"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{category.slug}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {category.description || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(category)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="text-destructive"
-                          >
-                            <Trash className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedCategories.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell className="font-medium">{category.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{category.slug}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {category.description || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditDialog(category)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteCategory(category.id)}
+                              className="text-destructive"
+                            >
+                              <Trash className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {totalCategories > itemsPerPage && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCategories)} of {totalCategories} categories
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.ceil(totalCategories / itemsPerPage) }, (_, i) => i + 1)
+                        .filter(page => {
+                          const totalPages = Math.ceil(totalCategories / itemsPerPage)
+                          return page === 1 || 
+                                 page === totalPages || 
+                                 (page >= currentPage - 1 && page <= currentPage + 1)
+                        })
+                        .map((page, index, array) => (
+                          <div key={page} className="flex items-center">
+                            {index > 0 && array[index - 1] !== page - 1 && (
+                              <span className="px-2 text-muted-foreground">...</span>
+                            )}
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </Button>
+                          </div>
+                        ))
+                      }
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalCategories / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(totalCategories / itemsPerPage)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

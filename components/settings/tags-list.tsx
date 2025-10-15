@@ -24,6 +24,9 @@ interface TagItem {
 export function TagsList() {
   const [tags, setTags] = useState<TagItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(20)
+  const [totalTags, setTotalTags] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTag, setEditingTag] = useState<TagItem | null>(null)
@@ -43,9 +46,12 @@ export function TagsList() {
       const response = await apiClient.get<{ success: boolean; data: TagItem[] }>('/tags')
       const tagsData = response.data || []
       setTags(tagsData)
+      setTotalTags(tagsData.length)
     } catch (error) {
       console.error('Error fetching tags:', error)
       toast.error('Failed to load tags')
+      setTags([])
+      setTotalTags(0)
     } finally {
       setLoading(false)
     }
@@ -65,6 +71,7 @@ export function TagsList() {
       })
 
       setTags(prev => [...prev, response.data])
+      setTotalTags(prev => prev + 1)
       setFormData({ name: '', slug: '' })
       setIsCreateDialogOpen(false)
       toast.success('Tag created successfully')
@@ -110,7 +117,15 @@ export function TagsList() {
     try {
       setLoading(true)
       await apiClient.delete(`/tags/${tagId}`)
-      setTags(prev => prev.filter(tag => tag.id !== tagId))
+      const newTags = tags.filter(tag => tag.id !== tagId)
+      setTags(newTags)
+      setTotalTags(newTags.length)
+      
+      const newTotalPages = Math.ceil(newTags.length / itemsPerPage)
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages)
+      }
+      
       toast.success('Tag deleted successfully')
     } catch (error) {
       console.error('Error deleting tag:', error)
@@ -139,6 +154,11 @@ export function TagsList() {
     setEditingTag(null)
     setFormData({ name: '', slug: '' })
   }
+
+  const paginatedTags = tags.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -208,47 +228,99 @@ export function TagsList() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Slug</TableHead>
-                  <TableHead className="w-16"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tags.map((tag) => (
-                  <TableRow key={tag.id}>
-                    <TableCell className="font-medium">{tag.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{tag.slug}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(tag)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteTag(tag.id)}
-                            className="text-destructive"
-                          >
-                            <Trash className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedTags.map((tag) => (
+                    <TableRow key={tag.id}>
+                      <TableCell className="font-medium">{tag.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{tag.slug}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditDialog(tag)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteTag(tag.id)}
+                              className="text-destructive"
+                            >
+                              <Trash className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {totalTags > itemsPerPage && (
+                <div className="flex items-center justify-between px-6 py-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalTags)} of {totalTags} tags
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.ceil(totalTags / itemsPerPage) }, (_, i) => i + 1)
+                        .filter(page => {
+                          const totalPages = Math.ceil(totalTags / itemsPerPage)
+                          return page === 1 || 
+                                 page === totalPages || 
+                                 (page >= currentPage - 1 && page <= currentPage + 1)
+                        })
+                        .map((page, index, array) => (
+                          <div key={page} className="flex items-center">
+                            {index > 0 && array[index - 1] !== page - 1 && (
+                              <span className="px-2 text-muted-foreground">...</span>
+                            )}
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </Button>
+                          </div>
+                        ))
+                      }
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalTags / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(totalTags / itemsPerPage)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
