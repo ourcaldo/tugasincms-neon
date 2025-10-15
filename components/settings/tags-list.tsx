@@ -207,6 +207,11 @@ export function TagsList() {
     }
   }
 
+  const paginatedTags = tags.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   const isAllCurrentPageSelected = paginatedTags.length > 0 && 
     paginatedTags.every(tag => selectedTags.has(tag.id))
 
@@ -229,11 +234,6 @@ export function TagsList() {
     setEditingTag(null)
     setFormData({ name: '', slug: '' })
   }
-
-  const paginatedTags = tags.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
