@@ -192,6 +192,11 @@ export function CategoriesList() {
     setFormData({ name: '', slug: '', description: '' })
   }
 
+  const paginatedCategories = categories.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   const isAllCurrentPageSelected = selectedCategories.size === paginatedCategories.length && paginatedCategories.length > 0;
   const isAllDataSelected = selectedCategories.size === totalCategories && totalCategories > 0;
 
@@ -215,11 +220,6 @@ export function CategoriesList() {
     })
   }
 
-
-  const paginatedCategories = categories.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -286,16 +286,16 @@ export function CategoriesList() {
           <p className="text-sm">
             {selectedCategories.size} categor{selectedCategories.size === 1 ? 'y' : 'ies'} selected
           </p>
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             size="sm"
             onClick={handleBulkDelete}
           >
             <Trash className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => setSelectedCategories(new Set())}
           >
@@ -334,7 +334,7 @@ export function CategoriesList() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">
-                      <Checkbox 
+                      <Checkbox
                         checked={isAllCurrentPageSelected}
                         onCheckedChange={handleSelectAll}
                         aria-label="Select all categories on this page"
@@ -350,7 +350,7 @@ export function CategoriesList() {
                   {paginatedCategories.map((category) => (
                     <TableRow key={category.id} data-state={selectedCategories.has(category.id) ? "selected" : undefined}>
                       <TableCell>
-                        <Checkbox 
+                        <Checkbox
                           checked={selectedCategories.has(category.id)}
                           onCheckedChange={() => handleSelectCategory(category.id)}
                           aria-label={`Select category ${category.name}`}
@@ -375,7 +375,7 @@ export function CategoriesList() {
                               <Edit className="w-4 h-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleDeleteCategory(category.id)}
                               className="text-destructive"
                             >
@@ -408,8 +408,8 @@ export function CategoriesList() {
                       {Array.from({ length: Math.ceil(totalCategories / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
                           const totalPages = Math.ceil(totalCategories / itemsPerPage)
-                          return page === 1 || 
-                                 page === totalPages || 
+                          return page === 1 ||
+                                 page === totalPages ||
                                  (page >= currentPage - 1 && page <= currentPage + 1)
                         })
                         .map((page, index, array) => (
