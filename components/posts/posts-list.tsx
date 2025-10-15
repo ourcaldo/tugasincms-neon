@@ -287,7 +287,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                     />
                   </TableCell>
                   <TableCell>
-                    <div>
+                    <div className="cursor-pointer hover:text-primary transition-colors" onClick={() => onEditPost(post)}>
                       <p className="font-medium">{post.title}</p>
                       {post.excerpt && (
                         <p className="text-sm text-muted-foreground truncate max-w-xs">

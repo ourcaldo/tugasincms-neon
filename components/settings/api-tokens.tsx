@@ -53,8 +53,9 @@ export function ApiTokens() {
     if (!user?.id) return;
     try {
       setLoading(true);
-      const data = await apiClient.get<ApiTokenResponse[]>(`/settings/tokens/${user.id}`);
-      setTokens(data.map(mapApiTokenToClient));
+      const response = await apiClient.get<{ success: boolean; data: ApiTokenResponse[] }>(`/settings/tokens/${user.id}`);
+      const tokensData = response.data || [];
+      setTokens(tokensData.map(mapApiTokenToClient));
     } catch (error) {
       console.error('Error fetching tokens:', error);
       toast.error('Failed to load tokens');
@@ -76,12 +77,13 @@ export function ApiTokens() {
 
     try {
       setLoading(true);
-      const response = await apiClient.post<ApiTokenResponse>('/settings/tokens', {
+      const response = await apiClient.post<{ success: boolean; data: ApiTokenResponse }>('/settings/tokens', {
         name: newTokenName.trim(),
         userId: user.id,
       });
 
-      const newToken = mapApiTokenToClient(response);
+      const tokenData = response.data;
+      const newToken = mapApiTokenToClient(tokenData);
       setTokens(prev => [...prev, newToken]);
       setGeneratedToken(newToken.token);
       setNewTokenName('');
