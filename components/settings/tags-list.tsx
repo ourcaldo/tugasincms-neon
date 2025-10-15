@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Tag, Checkbox } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Edit, Tag } from 'lucide-react'
+import { Checkbox } from '../ui/checkbox'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 
