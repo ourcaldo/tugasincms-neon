@@ -192,13 +192,16 @@ export function CategoriesList() {
     setFormData({ name: '', slug: '', description: '' })
   }
 
+  const isAllCurrentPageSelected = selectedCategories.size === paginatedCategories.length && paginatedCategories.length > 0;
+  const isAllDataSelected = selectedCategories.size === totalCategories && totalCategories > 0;
+
   const handleSelectAll = () => {
-    if (selectedCategories.size === categories.length) {
-      setSelectedCategories(new Set())
+    if (isAllDataSelected) {
+      setSelectedCategories(new Set());
     } else {
-      setSelectedCategories(new Set(categories.map(cat => cat.id)))
+      setSelectedCategories(new Set(categories.map(cat => cat.id)));
     }
-  }
+  };
 
   const handleSelectCategory = (categoryId: string) => {
     setSelectedCategories(prev => {
@@ -298,6 +301,15 @@ export function CategoriesList() {
           >
             Clear Selection
           </Button>
+          {isAllCurrentPageSelected && !isAllDataSelected && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSelectAll}
+            >
+              Select all {totalCategories} data
+            </Button>
+          )}
         </div>
       )}
 
@@ -323,9 +335,9 @@ export function CategoriesList() {
                   <TableRow>
                     <TableHead className="w-10">
                       <Checkbox 
-                        checked={selectedCategories.size === categories.length && categories.length > 0}
+                        checked={isAllCurrentPageSelected}
                         onCheckedChange={handleSelectAll}
-                        aria-label="Select all categories"
+                        aria-label="Select all categories on this page"
                       />
                     </TableHead>
                     <TableHead>Name</TableHead>

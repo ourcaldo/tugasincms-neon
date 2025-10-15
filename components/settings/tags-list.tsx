@@ -179,12 +179,36 @@ export function TagsList() {
   }
 
   const handleSelectAllTags = () => {
-    if (selectedTags.size === paginatedTags.length) {
-      setSelectedTags(new Set())
+    const currentPageIds = paginatedTags.map(tag => tag.id)
+    const allCurrentPageSelected = currentPageIds.every(id => selectedTags.has(id))
+    
+    if (allCurrentPageSelected) {
+      // Deselect all on current page
+      setSelectedTags(prev => {
+        const newSet = new Set(prev)
+        currentPageIds.forEach(id => newSet.delete(id))
+        return newSet
+      })
     } else {
-      setSelectedTags(new Set(paginatedTags.map(tag => tag.id)))
+      // Select all on current page
+      setSelectedTags(prev => {
+        const newSet = new Set(prev)
+        currentPageIds.forEach(id => newSet.add(id))
+        return newSet
+      })
     }
   }
+
+  const handleSelectAllData = () => {
+    if (selectedTags.size === tags.length) {
+      setSelectedTags(new Set())
+    } else {
+      setSelectedTags(new Set(tags.map(tag => tag.id)))
+    }
+  }
+
+  const isAllCurrentPageSelected = paginatedTags.length > 0 && 
+    paginatedTags.every(tag => selectedTags.has(tag.id))
 
   const openEditDialog = (tag: TagItem) => {
     setEditingTag(tag)
@@ -266,6 +290,15 @@ export function TagsList() {
           <p className="text-sm">
             {selectedTags.size} tag{selectedTags.size === 1 ? '' : 's'} selected
           </p>
+          {selectedTags.size < tags.length && (
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={handleSelectAllData}
+            >
+              Select All {tags.length} Tags
+            </Button>
+          )}
           <Button 
             variant="destructive" 
             size="sm"
@@ -306,9 +339,9 @@ export function TagsList() {
                   <TableRow>
                     <TableHead className="w-10">
                       <Checkbox 
-                        checked={selectedTags.size === paginatedTags.length && paginatedTags.length > 0}
+                        checked={isAllCurrentPageSelected}
                         onCheckedChange={handleSelectAllTags}
-                        aria-label="Select all tags"
+                        aria-label="Select all tags on this page"
                       />
                     </TableHead>
                     <TableHead>Name</TableHead>
