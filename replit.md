@@ -207,6 +207,12 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 15, 2025: UI Enhancements & Bug Fixes (Part 2)
+  - **FIXED**: Sign-in redirect URL - removed forceRedirectUrl prop so URL is clean /sign-in without query parameters
+  - **ADDED**: Client-side pagination to categories and tags pages with proper page clamping
+  - Pagination automatically navigates to last valid page when deleting items from the final page
+  - All CRUD operations maintain proper pagination state and total counts
+
 - October 15, 2025: UI Enhancements & Bug Fixes
   - **FIXED**: API token page error - resolved "e.map is not a function" error by properly extracting data from API response wrapper
   - **ADDED**: Categories management page at `/categories` with full CRUD operations (create, read, update, delete)
