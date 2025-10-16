@@ -146,7 +146,7 @@ export function TagsList() {
 
     try {
       setLoading(true)
-      await apiClient.delete('/tags', { data: { ids: Array.from(selectedTags) } })
+      await Promise.all(Array.from(selectedTags).map(id => apiClient.delete(`/tags/${id}`)))
       const newTags = tags.filter(tag => !selectedTags.has(tag.id))
       setTags(newTags)
       setTotalTags(newTags.length)

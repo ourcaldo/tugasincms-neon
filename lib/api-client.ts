@@ -57,10 +57,16 @@ class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, {
+  async delete<T>(endpoint: string, data?: any): Promise<T> {
+    const options: RequestInit = {
       method: 'DELETE',
-    });
+    };
+    
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+    
+    return this.request<T>(endpoint, options);
   }
 }
 

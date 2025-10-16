@@ -207,6 +207,12 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 16, 2025: TypeScript Build Fixes & API Client Enhancement
+  - **FIXED**: TypeScript compilation error in tags-list.tsx bulk delete function
+  - **ENHANCED**: API client delete method now supports optional data parameter for bulk operations
+  - **FIXED**: Tags bulk delete now uses Promise.all with individual delete requests (consistent with categories pattern)
+  - All TypeScript errors resolved - production build successful
+
 - October 16, 2025: Sitemap URL Trailing Slash Fix
   - **FIXED**: Blog post URLs in sitemap now include trailing slashes for SEO consistency
   - Updated sitemap generation to append trailing slash to all blog post URLs (e.g., `/blog/parenting/manfaat-musik-untuk-anak/`)
