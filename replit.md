@@ -207,6 +207,11 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 16, 2025: Sitemap URL Trailing Slash Fix
+  - **FIXED**: Blog post URLs in sitemap now include trailing slashes for SEO consistency
+  - Updated sitemap generation to append trailing slash to all blog post URLs (e.g., `/blog/parenting/manfaat-musik-untuk-anak/`)
+  - Ensures uniform URL structure across the sitemap matching SEO best practices
+
 - October 15, 2025: UI Enhancements & Bug Fixes (Part 2)
   - **FIXED**: Sign-in redirect URL - removed forceRedirectUrl prop so URL is clean /sign-in without query parameters
   - **ADDED**: Client-side pagination to categories and tags pages with proper page clamping

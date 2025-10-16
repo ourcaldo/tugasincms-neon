@@ -135,7 +135,7 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
       : 'uncategorized'
     
     return {
-      loc: `${url}/blog/${categorySlug}/${post.slug}`,
+      loc: `${url}/blog/${categorySlug}/${post.slug}/`,
       lastmod: new Date(post.updated_at).toISOString(),
       changefreq: 'weekly' as const,
       priority: 0.8
