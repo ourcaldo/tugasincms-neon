@@ -84,6 +84,7 @@
       "scripts": {
             "dev": "next dev --turbo -p 5000",
             "build": "next build",
-            "start": "next start"
+            "start": "next start",
+            "sitemap:cron": "tsx --env-file=.env scripts/sitemap-cron.ts"
       }
 }

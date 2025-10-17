@@ -162,20 +162,21 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
   try {
     const sitemapHost = getSitemapHost()
     const cmsHost = getCmsHost()
+    const TTL = 3600 // 60 minutes
     
     const pagesSitemap = await generatePagesSitemap(sitemapHost)
-    await setCachedData('sitemap:pages', pagesSitemap, 0)
+    await setCachedData('sitemap:pages', pagesSitemap, TTL)
 
     const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost)
     
     if (blogIndex) {
-      await setCachedData('sitemap:post:index', blogIndex, 0)
+      await setCachedData('sitemap:post:index', blogIndex, TTL)
       
       for (let i = 0; i < blogChunks.length; i++) {
-        await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], 0)
+        await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], TTL)
       }
       
-      await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), 0)
+      await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), TTL)
     }
 
     const rootSitemaps = [
@@ -183,7 +184,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
       ...(blogIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-post.xml`] : [])
     ]
     const rootSitemap = generateSitemapIndexXML(rootSitemaps)
-    await setCachedData('sitemap:root', rootSitemap, 0)
+    await setCachedData('sitemap:root', rootSitemap, TTL)
 
     const sitemapInfo: SitemapInfo[] = [
       {
@@ -208,9 +209,9 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
       })
     }
 
-    await setCachedData('sitemaps:info', sitemapInfo, 0)
+    await setCachedData('sitemaps:info', sitemapInfo, TTL)
 
-    console.log(`Sitemaps generated successfully in Redis using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
+    console.log(`Sitemaps generated successfully in Redis (TTL: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
   } catch (error) {
     console.error('Error generating sitemaps:', error)
     throw error

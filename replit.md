@@ -207,6 +207,14 @@ Standardized response structure across all endpoints:
 - `cache.ts` - Redis caching utilities
 
 ## Recent Changes
+- October 17, 2025: Sitemap Auto-Regeneration System
+  - **CHANGED**: Sitemap cache TTL from permanent to 60 minutes (3600s)
+  - **ADDED**: Automatic sitemap regeneration every 60 minutes via background cron job
+  - **ADDED**: New workflow `Sitemap Cron` that runs continuously in the background
+  - **ADDED**: Script `scripts/sitemap-cron.ts` for scheduled sitemap regeneration
+  - Sitemaps now refresh automatically every hour ensuring always up-to-date content
+  - Manual regeneration still available via `/api/v1/sitemaps/generate` endpoint
+
 - October 16, 2025: TypeScript Build Fixes & API Client Enhancement
   - **FIXED**: TypeScript compilation error in tags-list.tsx bulk delete function
   - **ENHANCED**: API client delete method now supports optional data parameter for bulk operations
