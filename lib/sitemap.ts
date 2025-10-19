@@ -111,23 +111,43 @@ export async function generatePagesSitemap(baseUrl?: string): Promise<string> {
 
 export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: string, chunks: string[] }> {
   const url = baseUrl || getBaseUrl()
-  const { data: posts, error } = await supabase
-    .from('posts')
-    .select(`
-      id, 
-      slug, 
-      updated_at,
-      post_categories!inner(
-        categories(slug)
-      )
-    `)
-    .eq('status', 'published')
-    .order('updated_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching posts for sitemap:', error)
-    return { index: '', chunks: [] }
+  
+  // Fetch all posts using pagination to bypass Supabase's 1000 row limit
+  let allPosts: any[] = []
+  let page = 0
+  const pageSize = 1000
+  let hasMore = true
+  
+  while (hasMore) {
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select(`
+        id, 
+        slug, 
+        updated_at,
+        post_categories!inner(
+          categories(slug)
+        )
+      `)
+      .eq('status', 'published')
+      .order('updated_at', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1)
+    
+    if (error) {
+      console.error('Error fetching posts for sitemap:', error)
+      break
+    }
+    
+    if (posts && posts.length > 0) {
+      allPosts = allPosts.concat(posts)
+      hasMore = posts.length === pageSize
+      page++
+    } else {
+      hasMore = false
+    }
   }
+  
+  const posts = allPosts
 
   const blogUrls: SitemapUrl[] = (posts || []).map((post: any) => {
     const categorySlug = post.post_categories && post.post_categories.length > 0 && post.post_categories[0].categories
