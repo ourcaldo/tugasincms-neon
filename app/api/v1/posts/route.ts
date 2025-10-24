@@ -49,82 +49,83 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `, { count: 'exact' })
-    
-    if (status) {
-      query = query.eq('status', status)
-    }
+    let whereConditions = [sql`p.status = ${status}`]
     
     if (search) {
-      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%,excerpt.ilike.%${search}%`)
+      whereConditions.push(sql`(p.title ILIKE ${`%${search}%`} OR p.content ILIKE ${`%${search}%`} OR p.excerpt ILIKE ${`%${search}%`})`)
     }
     
     if (category) {
-      const { data: categoryData } = await supabase
-        .from('categories')
-        .select('id')
-        .or(`id.eq.${category},slug.eq.${category}`)
-        .single()
+      const categoryData = await sql`
+        SELECT id FROM categories WHERE id = ${category} OR slug = ${category}
+      `
       
-      if (categoryData) {
-        const { data: postIds } = await supabase
-          .from('post_categories')
-          .select('post_id')
-          .eq('category_id', categoryData.id)
-        
-        if (postIds && postIds.length > 0) {
-          const ids = postIds.map((p: any) => p.post_id)
-          query = query.in('id', ids)
-        } else {
-          query = query.in('id', [])
-        }
+      if (categoryData.length > 0) {
+        const categoryId = categoryData[0].id
+        whereConditions.push(sql`EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${categoryId})`)
+      } else {
+        whereConditions.push(sql`FALSE`)
       }
     }
     
     if (tag) {
-      const { data: tagData } = await supabase
-        .from('tags')
-        .select('id')
-        .or(`id.eq.${tag},slug.eq.${tag}`)
-        .single()
+      const tagData = await sql`
+        SELECT id FROM tags WHERE id = ${tag} OR slug = ${tag}
+      `
       
-      if (tagData) {
-        const { data: postIds } = await supabase
-          .from('post_tags')
-          .select('post_id')
-          .eq('tag_id', tagData.id)
-        
-        if (postIds && postIds.length > 0) {
-          const ids = postIds.map((p: any) => p.post_id)
-          query = query.in('id', ids)
-        } else {
-          query = query.in('id', [])
-        }
+      if (tagData.length > 0) {
+        const tagId = tagData[0].id
+        whereConditions.push(sql`EXISTS (SELECT 1 FROM post_tags WHERE post_id = p.id AND tag_id = ${tagId})`)
+      } else {
+        whereConditions.push(sql`FALSE`)
       }
     }
     
-    const { data: posts, error, count } = await query
-      .order('publish_date', { ascending: false })
-      .range(offset, offset + limit - 1)
+    const whereClause = whereConditions.reduce((acc, cond, idx) => 
+      idx === 0 ? sql`WHERE ${cond}` : sql`${acc} AND ${cond}`
+    )
     
-    if (error) throw error
+    const countResult = await sql`
+      SELECT COUNT(DISTINCT p.id)::int as count
+      FROM posts p
+      ${whereClause}
+    `
+    const count = countResult[0].count
     
-    const postsWithRelations = mapPostsFromDB(posts || [])
+    const posts = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description))
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      ${whereClause}
+      GROUP BY p.id
+      ORDER BY p.publish_date DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
     
-    const totalPages = Math.ceil((count || 0) / limit)
+    const postsWithRelations = mapPostsFromDB(posts as any || [])
+    
+    const totalPages = Math.ceil(count / limit)
     
     const responseData = {
       posts: postsWithRelations,
       pagination: {
         page,
         limit,
-        total: count || 0,
+        total: count,
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,

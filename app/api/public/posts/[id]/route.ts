@@ -45,35 +45,33 @@ export async function GET(
       return setCorsHeaders(successResponse(cachedPost, true), origin)
     }
     
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `)
-      .eq('status', 'published')
+    const post = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description))
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.status = 'published' AND ${isUUID ? sql`p.id = ${id}` : sql`p.slug = ${id}`}
+      GROUP BY p.id
+    `
     
-    if (isUUID) {
-      query = query.eq('id', id)
-    } else {
-      query = query.eq('slug', id)
-    }
-    
-    const { data: post, error } = await query.single()
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return setCorsHeaders(notFoundResponse('Post not found'), origin)
-      }
-      throw error
-    }
-    
-    if (!post) {
+    if (!post || post.length === 0) {
       return setCorsHeaders(notFoundResponse('Post not found'), origin)
     }
     
-    const postWithRelations = mapPostFromDB(post)
+    const postWithRelations = mapPostFromDB(post[0])
     
     await setCachedData(cacheKey, postWithRelations, 3600)
     

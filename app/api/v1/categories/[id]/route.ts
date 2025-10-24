@@ -50,72 +50,72 @@ export async function GET(
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    let categoryQuery = supabase
-      .from('categories')
-      .select('*')
+    const category = await sql`
+      SELECT * FROM categories
+      WHERE ${isUUID ? sql`id = ${id}` : sql`slug = ${id}`}
+    `
     
-    if (isUUID) {
-      categoryQuery = categoryQuery.eq('id', id)
-    } else {
-      categoryQuery = categoryQuery.eq('slug', id)
-    }
-    
-    const { data: category, error: categoryError } = await categoryQuery.single()
-    
-    if (categoryError) {
-      if (categoryError.code === 'PGRST116') {
-        return setCorsHeaders(notFoundResponse('Category not found'), origin)
-      }
-      throw categoryError
-    }
-    
-    if (!category) {
+    if (!category || category.length === 0) {
       return setCorsHeaders(notFoundResponse('Category not found'), origin)
     }
     
-    const { data: postCategories, count } = await supabase
-      .from('post_categories')
-      .select('post_id', { count: 'exact' })
-      .eq('category_id', category.id)
+    const countResult = await sql`
+      SELECT COUNT(*)::int as count FROM post_categories WHERE category_id = ${category[0].id}
+    `
+    const count = countResult[0].count
+    
+    const postCategories = await sql`
+      SELECT post_id FROM post_categories WHERE category_id = ${category[0].id}
+    `
     
     const postIds = (postCategories || []).map((pc: any) => pc.post_id)
     
     let postsData: MappedPost[] = []
     if (postIds.length > 0) {
-      const { data: posts, error: postsError } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          categories:post_categories(category:categories(*)),
-          tags:post_tags(tag:tags(*))
-        `)
-        .in('id', postIds)
-        .eq('status', 'published')
-        .order('publish_date', { ascending: false })
-        .range(offset, offset + limit - 1)
-      
-      if (postsError) throw postsError
+      const posts = await sql`
+        SELECT 
+          p.*,
+          COALESCE(
+            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description))
+            FILTER (WHERE c.id IS NOT NULL),
+            '[]'::json
+          ) as categories,
+          COALESCE(
+            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+            FILTER (WHERE t.id IS NOT NULL),
+            '[]'::json
+          ) as tags
+        FROM posts p
+        LEFT JOIN post_categories pc ON p.id = pc.post_id
+        LEFT JOIN categories c ON pc.category_id = c.id
+        LEFT JOIN post_tags pt ON p.id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.id
+        WHERE p.id = ANY(${postIds}) AND p.status = 'published'
+        GROUP BY p.id
+        ORDER BY p.publish_date DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
       
       postsData = mapPostsFromDB(posts || [])
     }
     
-    const totalPages = Math.ceil((count || 0) / limit)
+    const totalPages = Math.ceil(count / limit)
     
     const responseData = {
       category: {
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        description: category.description,
-        postCount: count || 0,
-        createdAt: category.created_at,
-        updatedAt: category.updated_at,
+        id: category[0].id,
+        name: category[0].name,
+        slug: category[0].slug,
+        description: category[0].description,
+        postCount: count,
+        createdAt: category[0].created_at,
+        updatedAt: category[0].updated_at,
       },
       posts: postsData,
       pagination: {
         page,
         limit,
-        total: count || 0,
+        total: count,
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,

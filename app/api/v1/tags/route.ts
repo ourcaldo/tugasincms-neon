@@ -45,46 +45,48 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    let query = supabase
-      .from('tags')
-      .select('*', { count: 'exact' })
-    
+    let whereClause = sql`TRUE`
     if (search) {
-      query = query.ilike('name', `%${search}%`)
+      whereClause = sql`name ILIKE ${`%${search}%`}`
     }
     
-    const { data: tags, error, count } = await query
-      .order('name', { ascending: true })
-      .range(offset, offset + limit - 1)
+    const countResult = await sql`
+      SELECT COUNT(*)::int as count FROM tags WHERE ${whereClause}
+    `
+    const count = countResult[0].count
     
-    if (error) throw error
+    const tags = await sql`
+      SELECT * FROM tags
+      WHERE ${whereClause}
+      ORDER BY name ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `
     
     const tagsWithCounts = await Promise.all(
-      (tags || []).map(async (tag) => {
-        const { count: postCount } = await supabase
-          .from('post_tags')
-          .select('*', { count: 'exact', head: true })
-          .eq('tag_id', tag.id)
+      (tags || []).map(async (tag: any) => {
+        const postCountResult = await sql`
+          SELECT COUNT(*)::int as count FROM post_tags WHERE tag_id = ${tag.id}
+        `
         
         return {
           id: tag.id,
           name: tag.name,
           slug: tag.slug,
-          postCount: postCount || 0,
+          postCount: postCountResult[0].count,
           createdAt: tag.created_at,
           updatedAt: tag.updated_at,
         }
       })
     )
     
-    const totalPages = Math.ceil((count || 0) / limit)
+    const totalPages = Math.ceil(count / limit)
     
     const responseData = {
       tags: tagsWithCounts,
       pagination: {
         page,
         limit,
-        total: count || 0,
+        total: count,
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,

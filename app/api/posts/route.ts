@@ -41,11 +41,14 @@ export async function GET(request: NextRequest) {
       whereConditions.push(sql`EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})`)
     }
     
+    const whereClause = whereConditions.reduce((acc, cond, idx) => 
+      idx === 0 ? sql`WHERE ${cond}` : sql`${acc} AND ${cond}`
+    )
+    
     const countResult = await sql`
       SELECT COUNT(DISTINCT p.id)::int as count
       FROM posts p
-      ${category ? sql`LEFT JOIN post_categories pc ON p.id = pc.post_id` : sql``}
-      WHERE ${sql.join(whereConditions, sql` AND `)}
+      ${whereClause}
     `
     const total = countResult[0].count
     
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN categories c ON pc.category_id = c.id
       LEFT JOIN post_tags pt ON p.id = pt.post_id
       LEFT JOIN tags t ON pt.tag_id = t.id
-      WHERE ${sql.join(whereConditions, sql` AND `)}
+      ${whereClause}
       GROUP BY p.id
       ORDER BY p.created_at DESC
       LIMIT ${limit} OFFSET ${offset}

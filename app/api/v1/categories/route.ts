@@ -45,47 +45,49 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    let query = supabase
-      .from('categories')
-      .select('*', { count: 'exact' })
-    
+    let whereClause = sql`TRUE`
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+      whereClause = sql`(name ILIKE ${`%${search}%`} OR description ILIKE ${`%${search}%`})`
     }
     
-    const { data: categories, error, count } = await query
-      .order('name', { ascending: true })
-      .range(offset, offset + limit - 1)
+    const countResult = await sql`
+      SELECT COUNT(*)::int as count FROM categories WHERE ${whereClause}
+    `
+    const count = countResult[0].count
     
-    if (error) throw error
+    const categories = await sql`
+      SELECT * FROM categories
+      WHERE ${whereClause}
+      ORDER BY name ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `
     
     const categoriesWithCounts = await Promise.all(
-      (categories || []).map(async (category) => {
-        const { count: postCount } = await supabase
-          .from('post_categories')
-          .select('*', { count: 'exact', head: true })
-          .eq('category_id', category.id)
+      (categories || []).map(async (category: any) => {
+        const postCountResult = await sql`
+          SELECT COUNT(*)::int as count FROM post_categories WHERE category_id = ${category.id}
+        `
         
         return {
           id: category.id,
           name: category.name,
           slug: category.slug,
           description: category.description,
-          postCount: postCount || 0,
+          postCount: postCountResult[0].count,
           createdAt: category.created_at,
           updatedAt: category.updated_at,
         }
       })
     )
     
-    const totalPages = Math.ceil((count || 0) / limit)
+    const totalPages = Math.ceil(count / limit)
     
     const responseData = {
       categories: categoriesWithCounts,
       pagination: {
         page,
         limit,
-        total: count || 0,
+        total: count,
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,

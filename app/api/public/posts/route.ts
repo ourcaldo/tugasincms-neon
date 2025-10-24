@@ -40,19 +40,30 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(successResponse(cachedPosts, true), origin)
     }
     
-    const { data: publishedPosts, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `)
-      .eq('status', 'published')
-      .order('publish_date', { ascending: false })
+    const publishedPosts = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description))
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.status = 'published'
+      GROUP BY p.id
+      ORDER BY p.publish_date DESC
+    `
     
-    if (error) throw error
-    
-    const postsWithRelations = mapPostsFromDB(publishedPosts || [])
+    const postsWithRelations = mapPostsFromDB(publishedPosts as any || [])
     
     await setCachedData(cacheKey, postsWithRelations, 3600)
     
@@ -105,25 +116,20 @@ export async function POST(request: NextRequest) {
       postStatus = 'published'
     }
     
-    const { data: newPost, error } = await supabase
-      .from('posts')
-      .insert({
-        title,
-        content,
-        excerpt,
-        slug,
-        featured_image: featuredImage,
-        publish_date: postPublishDate,
-        status: postStatus,
-        author_id: validToken.user_id,
-        seo_title: seo?.title,
-        meta_description: seo?.metaDescription,
-        focus_keyword: seo?.focusKeyword,
-      })
-      .select()
-      .single()
+    const newPostResult = await sql`
+      INSERT INTO posts (
+        title, content, excerpt, slug, featured_image, publish_date, status, author_id,
+        seo_title, meta_description, focus_keyword
+      )
+      VALUES (
+        ${title}, ${content}, ${excerpt || null}, ${slug}, ${featuredImage || null},
+        ${postPublishDate}, ${postStatus}, ${validToken.user_id},
+        ${seo?.title || null}, ${seo?.metaDescription || null}, ${seo?.focusKeyword || null}
+      )
+      RETURNING *
+    `
     
-    if (error) throw error
+    const newPost = newPostResult[0]
     
     const categoryIds: string[] = []
     
@@ -131,36 +137,29 @@ export async function POST(request: NextRequest) {
       const categoryNames = categories.split(',').map((name: string) => name.trim()).filter(Boolean)
       
       for (const categoryName of categoryNames) {
-        const { data: existingCategory } = await supabase
-          .from('categories')
-          .select('id')
-          .eq('name', categoryName)
-          .single()
+        const existingCategory = await sql`
+          SELECT id FROM categories WHERE name = ${categoryName}
+        `
         
-        if (existingCategory) {
-          categoryIds.push(existingCategory.id)
+        if (existingCategory.length > 0) {
+          categoryIds.push(existingCategory[0].id)
         } else {
-          const { data: newCategory } = await supabase
-            .from('categories')
-            .insert({
-              name: categoryName,
-              slug: categoryName.toLowerCase().replace(/\s+/g, '-'),
-            })
-            .select('id')
-            .single()
+          const newCategory = await sql`
+            INSERT INTO categories (name, slug)
+            VALUES (${categoryName}, ${categoryName.toLowerCase().replace(/\s+/g, '-')})
+            RETURNING id
+          `
           
-          if (newCategory) {
-            categoryIds.push(newCategory.id)
+          if (newCategory.length > 0) {
+            categoryIds.push(newCategory[0].id)
           }
         }
       }
       
       if (categoryIds.length > 0) {
-        const categoryInserts = categoryIds.map((catId: string) => ({
-          post_id: newPost.id,
-          category_id: catId,
-        }))
-        await supabase.from('post_categories').insert(categoryInserts)
+        for (const catId of categoryIds) {
+          await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${newPost.id}, ${catId})`
+        }
       }
     }
     
@@ -169,36 +168,29 @@ export async function POST(request: NextRequest) {
       const tagIds = []
       
       for (const tagName of tagNames) {
-        const { data: existingTag } = await supabase
-          .from('tags')
-          .select('id')
-          .eq('name', tagName)
-          .single()
+        const existingTag = await sql`
+          SELECT id FROM tags WHERE name = ${tagName}
+        `
         
-        if (existingTag) {
-          tagIds.push(existingTag.id)
+        if (existingTag.length > 0) {
+          tagIds.push(existingTag[0].id)
         } else {
-          const { data: newTag } = await supabase
-            .from('tags')
-            .insert({
-              name: tagName,
-              slug: tagName.toLowerCase().replace(/\s+/g, '-'),
-            })
-            .select('id')
-            .single()
+          const newTag = await sql`
+            INSERT INTO tags (name, slug)
+            VALUES (${tagName}, ${tagName.toLowerCase().replace(/\s+/g, '-')})
+            RETURNING id
+          `
           
-          if (newTag) {
-            tagIds.push(newTag.id)
+          if (newTag.length > 0) {
+            tagIds.push(newTag[0].id)
           }
         }
       }
       
       if (tagIds.length > 0) {
-        const tagInserts = tagIds.map((tagId: string) => ({
-          post_id: newPost.id,
-          tag_id: tagId,
-        }))
-        await supabase.from('post_tags').insert(tagInserts)
+        for (const tagId of tagIds) {
+          await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${newPost.id}, ${tagId})`
+        }
       }
     }
     
@@ -210,14 +202,12 @@ export async function POST(request: NextRequest) {
     let postUrl = `https://${sitemapHost}/${newPost.slug}`
     
     if (categoryIds.length > 0) {
-      const { data: firstCategory } = await supabase
-        .from('categories')
-        .select('slug')
-        .eq('id', categoryIds[0])
-        .single()
+      const firstCategory = await sql`
+        SELECT slug FROM categories WHERE id = ${categoryIds[0]}
+      `
       
-      if (firstCategory?.slug) {
-        postUrl = `https://${sitemapHost}/${firstCategory.slug}/${newPost.slug}`
+      if (firstCategory.length > 0 && firstCategory[0].slug) {
+        postUrl = `https://${sitemapHost}/${firstCategory[0].slug}/${newPost.slug}`
       }
     }
     
