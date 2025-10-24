@@ -235,6 +235,48 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Critical Bug Fixes Post-Neon Migration (October 24, 2025 - 16:50 UTC)
+
+**Summary**: Fixed critical database schema and SQL syntax errors discovered after Neon migration deployment.
+
+**Issues Identified**:
+1. Database tables not created in Neon database (users, posts, categories, tags, post_categories, post_tags, api_tokens)
+2. SQL syntax error in posts GET endpoint - @neondatabase/serverless package incompatibility with reduce pattern for dynamic WHERE clause composition
+3. TypeScript type assertion errors in post mapper functions
+
+**Fixes Implemented**:
+
+1. **Database Schema Migration** (16:50 UTC)
+   - Created comprehensive SQL migration file: `migrations/001_create_tables.sql`
+   - Includes all 7 tables with proper foreign keys, constraints, and indexes
+   - Added UUID extension and automatic updated_at triggers
+   - Optimized with performance indexes on key columns (slug, author_id, status, etc.)
+
+2. **SQL Syntax Error Fix** (16:52 UTC)
+   - **File**: `app/api/posts/route.ts`
+   - **Issue**: Dynamic WHERE clause using `reduce()` pattern incompatible with @neondatabase/serverless
+   - **Solution**: Replaced reduce pattern with explicit conditional queries for each filter combination
+   - **Result**: 8 query variants (all filters, combinations, single filters, no filters) handling all user scenarios
+   - Maintains same functionality with proper SQL template literal composition
+
+3. **TypeScript Fixes** (16:54 UTC)
+   - Added type assertions to `mapPostsFromDB()` and `mapPostFromDB()` calls
+   - Resolved all LSP diagnostics (0 errors remaining)
+
+**Files Changed**:
+- **CREATED**: `migrations/001_create_tables.sql` (new database schema migration)
+- **UPDATED**: `app/api/posts/route.ts` (fixed SQL syntax error and type assertions)
+
+**Action Required by User**:
+User must run the SQL migration file against their Neon database to create all required tables. See `migrations/001_create_tables.sql` for complete schema.
+
+**Technical Notes**:
+- @neondatabase/serverless doesn't support SQL fragment composition via reduce patterns
+- Must use explicit queries or build SQL as plain strings for dynamic WHERE clauses
+- All queries remain parameterized and SQL-injection safe
+
+---
+
 ### Database Migration from Supabase to Neon PostgreSQL (October 24, 2025)
 
 **Migration Status**: ✅ COMPLETED & VERIFIED

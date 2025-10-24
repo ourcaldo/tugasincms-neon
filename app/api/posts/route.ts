@@ -304,7 +304,7 @@ export async function GET(request: NextRequest) {
     
     const posts = await postsQuery
     
-    const postsWithRelations = mapPostsFromDB(posts || []) as any
+    const postsWithRelations = mapPostsFromDB((posts || []) as any)
     
     const responseData = {
       posts: postsWithRelations,
