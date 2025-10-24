@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 interface CustomPostType {
   slug: string;
   name: string;
-  enabled: boolean;
+  is_enabled: boolean;
 }
 
 const baseMenuItems = [
@@ -81,7 +81,7 @@ export function AppSidebar() {
       if (response.ok) {
         const data = await response.json();
         const cpts = data.data || data || [];
-        const enabled = cpts.filter((cpt: CustomPostType) => cpt.enabled);
+        const enabled = cpts.filter((cpt: CustomPostType) => cpt.is_enabled);
         setCustomPostTypes(enabled);
         
         // Build dynamic menu items

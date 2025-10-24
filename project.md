@@ -235,6 +235,113 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posting Custom Post Type Implementation (October 24, 2025 - 18:15 UTC)
+
+**Summary**: Successfully implemented complete job posting functionality as a custom post type, including API routes, database integration, UI components, and dashboard pages.
+
+**Database Schema Updates**:
+- **custom_post_types** table: Stores CPT configurations (job, post, etc.)
+- **job_categories** & **job_tags** tables: Job-specific taxonomy
+- **job_employment_types** & **job_experience_levels** tables: Job metadata lookups
+- **job_post_meta** table: Stores all job-specific fields (company info, salary, location, application details, skills, benefits, etc.)
+- **job_post_categories** & **job_post_tags** junction tables: Many-to-many relationships
+- **posts.post_type** column: Differentiates between 'post' and 'job' types
+- Integration with Indonesian regional tables: **reg_provinces**, **reg_regencies**, **reg_districts**, **reg_villages**
+
+**API Routes Created**:
+1. **Job Posts CRUD**:
+   - `GET/POST /api/job-posts` - List and create job posts with filtering
+   - `GET/PUT/DELETE /api/job-posts/[id]` - Single job post operations
+   - `POST /api/job-posts/bulk-delete` - Bulk deletion with ownership validation
+
+2. **Job Taxonomy**:
+   - `GET/POST /api/job-categories`, `GET/PUT/DELETE /api/job-categories/[id]`
+   - `GET/POST /api/job-tags`, `GET/PUT/DELETE /api/job-tags/[id]`
+
+3. **Job Data Lookups**:
+   - `GET /api/job-data/employment-types` - Full Time, Part Time, Contract, etc.
+   - `GET /api/job-data/experience-levels` - Entry Level, Junior, Senior, etc.
+
+4. **Location Data** (cascading):
+   - `GET /api/location/provinces`
+   - `GET /api/location/regencies/[provinceId]`
+   - `GET /api/location/districts/[regencyId]`
+   - `GET /api/location/villages/[districtId]`
+
+5. **Custom Post Types Management**:
+   - `GET /api/settings/custom-post-types` - List all CPTs
+   - `PUT /api/settings/custom-post-types/[slug]` - Toggle enable/disable
+
+**Components Created**:
+1. **components/job-posts/job-post-editor.tsx**:
+   - Comprehensive editor with 6 tabbed sections: Content, Job Details, Location, Application, Additional Info, SEO
+   - Rich text editors (TiptapEditor) for content, requirements, responsibilities
+   - Cascading location selects (province → regency → district → village)
+   - Skills and benefits array management
+   - Job categories and tags with creation capability
+   - Salary range with currency and period
+   - Company information fields
+   - Application details (email, URL, deadline)
+   - Remote/hybrid options
+
+2. **components/job-posts/job-posts-list.tsx**: Job posts list with filters, search, pagination, bulk operations
+
+3. **components/job-posts/job-categories-list.tsx**: Job categories CRUD management
+
+4. **components/job-posts/job-tags-list.tsx**: Job tags CRUD management
+
+5. **components/settings/custom-post-types-settings.tsx**: CPT enable/disable toggles
+
+**Dashboard Pages Created**:
+- `/job-posts` - List all job posts with filters
+- `/job-posts/new` - Create new job post
+- `/job-posts/edit/[id]` - Edit existing job post
+- `/job-categories` - Manage job categories
+- `/job-tags` - Manage job tags
+- `/settings/custom-post-types` - Enable/disable custom post types
+
+**Sidebar Integration**:
+- Sidebar dynamically shows enabled custom post types
+- When Job Post CPT is enabled, adds "Job Posts" menu with "All Job Posts" and "Add New Job Post" options
+- Menu positioning respects menu_position field from database
+
+**Key Features**:
+- ✅ Full CRUD operations for job posts with ownership validation
+- ✅ Comprehensive job metadata (company, salary, location, application details)
+- ✅ Indonesian regional location support with cascading selects
+- ✅ Job-specific categories and tags (separate from blog post taxonomy)
+- ✅ Employment types and experience levels from database
+- ✅ Skills and benefits as text arrays
+- ✅ Rich text editing for job requirements and responsibilities
+- ✅ SEO fields for all job posts
+- ✅ Bulk operations (delete multiple job posts)
+- ✅ Search and advanced filtering
+- ✅ Status management (draft, published, scheduled)
+- ✅ Application deadline tracking
+
+**Files Added** (15 files):
+- API: `app/api/job-posts/route.ts`, `app/api/job-posts/[id]/route.ts`, `app/api/job-posts/bulk-delete/route.ts`
+- Components: `components/job-posts/job-post-editor.tsx`
+- Pages: `app/(dashboard)/job-posts/page.tsx`, `app/(dashboard)/job-posts/new/page.tsx`, `app/(dashboard)/job-posts/edit/[id]/page.tsx`, `app/(dashboard)/job-categories/page.tsx`, `app/(dashboard)/job-tags/page.tsx`
+- Settings: `app/(dashboard)/settings/custom-post-types/page.tsx`, `components/settings/custom-post-types-settings.tsx`
+
+**Technical Highlights**:
+- Follows existing code patterns from posts system
+- Uses @neondatabase/serverless with parameterized SQL queries
+- Proper authentication and authorization with Clerk
+- Zod validation on all inputs
+- Clean separation of concerns with dedicated API routes
+- Responsive UI using Radix UI components
+- Type-safe TypeScript throughout
+
+**Next Steps for User**:
+1. Enable Job Post CPT via Settings > Custom Post Types
+2. Create job categories and tags via the new menu items
+3. Create first job post with all required fields
+4. Test the complete workflow including location cascading
+
+---
+
 ### Database Connection Fix - Environment Variable Override (October 24, 2025 - 16:54 UTC)
 
 **Summary**: Fixed critical database connection issue where Replit system environment variables were overriding .env file, causing app to connect to local database instead of Neon.

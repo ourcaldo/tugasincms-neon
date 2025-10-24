@@ -1,0 +1,324 @@
+import { NextRequest } from 'next/server'
+import { sql } from '@/lib/database'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { z } from 'zod'
+
+const updateJobPostSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().min(1).optional(),
+  excerpt: z.string().max(1000).optional(),
+  slug: z.string().min(1).max(200).optional(),
+  featured_image: z.string().optional(),
+  publish_date: z.string().optional(),
+  status: z.enum(['draft', 'published', 'scheduled']).optional(),
+  seo_title: z.string().max(200).optional(),
+  meta_description: z.string().max(500).optional(),
+  focus_keyword: z.string().max(100).optional(),
+  
+  // Job-specific fields
+  job_company_name: z.string().max(200).optional(),
+  job_company_logo: z.string().max(500).optional(),
+  job_company_website: z.string().max(500).optional(),
+  job_employment_type_id: z.string().uuid().optional().nullable(),
+  job_experience_level_id: z.string().uuid().optional().nullable(),
+  job_salary_min: z.number().optional().nullable(),
+  job_salary_max: z.number().optional().nullable(),
+  job_salary_currency: z.string().max(10).optional(),
+  job_salary_period: z.string().max(50).optional(),
+  job_is_salary_negotiable: z.boolean().optional(),
+  job_province_id: z.string().max(2).optional().nullable(),
+  job_regency_id: z.string().max(4).optional().nullable(),
+  job_district_id: z.string().max(6).optional().nullable(),
+  job_village_id: z.string().max(10).optional().nullable(),
+  job_address_detail: z.string().optional().nullable(),
+  job_is_remote: z.boolean().optional(),
+  job_is_hybrid: z.boolean().optional(),
+  job_application_email: z.string().max(200).optional().nullable(),
+  job_application_url: z.string().max(500).optional().nullable(),
+  job_application_deadline: z.string().optional().nullable(),
+  job_skills: z.array(z.string()).optional(),
+  job_benefits: z.array(z.string()).optional(),
+  job_requirements: z.string().optional().nullable(),
+  job_responsibilities: z.string().optional().nullable(),
+  
+  // Relations
+  job_categories: z.array(z.string().uuid()).optional(),
+  job_tags: z.array(z.string().uuid()).optional()
+})
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const { id } = await params
+    
+    const post = await sql`
+      SELECT 
+        p.*,
+        jpm.job_company_name,
+        jpm.job_company_logo,
+        jpm.job_company_website,
+        jpm.job_employment_type_id,
+        jpm.job_experience_level_id,
+        jpm.job_salary_min,
+        jpm.job_salary_max,
+        jpm.job_salary_currency,
+        jpm.job_salary_period,
+        jpm.job_is_salary_negotiable,
+        jpm.job_province_id,
+        jpm.job_regency_id,
+        jpm.job_district_id,
+        jpm.job_village_id,
+        jpm.job_address_detail,
+        jpm.job_is_remote,
+        jpm.job_is_hybrid,
+        jpm.job_application_email,
+        jpm.job_application_url,
+        jpm.job_application_deadline,
+        jpm.job_skills,
+        jpm.job_benefits,
+        jpm.job_requirements,
+        jpm.job_responsibilities,
+        jet.name as employment_type,
+        jel.name as experience_level,
+        prov.name as location_province,
+        reg.name as location_regency,
+        dist.name as location_district,
+        vill.name as location_village,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug)) 
+          FILTER (WHERE jc.id IS NOT NULL),
+          '[]'::json
+        ) as job_categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jt.id, 'name', jt.name, 'slug', jt.slug))
+          FILTER (WHERE jt.id IS NOT NULL),
+          '[]'::json
+        ) as job_tags
+      FROM posts p
+      LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
+      LEFT JOIN job_employment_types jet ON jpm.job_employment_type_id = jet.id
+      LEFT JOIN job_experience_levels jel ON jpm.job_experience_level_id = jel.id
+      LEFT JOIN reg_provinces prov ON jpm.job_province_id = prov.id
+      LEFT JOIN reg_regencies reg ON jpm.job_regency_id = reg.id
+      LEFT JOIN reg_districts dist ON jpm.job_district_id = dist.id
+      LEFT JOIN reg_villages vill ON jpm.job_village_id = vill.id
+      LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+      LEFT JOIN job_categories jc ON jpc.category_id = jc.id
+      LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
+      LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
+      WHERE p.id = ${id} AND p.author_id = ${userId} AND p.post_type = 'job'
+      GROUP BY p.id, jpm.post_id, jpm.job_company_name, jpm.job_company_logo, jpm.job_company_website,
+        jpm.job_employment_type_id, jpm.job_experience_level_id, jpm.job_salary_min, jpm.job_salary_max,
+        jpm.job_salary_currency, jpm.job_salary_period, jpm.job_is_salary_negotiable,
+        jpm.job_province_id, jpm.job_regency_id, jpm.job_district_id, jpm.job_village_id,
+        jpm.job_address_detail, jpm.job_is_remote, jpm.job_is_hybrid, jpm.job_application_email,
+        jpm.job_application_url, jpm.job_application_deadline, jpm.job_skills, jpm.job_benefits,
+        jpm.job_requirements, jpm.job_responsibilities, jet.name, jel.name, prov.name, reg.name, dist.name, vill.name
+    `
+    
+    if (!post || post.length === 0) {
+      return notFoundResponse('Job post not found')
+    }
+    
+    return successResponse(post[0], false)
+  } catch (error) {
+    console.error('Error fetching job post:', error)
+    return errorResponse('Failed to fetch job post')
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const { id } = await params
+    
+    const existingPost = await sql`
+      SELECT author_id, post_type FROM posts WHERE id = ${id}
+    `
+    
+    if (!existingPost || existingPost.length === 0) {
+      return notFoundResponse('Job post not found')
+    }
+    
+    if (existingPost[0].author_id !== userId) {
+      return forbiddenResponse('You can only edit your own job posts')
+    }
+    
+    if (existingPost[0].post_type !== 'job') {
+      return forbiddenResponse('This is not a job post')
+    }
+    
+    const body = await request.json()
+    const validation = updateJobPostSchema.safeParse(body)
+    
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const {
+      title, content, excerpt, slug, featured_image, publish_date, status,
+      seo_title, meta_description, focus_keyword,
+      job_company_name, job_company_logo, job_company_website,
+      job_employment_type_id, job_experience_level_id,
+      job_salary_min, job_salary_max, job_salary_currency, job_salary_period,
+      job_is_salary_negotiable, job_province_id, job_regency_id, job_district_id,
+      job_village_id, job_address_detail, job_is_remote, job_is_hybrid,
+      job_application_email, job_application_url, job_application_deadline,
+      job_skills, job_benefits, job_requirements, job_responsibilities,
+      job_categories, job_tags
+    } = validation.data
+    
+    // Update post
+    await sql`
+      UPDATE posts
+      SET 
+        title = COALESCE(${title}, title),
+        content = COALESCE(${content}, content),
+        excerpt = COALESCE(${excerpt}, excerpt),
+        slug = COALESCE(${slug}, slug),
+        featured_image = COALESCE(${featured_image}, featured_image),
+        publish_date = COALESCE(${publish_date}, publish_date),
+        status = COALESCE(${status}, status),
+        seo_title = COALESCE(${seo_title}, seo_title),
+        meta_description = COALESCE(${meta_description}, meta_description),
+        focus_keyword = COALESCE(${focus_keyword}, focus_keyword),
+        updated_at = NOW()
+      WHERE id = ${id}
+    `
+    
+    // Update job meta
+    await sql`
+      UPDATE job_post_meta
+      SET 
+        job_company_name = COALESCE(${job_company_name}, job_company_name),
+        job_company_logo = COALESCE(${job_company_logo}, job_company_logo),
+        job_company_website = COALESCE(${job_company_website}, job_company_website),
+        job_employment_type_id = COALESCE(${job_employment_type_id}, job_employment_type_id),
+        job_experience_level_id = COALESCE(${job_experience_level_id}, job_experience_level_id),
+        job_salary_min = COALESCE(${job_salary_min}, job_salary_min),
+        job_salary_max = COALESCE(${job_salary_max}, job_salary_max),
+        job_salary_currency = COALESCE(${job_salary_currency}, job_salary_currency),
+        job_salary_period = COALESCE(${job_salary_period}, job_salary_period),
+        job_is_salary_negotiable = COALESCE(${job_is_salary_negotiable}, job_is_salary_negotiable),
+        job_province_id = COALESCE(${job_province_id}, job_province_id),
+        job_regency_id = COALESCE(${job_regency_id}, job_regency_id),
+        job_district_id = COALESCE(${job_district_id}, job_district_id),
+        job_village_id = COALESCE(${job_village_id}, job_village_id),
+        job_address_detail = COALESCE(${job_address_detail}, job_address_detail),
+        job_is_remote = COALESCE(${job_is_remote}, job_is_remote),
+        job_is_hybrid = COALESCE(${job_is_hybrid}, job_is_hybrid),
+        job_application_email = COALESCE(${job_application_email}, job_application_email),
+        job_application_url = COALESCE(${job_application_url}, job_application_url),
+        job_application_deadline = COALESCE(${job_application_deadline}, job_application_deadline),
+        job_skills = COALESCE(${job_skills}, job_skills),
+        job_benefits = COALESCE(${job_benefits}, job_benefits),
+        job_requirements = COALESCE(${job_requirements}, job_requirements),
+        job_responsibilities = COALESCE(${job_responsibilities}, job_responsibilities),
+        updated_at = NOW()
+      WHERE post_id = ${id}
+    `
+    
+    // Update categories
+    if (job_categories !== undefined) {
+      await sql`DELETE FROM job_post_categories WHERE post_id = ${id}`
+      if (job_categories.length > 0) {
+        for (const catId of job_categories) {
+          await sql`INSERT INTO job_post_categories (post_id, category_id) VALUES (${id}, ${catId})`
+        }
+      }
+    }
+    
+    // Update tags
+    if (job_tags !== undefined) {
+      await sql`DELETE FROM job_post_tags WHERE post_id = ${id}`
+      if (job_tags.length > 0) {
+        for (const tagId of job_tags) {
+          await sql`INSERT INTO job_post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
+        }
+      }
+    }
+    
+    // Fetch updated job post
+    const fullPost = await sql`
+      SELECT 
+        p.*,
+        jpm.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug)) 
+          FILTER (WHERE jc.id IS NOT NULL),
+          '[]'::json
+        ) as job_categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jt.id, 'name', jt.name, 'slug', jt.slug))
+          FILTER (WHERE jt.id IS NOT NULL),
+          '[]'::json
+        ) as job_tags
+      FROM posts p
+      LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
+      LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+      LEFT JOIN job_categories jc ON jpc.category_id = jc.id
+      LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
+      LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
+      WHERE p.id = ${id}
+      GROUP BY p.id, jpm.id
+    `
+    
+    return successResponse(fullPost[0], false)
+  } catch (error) {
+    console.error('Error updating job post:', error)
+    return errorResponse('Failed to update job post')
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+    
+    const { id } = await params
+    
+    const existingPost = await sql`
+      SELECT author_id, post_type FROM posts WHERE id = ${id}
+    `
+    
+    if (!existingPost || existingPost.length === 0) {
+      return notFoundResponse('Job post not found')
+    }
+    
+    if (existingPost[0].author_id !== userId) {
+      return forbiddenResponse('You can only delete your own job posts')
+    }
+    
+    if (existingPost[0].post_type !== 'job') {
+      return forbiddenResponse('This is not a job post')
+    }
+    
+    // Delete job post (cascades will handle relations)
+    await sql`DELETE FROM posts WHERE id = ${id}`
+    
+    return new Response(null, { status: 204 })
+  } catch (error) {
+    console.error('Error deleting job post:', error)
+    return errorResponse('Failed to delete job post')
+  }
+}
