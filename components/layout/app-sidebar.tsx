@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
@@ -10,6 +11,7 @@ import {
   BarChart3,
   User,
   LogOut,
+  Briefcase,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -27,7 +29,13 @@ import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
-const menuItems = [
+interface CustomPostType {
+  slug: string;
+  name: string;
+  enabled: boolean;
+}
+
+const baseMenuItems = [
   {
     title: 'Posts',
     icon: FileText,
@@ -51,6 +59,7 @@ const menuItems = [
     items: [
       { title: 'Profile', href: '/settings/profile', tooltip: 'Update your profile information' },
       { title: 'API Tokens', href: '/settings/tokens', tooltip: 'Manage API access tokens' },
+      { title: 'Custom Post Types', href: '/settings/custom-post-types', tooltip: 'Manage custom post types' },
     ],
   },
 ];
@@ -59,6 +68,57 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const [customPostTypes, setCustomPostTypes] = useState<CustomPostType[]>([]);
+  const [menuItems, setMenuItems] = useState(baseMenuItems);
+
+  useEffect(() => {
+    fetchCustomPostTypes();
+  }, []);
+
+  const fetchCustomPostTypes = async () => {
+    try {
+      const response = await fetch('/api/settings/custom-post-types');
+      if (response.ok) {
+        const data = await response.json();
+        const cpts = data.data || data || [];
+        const enabled = cpts.filter((cpt: CustomPostType) => cpt.enabled);
+        setCustomPostTypes(enabled);
+        
+        // Build dynamic menu items
+        const dynamicMenus = enabled.map((cpt: CustomPostType) => {
+          const capitalizedName = cpt.name.charAt(0).toUpperCase() + cpt.name.slice(1);
+          return {
+            title: `${capitalizedName} Posts`,
+            icon: cpt.slug === 'job' ? Briefcase : FileText,
+            items: [
+              { 
+                title: `All ${capitalizedName} Posts`, 
+                href: `/${cpt.slug}-posts`, 
+                tooltip: `View and manage all ${cpt.name} posts` 
+              },
+              { 
+                title: `Add New ${capitalizedName} Post`, 
+                href: `/${cpt.slug}-posts/new`, 
+                icon: PlusCircle, 
+                tooltip: `Create a new ${cpt.name} post` 
+              },
+            ],
+          };
+        });
+
+        // Insert dynamic menus after Posts section
+        const newMenuItems = [
+          baseMenuItems[0], // Posts
+          ...dynamicMenus,
+          baseMenuItems[1], // Management
+          baseMenuItems[2], // Settings
+        ];
+        setMenuItems(newMenuItems);
+      }
+    } catch (error) {
+      console.error('Error fetching custom post types:', error);
+    }
+  };
 
   return (
     <TooltipProvider>
