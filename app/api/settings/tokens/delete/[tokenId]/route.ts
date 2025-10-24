@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { errorResponse, unauthorizedResponse, forbiddenResponse } from '@/lib/response'
 
@@ -15,22 +15,22 @@ export async function DELETE(
     
     const { tokenId } = await params
     
-    const { data: token } = await supabase
-      .from('api_tokens')
-      .select('user_id')
-      .eq('id', tokenId)
-      .single()
+    const tokenResult = await sql`
+      SELECT user_id FROM api_tokens
+      WHERE id = ${tokenId}
+      LIMIT 1
+    `
+    
+    const token = tokenResult[0]
     
     if (token && token.user_id !== currentUserId) {
       return forbiddenResponse('You can only delete your own tokens')
     }
     
-    const { error } = await supabase
-      .from('api_tokens')
-      .delete()
-      .eq('id', tokenId)
-    
-    if (error) throw error
+    await sql`
+      DELETE FROM api_tokens
+      WHERE id = ${tokenId}
+    `
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {

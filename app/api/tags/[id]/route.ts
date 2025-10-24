@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { deleteCachedData } from '@/lib/cache'
@@ -25,17 +25,14 @@ export async function PUT(
     
     const { name, slug } = validation.data
     
-    const { data: updatedTag, error } = await supabase
-      .from('tags')
-      .update({
-        name,
-        slug,
-      })
-      .eq('id', id)
-      .select()
-      .single()
+    const result = await sql`
+      UPDATE tags
+      SET name = ${name}, slug = ${slug}, updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `
     
-    if (error) throw error
+    const updatedTag = result[0]
     
     await deleteCachedData('api:tags:*')
     await deleteCachedData('api:public:posts:*')
@@ -59,12 +56,10 @@ export async function DELETE(
     }
     
     const { id } = await params
-    const { error } = await supabase
-      .from('tags')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
+    await sql`
+      DELETE FROM tags
+      WHERE id = ${id}
+    `
     
     await deleteCachedData('api:tags:*')
     await deleteCachedData('api:public:posts:*')

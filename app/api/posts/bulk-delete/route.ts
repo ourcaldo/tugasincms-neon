@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { deleteCachedData } from '@/lib/cache'
@@ -19,46 +19,25 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse('postIds must be a non-empty array')
     }
     
-    const { data: ownedPosts, error: fetchError } = await supabase
-      .from('posts')
-      .select('id, status')
-      .in('id', postIds)
-      .eq('author_id', userId)
-    
-    if (fetchError) throw fetchError
+    const ownedPosts = await sql`
+      SELECT id, status FROM posts
+      WHERE id = ANY(${postIds}) AND author_id = ${userId}
+    `
     
     if (!ownedPosts || ownedPosts.length === 0) {
       return validationErrorResponse('No posts found or you do not own these posts')
     }
     
-    const ownedPostIds = ownedPosts.map(p => p.id)
+    const ownedPostIds = ownedPosts.map((p: any) => p.id)
     
-    const { error: deleteTagsError } = await supabase
-      .from('post_tags')
-      .delete()
-      .in('post_id', ownedPostIds)
-    
-    if (deleteTagsError) throw deleteTagsError
-    
-    const { error: deleteCategoriesError } = await supabase
-      .from('post_categories')
-      .delete()
-      .in('post_id', ownedPostIds)
-    
-    if (deleteCategoriesError) throw deleteCategoriesError
-    
-    const { error: deletePostsError } = await supabase
-      .from('posts')
-      .delete()
-      .in('id', ownedPostIds)
-      .eq('author_id', userId)
-    
-    if (deletePostsError) throw deletePostsError
+    await sql`DELETE FROM post_tags WHERE post_id = ANY(${ownedPostIds})`
+    await sql`DELETE FROM post_categories WHERE post_id = ANY(${ownedPostIds})`
+    await sql`DELETE FROM posts WHERE id = ANY(${ownedPostIds}) AND author_id = ${userId}`
     
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
     
-    const hadPublishedPosts = ownedPosts.some(p => (p as any).status === 'published')
+    const hadPublishedPosts = ownedPosts.some((p: any) => p.status === 'published')
     if (hadPublishedPosts) {
       await invalidateSitemaps()
     }

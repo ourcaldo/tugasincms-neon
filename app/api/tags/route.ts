@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
@@ -19,12 +19,10 @@ export async function GET(request: NextRequest) {
       return successResponse(cachedTags, true)
     }
     
-    const { data: tags, error } = await supabase
-      .from('tags')
-      .select('*')
-      .order('name')
-    
-    if (error) throw error
+    const tags = await sql`
+      SELECT * FROM tags
+      ORDER BY name
+    `
     
     await setCachedData(cacheKey, tags || [], 600)
     
@@ -50,17 +48,15 @@ export async function POST(request: NextRequest) {
     }
     
     const { name, slug } = validation.data
+    const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-')
     
-    const { data: newTag, error } = await supabase
-      .from('tags')
-      .insert({
-        name,
-        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-      })
-      .select()
-      .single()
+    const result = await sql`
+      INSERT INTO tags (name, slug)
+      VALUES (${name}, ${finalSlug})
+      RETURNING *
+    `
     
-    if (error) throw error
+    const newTag = result[0]
     
     await deleteCachedData('api:tags:*')
     

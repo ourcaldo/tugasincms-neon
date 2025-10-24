@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { mapPostFromDB } from '@/lib/post-mapper'
@@ -25,29 +25,33 @@ export async function GET(
       return successResponse(cachedPost, true)
     }
     
-    const { data: post, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `)
-      .eq('id', id)
-      .eq('author_id', userId)
-      .single()
+    const post = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description))
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.id = ${id} AND p.author_id = ${userId}
+      GROUP BY p.id
+    `
     
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return notFoundResponse('Post not found')
-      }
-      throw error
-    }
-    
-    if (!post) {
+    if (!post || post.length === 0) {
       return notFoundResponse('Post not found')
     }
     
-    const mappedPost = mapPostFromDB(post)
+    const mappedPost = mapPostFromDB(post[0])
     
     await setCachedData(cacheKey, mappedPost, 300)
     
@@ -70,17 +74,15 @@ export async function PUT(
     
     const { id } = await params
     
-    const { data: existingPost } = await supabase
-      .from('posts')
-      .select('author_id, status')
-      .eq('id', id)
-      .single()
+    const existingPost = await sql`
+      SELECT author_id, status FROM posts WHERE id = ${id}
+    `
     
-    if (!existingPost) {
+    if (!existingPost || existingPost.length === 0) {
       return notFoundResponse('Post not found')
     }
     
-    if (existingPost.author_id !== userId) {
+    if (existingPost[0].author_id !== userId) {
       return forbiddenResponse('You can only edit your own posts')
     }
     
@@ -93,67 +95,69 @@ export async function PUT(
     
     const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = validation.data
     
-    const { data: updatedPost, error } = await supabase
-      .from('posts')
-      .update({
-        title,
-        content,
-        excerpt,
-        slug,
-        featured_image: featuredImage,
-        publish_date: publishDate,
-        status,
-        seo_title: seo?.title,
-        meta_description: seo?.metaDescription,
-        focus_keyword: seo?.focusKeyword,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single()
+    await sql`
+      UPDATE posts
+      SET 
+        title = ${title || sql`title`},
+        content = ${content || sql`content`},
+        excerpt = ${excerpt !== undefined ? excerpt : sql`excerpt`},
+        slug = ${slug || sql`slug`},
+        featured_image = ${featuredImage !== undefined ? featuredImage : sql`featured_image`},
+        publish_date = ${publishDate || sql`publish_date`},
+        status = ${status || sql`status`},
+        seo_title = ${seo?.title !== undefined ? seo?.title : sql`seo_title`},
+        meta_description = ${seo?.metaDescription !== undefined ? seo?.metaDescription : sql`meta_description`},
+        focus_keyword = ${seo?.focusKeyword !== undefined ? seo?.focusKeyword : sql`focus_keyword`},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `
     
-    if (error) throw error
-    
-    await supabase.from('post_categories').delete().eq('post_id', id)
-    await supabase.from('post_tags').delete().eq('post_id', id)
+    await sql`DELETE FROM post_categories WHERE post_id = ${id}`
+    await sql`DELETE FROM post_tags WHERE post_id = ${id}`
     
     if (categories && categories.length > 0) {
-      const categoryInserts = categories.map((catId: string) => ({
-        post_id: id,
-        category_id: catId,
-      }))
-      await supabase.from('post_categories').insert(categoryInserts)
+      for (const catId of categories) {
+        await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${id}, ${catId})`
+      }
     }
     
     if (tags && tags.length > 0) {
-      const tagInserts = tags.map((tagId: string) => ({
-        post_id: id,
-        tag_id: tagId,
-      }))
-      await supabase.from('post_tags').insert(tagInserts)
+      for (const tagId of tags) {
+        await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
+      }
     }
     
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData(`api:posts:id:${id}`)
     
-    if (status === 'published' || existingPost.status === 'published') {
+    if (status === 'published' || existingPost[0].status === 'published') {
       await invalidateSitemaps()
     }
     
-    const { data: fullPost, error: fetchError } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `)
-      .eq('id', id)
-      .single()
+    const fullPost = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug))
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.id = ${id}
+      GROUP BY p.id
+    `
     
-    if (fetchError) throw fetchError
-    
-    return successResponse(mapPostFromDB(fullPost), false)
+    return successResponse(mapPostFromDB(fullPost[0]), false)
   } catch (error) {
     console.error('Error updating post:', error)
     return errorResponse('Failed to update post')
@@ -172,32 +176,25 @@ export async function DELETE(
     
     const { id } = await params
     
-    const { data: existingPost } = await supabase
-      .from('posts')
-      .select('author_id, status')
-      .eq('id', id)
-      .single()
+    const existingPost = await sql`
+      SELECT author_id, status FROM posts WHERE id = ${id}
+    `
     
-    if (!existingPost) {
+    if (!existingPost || existingPost.length === 0) {
       return notFoundResponse('Post not found')
     }
     
-    if (existingPost.author_id !== userId) {
+    if (existingPost[0].author_id !== userId) {
       return forbiddenResponse('You can only delete your own posts')
     }
     
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', id)
-    
-    if (error) throw error
+    await sql`DELETE FROM posts WHERE id = ${id}`
     
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData(`api:posts:id:${id}`)
     
-    if (existingPost.status === 'published') {
+    if (existingPost[0].status === 'published') {
       await invalidateSitemaps()
     }
     

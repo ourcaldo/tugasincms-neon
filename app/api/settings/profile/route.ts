@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { userProfileSchema } from '@/lib/validation'
@@ -20,30 +20,23 @@ export async function POST(request: NextRequest) {
     
     const { id, email, name, avatar } = validation.data
     
-    console.log('📝 Upserting user profile:', { id, email, name })
+    const result = await sql`
+      INSERT INTO users (id, email, name, avatar)
+      VALUES (${id}, ${email || null}, ${name || null}, ${avatar || null})
+      ON CONFLICT (id)
+      DO UPDATE SET 
+        email = EXCLUDED.email,
+        name = EXCLUDED.name,
+        avatar = EXCLUDED.avatar,
+        updated_at = NOW()
+      RETURNING *
+    `
     
-    const { data: user, error } = await supabase
-      .from('users')
-      .upsert({
-        id,
-        email,
-        name,
-        avatar,
-      }, {
-        onConflict: 'id'
-      })
-      .select()
-      .single()
+    const user = result[0]
     
-    if (error) {
-      console.error('❌ Error upserting profile:', error)
-      throw error
-    }
-    
-    console.log('✅ User profile upserted successfully:', user)
     return successResponse(user, false, 200)
   } catch (error: any) {
-    console.error('❌ Failed to upsert profile:', error)
+    console.error('Failed to upsert profile:', error)
     return errorResponse('Failed to create profile')
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from '@/lib/response'
 
@@ -19,13 +19,11 @@ export async function GET(
       return forbiddenResponse('You can only view your own tokens')
     }
     
-    const { data: tokens, error } = await supabase
-      .from('api_tokens')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
+    const tokens = await sql`
+      SELECT * FROM api_tokens
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `
     
     return successResponse(tokens || [], false)
   } catch (error) {

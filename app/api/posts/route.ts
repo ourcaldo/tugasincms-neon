@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { mapPostsFromDB, mapPostFromDB } from '@/lib/post-mapper'
@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || ''
     const category = searchParams.get('category') || ''
     
-    const from = (page - 1) * limit
-    const to = from + limit - 1
+    const offset = (page - 1) * limit
     
     const cacheKey = `api:posts:user:${userId}:page:${page}:limit:${limit}:search:${search}:status:${status}:category:${category}`
     
@@ -31,38 +30,54 @@ export async function GET(request: NextRequest) {
       return successResponse(cachedData, true)
     }
     
-    let query = supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `, { count: 'exact' })
-      .eq('author_id', userId)
-    
+    let whereConditions = [sql`p.author_id = ${userId}`]
     if (search) {
-      query = query.ilike('title', `%${search}%`)
+      whereConditions.push(sql`p.title ILIKE ${`%${search}%`}`)
     }
-    
     if (status) {
-      query = query.eq('status', status)
+      whereConditions.push(sql`p.status = ${status}`)
     }
-    
     if (category) {
-      query = query.contains('post_categories', [{ category_id: category }])
+      whereConditions.push(sql`EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})`)
     }
     
-    const { data: posts, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(from, to)
+    const countResult = await sql`
+      SELECT COUNT(DISTINCT p.id)::int as count
+      FROM posts p
+      ${category ? sql`LEFT JOIN post_categories pc ON p.id = pc.post_id` : sql``}
+      WHERE ${sql.join(whereConditions, sql` AND `)}
+    `
+    const total = countResult[0].count
     
-    if (error) throw error
+    const posts = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE ${sql.join(whereConditions, sql` AND `)}
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
     
     const postsWithRelations = mapPostsFromDB(posts || [])
     
     const responseData = {
       posts: postsWithRelations,
-      total: count || 0,
+      total,
       page,
       limit
     }
@@ -92,40 +107,31 @@ export async function POST(request: NextRequest) {
     
     const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags } = validation.data
     
-    const { data: newPost, error } = await supabase
-      .from('posts')
-      .insert({
-        title,
-        content,
-        excerpt,
-        slug,
-        featured_image: featuredImage,
-        publish_date: publishDate || new Date().toISOString(),
-        status: status || 'draft',
-        author_id: userId,
-        seo_title: seo?.title,
-        meta_description: seo?.metaDescription,
-        focus_keyword: seo?.focusKeyword,
-      })
-      .select()
-      .single()
+    const postResult = await sql`
+      INSERT INTO posts (
+        title, content, excerpt, slug, featured_image, publish_date, status, author_id,
+        seo_title, meta_description, focus_keyword
+      )
+      VALUES (
+        ${title}, ${content}, ${excerpt || null}, ${slug}, ${featuredImage || null},
+        ${publishDate || new Date().toISOString()}, ${status || 'draft'}, ${userId},
+        ${seo?.title || null}, ${seo?.metaDescription || null}, ${seo?.focusKeyword || null}
+      )
+      RETURNING *
+    `
     
-    if (error) throw error
+    const newPost = postResult[0]
     
     if (categories && categories.length > 0) {
-      const categoryInserts = categories.map((catId: string) => ({
-        post_id: newPost.id,
-        category_id: catId,
-      }))
-      await supabase.from('post_categories').insert(categoryInserts)
+      for (const catId of categories) {
+        await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${newPost.id}, ${catId})`
+      }
     }
     
     if (tags && tags.length > 0) {
-      const tagInserts = tags.map((tagId: string) => ({
-        post_id: newPost.id,
-        tag_id: tagId,
-      }))
-      await supabase.from('post_tags').insert(tagInserts)
+      for (const tagId of tags) {
+        await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${newPost.id}, ${tagId})`
+      }
     }
     
     await deleteCachedData('api:public:posts:*')
@@ -135,19 +141,29 @@ export async function POST(request: NextRequest) {
       await invalidateSitemaps()
     }
     
-    const { data: fullPost, error: fetchError } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        categories:post_categories(category:categories(*)),
-        tags:post_tags(tag:tags(*))
-      `)
-      .eq('id', newPost.id)
-      .single()
+    const fullPost = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug))
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.id = ${newPost.id}
+      GROUP BY p.id
+    `
     
-    if (fetchError) throw fetchError
-    
-    return successResponse(mapPostFromDB(fullPost), false, 201)
+    return successResponse(mapPostFromDB(fullPost[0]), false, 201)
   } catch (error) {
     console.error('Error creating post:', error)
     return errorResponse('Failed to create post')

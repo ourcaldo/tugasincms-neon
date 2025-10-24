@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 
@@ -16,22 +16,25 @@ export const verifyApiToken = async (token: string): Promise<ApiToken | null> =>
   if (!token) return null
   
   try {
-    const { data: apiToken, error } = await supabase
-      .from('api_tokens')
-      .select('*')
-      .eq('token', token)
-      .single()
+    const result = await sql`
+      SELECT * FROM api_tokens
+      WHERE token = ${token}
+      LIMIT 1
+    `
     
-    if (error || !apiToken) return null
+    const apiToken = result[0] as ApiToken | undefined
+    
+    if (!apiToken) return null
     
     if (apiToken.expires_at && new Date(apiToken.expires_at) < new Date()) {
       return null
     }
     
-    await supabase
-      .from('api_tokens')
-      .update({ last_used_at: new Date().toISOString() })
-      .eq('id', apiToken.id)
+    await sql`
+      UPDATE api_tokens
+      SET last_used_at = ${new Date().toISOString()}
+      WHERE id = ${apiToken.id}
+    `
     
     return apiToken
   } catch (error) {

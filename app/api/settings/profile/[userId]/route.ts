@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { updateUserProfileSchema } from '@/lib/validation'
@@ -20,31 +20,21 @@ export async function GET(
       return forbiddenResponse('You can only view your own profile')
     }
     
-    console.log('🔍 Fetching user profile:', userId)
+    const result = await sql`
+      SELECT * FROM users
+      WHERE id = ${userId}
+      LIMIT 1
+    `
     
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log('❌ User not found:', userId)
-        return notFoundResponse('User not found')
-      }
-      throw error
-    }
+    const user = result[0]
     
     if (!user) {
-      console.log('❌ User not found:', userId)
       return notFoundResponse('User not found')
     }
     
-    console.log('✅ User profile found:', user.email)
     return successResponse(user, false)
   } catch (error: any) {
-    console.error('❌ Error fetching profile:', error)
+    console.error('Error fetching profile:', error)
     return errorResponse('Failed to fetch profile')
   }
 }
@@ -74,19 +64,14 @@ export async function PUT(
     
     const { name, bio, avatar } = validation.data
     
-    const { data: updatedUser, error } = await supabase
-      .from('users')
-      .update({
-        name,
-        bio,
-        avatar,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId)
-      .select()
-      .single()
+    const result = await sql`
+      UPDATE users
+      SET name = ${name || null}, bio = ${bio || null}, avatar = ${avatar || null}, updated_at = NOW()
+      WHERE id = ${userId}
+      RETURNING *
+    `
     
-    if (error) throw error
+    const updatedUser = result[0]
     
     return successResponse(updatedUser, false)
   } catch (error) {

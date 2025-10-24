@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { sql } from './database'
 import { getCachedData, setCachedData, deleteCachedData } from './cache'
 
 export interface SitemapUrl {
@@ -112,50 +112,31 @@ export async function generatePagesSitemap(baseUrl?: string): Promise<string> {
 export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: string, chunks: string[] }> {
   const url = baseUrl || getBaseUrl()
   
-  // Fetch all posts using pagination to bypass Supabase's 1000 row limit
-  let allPosts: any[] = []
-  let page = 0
-  const pageSize = 1000
-  let hasMore = true
+  // Fetch all published posts with their first category
+  const posts = await sql`
+    SELECT 
+      p.id,
+      p.slug,
+      p.updated_at,
+      COALESCE(c.slug, 'uncategorized') as category_slug
+    FROM posts p
+    LEFT JOIN post_categories pc ON p.id = pc.post_id
+    LEFT JOIN categories c ON pc.category_id = c.id
+    WHERE p.status = 'published'
+    ORDER BY p.updated_at DESC
+  `
   
-  while (hasMore) {
-    const { data: posts, error } = await supabase
-      .from('posts')
-      .select(`
-        id, 
-        slug, 
-        updated_at,
-        post_categories!inner(
-          categories(slug)
-        )
-      `)
-      .eq('status', 'published')
-      .order('updated_at', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1)
-    
-    if (error) {
-      console.error('Error fetching posts for sitemap:', error)
-      break
+  // Group posts by id to get only the first category for each post
+  const uniquePosts = new Map()
+  posts.forEach((post: any) => {
+    if (!uniquePosts.has(post.id)) {
+      uniquePosts.set(post.id, post)
     }
-    
-    if (posts && posts.length > 0) {
-      allPosts = allPosts.concat(posts)
-      hasMore = posts.length === pageSize
-      page++
-    } else {
-      hasMore = false
-    }
-  }
+  })
   
-  const posts = allPosts
-
-  const blogUrls: SitemapUrl[] = (posts || []).map((post: any) => {
-    const categorySlug = post.post_categories && post.post_categories.length > 0 && post.post_categories[0].categories
-      ? post.post_categories[0].categories.slug 
-      : 'uncategorized'
-    
+  const blogUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: any) => {
     return {
-      loc: `${url}/blog/${categorySlug}/${post.slug}/`,
+      loc: `${url}/blog/${post.category_slug}/${post.slug}/`,
       lastmod: new Date(post.updated_at).toISOString(),
       changefreq: 'weekly' as const,
       priority: 0.8

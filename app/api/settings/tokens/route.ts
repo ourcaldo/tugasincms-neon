@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { tokenSchema } from '@/lib/validation'
@@ -23,18 +23,13 @@ export async function POST(request: NextRequest) {
     
     const token = nanoid(32)
     
-    const { data: newToken, error } = await supabase
-      .from('api_tokens')
-      .insert({
-        user_id: userId,
-        token,
-        name,
-        expires_at: expiresAt,
-      })
-      .select()
-      .single()
+    const result = await sql`
+      INSERT INTO api_tokens (user_id, token, name, expires_at)
+      VALUES (${userId}, ${token}, ${name}, ${expiresAt || null})
+      RETURNING *
+    `
     
-    if (error) throw error
+    const newToken = result[0]
     
     return successResponse(newToken, false, 201)
   } catch (error) {

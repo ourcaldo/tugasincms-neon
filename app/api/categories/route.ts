@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
@@ -19,12 +19,10 @@ export async function GET(request: NextRequest) {
       return successResponse(cachedCategories, true)
     }
     
-    const { data: categories, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name')
-    
-    if (error) throw error
+    const categories = await sql`
+      SELECT * FROM categories
+      ORDER BY name
+    `
     
     await setCachedData(cacheKey, categories || [], 600)
     
@@ -50,18 +48,15 @@ export async function POST(request: NextRequest) {
     }
     
     const { name, slug, description } = validation.data
+    const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-')
     
-    const { data: newCategory, error } = await supabase
-      .from('categories')
-      .insert({
-        name,
-        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-        description,
-      })
-      .select()
-      .single()
+    const result = await sql`
+      INSERT INTO categories (name, slug, description)
+      VALUES (${name}, ${finalSlug}, ${description || null})
+      RETURNING *
+    `
     
-    if (error) throw error
+    const newCategory = result[0]
     
     await deleteCachedData('api:categories:*')
     
