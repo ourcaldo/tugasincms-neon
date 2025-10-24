@@ -235,44 +235,62 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
-### Critical Bug Fixes Post-Neon Migration (October 24, 2025 - 16:50 UTC)
+### Database Connection Fix - Environment Variable Override (October 24, 2025 - 16:54 UTC)
 
-**Summary**: Fixed critical database schema and SQL syntax errors discovered after Neon migration deployment.
+**Summary**: Fixed critical database connection issue where Replit system environment variables were overriding .env file, causing app to connect to local database instead of Neon.
+
+**Root Cause**:
+Replit's system had PostgreSQL environment variables set (PGHOST=helium, PGDATABASE=heliumdb, PGUSER=postgres) that took precedence over the .env file settings. This caused the application to connect to a non-existent local database instead of the user's Neon database.
+
+**Fix Applied**:
+- **File**: `lib/database.ts`
+- **Solution**: Force-load .env file and explicitly override system environment variables with .env values
+- **Implementation**: Added explicit .env file parsing using fs.readFileSync() and dotenv.parse() to ensure .env values take priority
+
+**Code Changes**:
+```typescript
+// Added explicit .env loading before database connection
+const envPath = path.resolve(process.cwd(), '.env')
+if (fs.existsSync(envPath)) {
+  const envConfig = dotenv.parse(fs.readFileSync(envPath))
+  // Override system env vars with .env file values
+  if (envConfig.PGHOST) process.env.PGHOST = envConfig.PGHOST
+  if (envConfig.PGDATABASE) process.env.PGDATABASE = envConfig.PGDATABASE
+  // ... other variables
+}
+```
+
+**Result**: ✅ Application now successfully connects to the correct Neon database (ep-aged-scene-a1w11txt.ap-southeast-1.aws.neon.tech/tugasin-cms)
+
+---
+
+### SQL Syntax Error Fix Post-Neon Migration (October 24, 2025 - 16:52 UTC)
+
+**Summary**: Fixed SQL syntax errors in posts API route after Neon migration.
 
 **Issues Identified**:
-1. Database tables not created in Neon database (users, posts, categories, tags, post_categories, post_tags, api_tokens)
-2. SQL syntax error in posts GET endpoint - @neondatabase/serverless package incompatibility with reduce pattern for dynamic WHERE clause composition
-3. TypeScript type assertion errors in post mapper functions
+1. SQL syntax error in posts GET endpoint - @neondatabase/serverless package incompatibility with reduce pattern for dynamic WHERE clause composition
+2. TypeScript type assertion errors in post mapper functions
 
 **Fixes Implemented**:
 
-1. **Database Schema Migration** (16:50 UTC)
-   - Created comprehensive SQL migration file: `migrations/001_create_tables.sql`
-   - Includes all 7 tables with proper foreign keys, constraints, and indexes
-   - Added UUID extension and automatic updated_at triggers
-   - Optimized with performance indexes on key columns (slug, author_id, status, etc.)
-
-2. **SQL Syntax Error Fix** (16:52 UTC)
+1. **SQL Syntax Error Fix** (16:52 UTC)
    - **File**: `app/api/posts/route.ts`
    - **Issue**: Dynamic WHERE clause using `reduce()` pattern incompatible with @neondatabase/serverless
    - **Solution**: Replaced reduce pattern with explicit conditional queries for each filter combination
    - **Result**: 8 query variants (all filters, combinations, single filters, no filters) handling all user scenarios
    - Maintains same functionality with proper SQL template literal composition
 
-3. **TypeScript Fixes** (16:54 UTC)
+2. **TypeScript Fixes** (16:54 UTC)
    - Added type assertions to `mapPostsFromDB()` and `mapPostFromDB()` calls
    - Resolved all LSP diagnostics (0 errors remaining)
 
 **Files Changed**:
-- **CREATED**: `migrations/001_create_tables.sql` (new database schema migration)
 - **UPDATED**: `app/api/posts/route.ts` (fixed SQL syntax error and type assertions)
-
-**Action Required by User**:
-User must run the SQL migration file against their Neon database to create all required tables. See `migrations/001_create_tables.sql` for complete schema.
 
 **Technical Notes**:
 - @neondatabase/serverless doesn't support SQL fragment composition via reduce patterns
-- Must use explicit queries or build SQL as plain strings for dynamic WHERE clauses
+- Must use explicit queries for dynamic WHERE clauses
 - All queries remain parameterized and SQL-injection safe
 
 ---
