@@ -715,7 +715,7 @@ Retrieve a paginated list of job posts with optional filtering.
 
 **Endpoint**: `GET /api/job-posts`
 
-**Authentication**: Required (Clerk user session)
+**Authentication**: Required (Clerk session - internal CMS use only)
 
 **Query Parameters**:
 
@@ -732,7 +732,7 @@ Retrieve a paginated list of job posts with optional filtering.
 **Example Request**:
 ```bash
 curl -X GET "https://your-domain.com/api/job-posts?page=1&limit=10&status=published" \
-  -H "Cookie: your-session-cookie"
+  -H "Cookie: your-clerk-session-cookie"
 ```
 
 **Example Response**:
@@ -819,7 +819,7 @@ Create a new job posting with comprehensive details.
 
 **Endpoint**: `POST /api/job-posts`
 
-**Authentication**: Required (Clerk user session)
+**Authentication**: Required (Clerk session - internal CMS use only)
 
 **Request Body**:
 
@@ -866,7 +866,7 @@ Create a new job posting with comprehensive details.
 ```bash
 curl -X POST "https://your-domain.com/api/job-posts" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
+  -H "Cookie: your-clerk-session-cookie" \
   -d '{
     "title": "Senior Full Stack Developer",
     "slug": "senior-full-stack-developer",
@@ -888,7 +888,7 @@ curl -X POST "https://your-domain.com/api/job-posts" \
 ```bash
 curl -X POST "https://your-domain.com/api/job-posts" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
+  -H "Cookie: your-clerk-session-cookie" \
   -d '{
     "title": "Senior Full Stack Developer",
     "slug": "senior-full-stack-developer",
@@ -959,7 +959,7 @@ Retrieve a single job post by ID.
 
 **Endpoint**: `GET /api/job-posts/{id}`
 
-**Authentication**: Required (Clerk user session)
+**Authentication**: Required (Clerk session - internal CMS use only)
 
 **Path Parameters**:
 - `id` (string): Job post UUID
@@ -967,7 +967,7 @@ Retrieve a single job post by ID.
 **Example Request**:
 ```bash
 curl -X GET "https://your-domain.com/api/job-posts/uuid" \
-  -H "Cookie: your-session-cookie"
+  -H "Cookie: your-clerk-session-cookie"
 ```
 
 **Example Response**:
@@ -995,7 +995,7 @@ Update an existing job post. Only the fields you provide will be updated.
 
 **Endpoint**: `PUT /api/job-posts/{id}`
 
-**Authentication**: Required (Clerk user session - must be the post owner)
+**Authentication**: Required (Clerk session - must be the post owner)
 
 **Path Parameters**:
 - `id` (string): Job post UUID
@@ -1006,7 +1006,7 @@ Update an existing job post. Only the fields you provide will be updated.
 ```bash
 curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
+  -H "Cookie: your-clerk-session-cookie" \
   -d '{
     "title": "Lead Full Stack Developer",
     "status": "published",
@@ -1040,7 +1040,7 @@ Delete a job post and all associated relationships.
 
 **Endpoint**: `DELETE /api/job-posts/{id}`
 
-**Authentication**: Required (Clerk user session - must be the post owner)
+**Authentication**: Required (Clerk session - must be the post owner)
 
 **Path Parameters**:
 - `id` (string): Job post UUID
@@ -1048,7 +1048,7 @@ Delete a job post and all associated relationships.
 **Example Request**:
 ```bash
 curl -X DELETE "https://your-domain.com/api/job-posts/uuid" \
-  -H "Cookie: your-session-cookie"
+  -H "Cookie: your-clerk-session-cookie"
 ```
 
 **Example Response**:
@@ -1069,7 +1069,7 @@ HTTP 204 No Content
 ```bash
 curl -X POST "https://your-domain.com/api/job-posts" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
+  -H "Cookie: your-clerk-session-cookie" \
   -d '{
     "title": "Frontend Developer",
     "slug": "frontend-developer-2025",
@@ -1085,7 +1085,7 @@ curl -X POST "https://your-domain.com/api/job-posts" \
 ```bash
 curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-session-cookie" \
+  -H "Cookie: your-clerk-session-cookie" \
   -d '{
     "status": "published",
     "job_skills": "HTML, CSS, JavaScript, React, Redux, Next.js"
@@ -1095,13 +1095,13 @@ curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
 ### 3. Filter Jobs by Employment Type and Status
 ```bash
 curl -X GET "https://your-domain.com/api/job-posts?employment_type=Full Time&status=published&page=1&limit=20" \
-  -H "Cookie: your-session-cookie"
+  -H "Cookie: your-clerk-session-cookie"
 ```
 
 ### 4. Search Jobs by Title
 ```bash
 curl -X GET "https://your-domain.com/api/job-posts?search=developer&page=1" \
-  -H "Cookie: your-session-cookie"
+  -H "Cookie: your-clerk-session-cookie"
 ```
 
 ---
