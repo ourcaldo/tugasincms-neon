@@ -16,6 +16,7 @@ import { CalendarIcon, Upload, X, Save, Eye, Send, Building2, MapPin, Mail, Info
 import { format } from 'date-fns';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { TiptapEditor } from '../editor/tiptap-editor';
+import { MultiCombobox, ComboboxOption } from '../ui/multi-combobox';
 import { useApiClient } from '../../lib/api-client';
 import { uploadImage } from '../../lib/appwrite';
 import { toast } from 'sonner';
@@ -105,10 +106,6 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isDeadlineCalendarOpen, setIsDeadlineCalendarOpen] = useState(false);
-  const [newJobTag, setNewJobTag] = useState('');
-  const [newJobCategory, setNewJobCategory] = useState('');
-  const [newSkill, setNewSkill] = useState('');
-  const [newBenefit, setNewBenefit] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [companyLogoUrl, setCompanyLogoUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -384,132 +381,40 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
     }));
   };
 
-  const addJobCategory = async (categoryName: string) => {
-    const trimmedName = categoryName.trim();
-    if (!trimmedName) return;
+  const handleCreateCategory = async (name: string): Promise<ComboboxOption> => {
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('Category name is required');
 
-    const existingCategory = jobCategories.find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
-    
-    if (existingCategory) {
-      if (!formData.jobCategories.find(c => c.id === existingCategory.id)) {
-        setFormData(prev => ({
-          ...prev,
-          jobCategories: [...prev.jobCategories, existingCategory]
-        }));
-      }
-    } else {
-      try {
-        const newCat = await apiClient.post<JobCategory>('/job-categories', {
-          name: trimmedName,
-          slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        });
-        setJobCategories(prev => [...prev, newCat]);
-        setFormData(prev => ({
-          ...prev,
-          jobCategories: [...prev.jobCategories, newCat]
-        }));
-        toast.success(`Job category "${trimmedName}" created`);
-      } catch (error) {
-        console.error('Error creating job category:', error);
-        toast.error('Failed to create job category');
-      }
-    }
-    setNewJobCategory('');
-  };
-
-  const removeJobCategory = (categoryId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      jobCategories: prev.jobCategories.filter(c => c.id !== categoryId)
-    }));
-  };
-
-  const addJobTag = async (tagName: string) => {
-    const trimmedName = tagName.trim();
-    if (!trimmedName) return;
-
-    const existingTag = jobTags.find(t => t.name.toLowerCase() === trimmedName.toLowerCase());
-    
-    if (existingTag) {
-      if (!formData.jobTags.find(t => t.id === existingTag.id)) {
-        setFormData(prev => ({
-          ...prev,
-          jobTags: [...prev.jobTags, existingTag]
-        }));
-      }
-    } else {
-      try {
-        const newTag = await apiClient.post<JobTag>('/job-tags', {
-          name: trimmedName,
-          slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        });
-        setJobTags(prev => [...prev, newTag]);
-        setFormData(prev => ({
-          ...prev,
-          jobTags: [...prev.jobTags, newTag]
-        }));
-        toast.success(`Job tag "${trimmedName}" created`);
-      } catch (error) {
-        console.error('Error creating job tag:', error);
-        toast.error('Failed to create job tag');
-      }
-    }
-    setNewJobTag('');
-  };
-
-  const removeJobTag = (tagId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      jobTags: prev.jobTags.filter(t => t.id !== tagId)
-    }));
-  };
-
-  const addSkill = () => {
-    const trimmed = newSkill.trim();
-    if (trimmed && !formData.job.skills.includes(trimmed)) {
-      setFormData(prev => ({
-        ...prev,
-        job: {
-          ...prev.job,
-          skills: [...prev.job.skills, trimmed]
-        }
-      }));
-      setNewSkill('');
+    try {
+      const newCat = await apiClient.post<JobCategory>('/job-categories', {
+        name: trimmedName,
+        slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      });
+      setJobCategories(prev => [...prev, newCat]);
+      toast.success(`Job category "${trimmedName}" created`);
+      return { id: newCat.id, name: newCat.name, slug: newCat.slug };
+    } catch (error) {
+      toast.error('Failed to create job category');
+      throw error;
     }
   };
 
-  const removeSkill = (skill: string) => {
-    setFormData(prev => ({
-      ...prev,
-      job: {
-        ...prev.job,
-        skills: prev.job.skills.filter(s => s !== skill)
-      }
-    }));
-  };
+  const handleCreateTag = async (name: string): Promise<ComboboxOption> => {
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('Tag name is required');
 
-  const addBenefit = () => {
-    const trimmed = newBenefit.trim();
-    if (trimmed && !formData.job.benefits.includes(trimmed)) {
-      setFormData(prev => ({
-        ...prev,
-        job: {
-          ...prev.job,
-          benefits: [...prev.job.benefits, trimmed]
-        }
-      }));
-      setNewBenefit('');
+    try {
+      const newTag = await apiClient.post<JobTag>('/job-tags', {
+        name: trimmedName,
+        slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      });
+      setJobTags(prev => [...prev, newTag]);
+      toast.success(`Job tag "${trimmedName}" created`);
+      return { id: newTag.id, name: newTag.name, slug: newTag.slug };
+    } catch (error) {
+      toast.error('Failed to create job tag');
+      throw error;
     }
-  };
-
-  const removeBenefit = (benefit: string) => {
-    setFormData(prev => ({
-      ...prev,
-      job: {
-        ...prev.job,
-        benefits: prev.job.benefits.filter(b => b !== benefit)
-      }
-    }));
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -894,52 +799,15 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
                 <CardTitle>Job Categories</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {formData.jobCategories.map(category => (
-                    <Badge key={category.id} variant="secondary">
-                      {category.name}
-                      <button
-                        className="ml-2 text-xs hover:text-destructive"
-                        onClick={() => removeJobCategory(category.id)}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add job category..."
-                    value={newJobCategory}
-                    onChange={(e) => setNewJobCategory(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addJobCategory(newJobCategory);
-                      }
-                    }}
-                  />
-                  <Button onClick={() => addJobCategory(newJobCategory)}>Add</Button>
-                </div>
-
-                {jobCategories.length > 0 && (
-                  <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
-                    <p className="text-sm text-muted-foreground mb-2">Existing categories:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {jobCategories.map(category => (
-                        <Badge
-                          key={category.id}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-secondary"
-                          onClick={() => addJobCategory(category.name)}
-                        >
-                          {category.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <MultiCombobox
+                  options={jobCategories}
+                  selectedValues={formData.jobCategories}
+                  onValueChange={(values) => setFormData(prev => ({ ...prev, jobCategories: values as JobCategory[] }))}
+                  onCreateNew={handleCreateCategory}
+                  placeholder="Select or create job categories..."
+                  searchPlaceholder="Search categories or type to create new..."
+                  emptyText="No categories found. Type to create a new one."
+                />
               </CardContent>
             </Card>
 
@@ -948,52 +816,15 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
                 <CardTitle>Job Tags</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {formData.jobTags.map(tag => (
-                    <Badge key={tag.id} variant="secondary">
-                      {tag.name}
-                      <button
-                        className="ml-2 text-xs hover:text-destructive"
-                        onClick={() => removeJobTag(tag.id)}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add job tag..."
-                    value={newJobTag}
-                    onChange={(e) => setNewJobTag(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addJobTag(newJobTag);
-                      }
-                    }}
-                  />
-                  <Button onClick={() => addJobTag(newJobTag)}>Add</Button>
-                </div>
-
-                {jobTags.length > 0 && (
-                  <div className="border rounded-lg p-2 max-h-32 overflow-y-auto">
-                    <p className="text-sm text-muted-foreground mb-2">Existing tags:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {jobTags.map(tag => (
-                        <Badge
-                          key={tag.id}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-secondary"
-                          onClick={() => addJobTag(tag.name)}
-                        >
-                          {tag.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <MultiCombobox
+                  options={jobTags}
+                  selectedValues={formData.jobTags}
+                  onValueChange={(values) => setFormData(prev => ({ ...prev, jobTags: values as JobTag[] }))}
+                  onCreateNew={handleCreateTag}
+                  placeholder="Select or create job tags..."
+                  searchPlaceholder="Search tags or type to create new..."
+                  emptyText="No tags found. Type to create a new one."
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -1406,34 +1237,22 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {formData.job.skills.map(skill => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                      <button
-                        className="ml-2 text-xs hover:text-destructive"
-                        onClick={() => removeSkill(skill)}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add skill (e.g., React, Node.js)..."
-                    value={newSkill}
-                    onChange={(e) => setNewSkill(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addSkill();
-                      }
-                    }}
-                  />
-                  <Button onClick={addSkill}>Add</Button>
-                </div>
+                <MultiCombobox
+                  options={formData.job.skills.map(skill => ({ name: skill }))}
+                  selectedValues={formData.job.skills.map(skill => ({ name: skill }))}
+                  onValueChange={(values) => {
+                    const skills = values.map(v => v.name);
+                    setFormData(prev => ({
+                      ...prev,
+                      job: { ...prev.job, skills }
+                    }));
+                  }}
+                  onCreateNew={async (name) => ({ name })}
+                  placeholder="Add skills..."
+                  searchPlaceholder="Type skill name (e.g., React, Node.js)..."
+                  emptyText="No skills added. Type to add new skills."
+                  allowCreate={true}
+                />
               </CardContent>
             </Card>
 
@@ -1442,34 +1261,22 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
                 <CardTitle>Benefits</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {formData.job.benefits.map(benefit => (
-                    <Badge key={benefit} variant="secondary">
-                      {benefit}
-                      <button
-                        className="ml-2 text-xs hover:text-destructive"
-                        onClick={() => removeBenefit(benefit)}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add benefit (e.g., Health Insurance)..."
-                    value={newBenefit}
-                    onChange={(e) => setNewBenefit(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addBenefit();
-                      }
-                    }}
-                  />
-                  <Button onClick={addBenefit}>Add</Button>
-                </div>
+                <MultiCombobox
+                  options={formData.job.benefits.map(benefit => ({ name: benefit }))}
+                  selectedValues={formData.job.benefits.map(benefit => ({ name: benefit }))}
+                  onValueChange={(values) => {
+                    const benefits = values.map(v => v.name);
+                    setFormData(prev => ({
+                      ...prev,
+                      job: { ...prev.job, benefits }
+                    }));
+                  }}
+                  onCreateNew={async (name) => ({ name })}
+                  placeholder="Add benefits..."
+                  searchPlaceholder="Type benefit (e.g., Health Insurance, Remote Work)..."
+                  emptyText="No benefits added. Type to add new benefits."
+                  allowCreate={true}
+                />
               </CardContent>
             </Card>
 

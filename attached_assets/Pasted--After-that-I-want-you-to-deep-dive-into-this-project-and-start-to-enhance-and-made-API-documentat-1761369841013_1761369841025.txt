@@ -1,0 +1,17 @@
+
+After that, I want you to deep dive into this project and start to enhance and made API documentation for the new feature CPT (right now the active one is Job Posting). 
+Just for the information, before we develop the custom post type for me to enable/disable custom post type other than post default post-type, and I enable the job post type. 
+
+Prologue:
+Before I send you this specific instruction
+```
+Now, I want you to enhance and made the API documentation by read and add API documentation to GET, POST, DELETE, EDIT/PATCH, the API documentation was on the file API_DOCUMENTATION.md.
+
+Not just that, I also want you to make sure and fix these thing:
+1. When I post new job by API calls, make sure backend can handle some fields like Category, Tags, Skill in comma seperated format like Tag 1, Tag 2, Tag 3 and etc.
+2. Related to point 1, if a value in certain fields isn't found, then backend need to made the new one. Just in case you wondering, I want the API is using the value, not ID of the value, so for example for the tag I put the value in comma seperated like Tag 1, Tag 2 not the tag ID.
+3. In Front-end UI, right now certain fields only have like fields to input, they didn't givin response like auto-complete and select. I mean, it's should input and choose, when I press certain keys, when option are available then I also can direct select it.
+4. Still related to frontend in point 3, when I edit/see the job post, make sure to load all the value, including the categories/tag/skill other fields that coming from API data, make sure it's being selected automaticly.
+5. For all API post/edit, make sure the value that I can send is the real value/label, not the ID. So, I can send the value, and if backend neet match it, it's can do on the backend.
+6. Related to poin 5 or the API post, the format of value the correct one is must be like "Apple One" not "Apple one" or "apple one" so the label must be like that, and it's not case sensitive, which mean it's not created another value under same slug/id.
+```
