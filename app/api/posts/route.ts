@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
           AND p.status = ${status}
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
           AND p.status = ${status}
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
@@ -75,6 +77,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
       `
@@ -97,6 +100,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
         GROUP BY p.id
@@ -109,6 +113,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.status = ${status}
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
       `
@@ -131,6 +136,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.status = ${status}
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
         GROUP BY p.id
@@ -143,6 +149,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
           AND p.status = ${status}
       `
@@ -165,6 +172,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
           AND p.status = ${status}
         GROUP BY p.id
@@ -177,6 +185,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
       `
       postsQuery = sql`
@@ -198,6 +207,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
         GROUP BY p.id
         ORDER BY p.created_at DESC
@@ -209,6 +219,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
       `
       postsQuery = sql`
@@ -230,6 +241,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.title ILIKE ${`%${search}%`}
         GROUP BY p.id
         ORDER BY p.created_at DESC
@@ -241,6 +253,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.status = ${status}
       `
       postsQuery = sql`
@@ -262,6 +275,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
           AND p.status = ${status}
         GROUP BY p.id
         ORDER BY p.created_at DESC
@@ -273,6 +287,7 @@ export async function GET(request: NextRequest) {
         SELECT COUNT(DISTINCT p.id)::int as count
         FROM posts p
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
       `
       postsQuery = sql`
         SELECT 
@@ -293,6 +308,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
         WHERE p.author_id = ${userId}
+          AND p.post_type = 'post'
         GROUP BY p.id
         ORDER BY p.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
