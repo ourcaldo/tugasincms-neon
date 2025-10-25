@@ -1,0 +1,13 @@
+
+Before I ask you to do enhancement/changes, I need you to FUCKING REMEMBER THIS 7 POINT THAT YOU FUCKING STILL MISS IT.
+1. Deep dive into this project, read all code, file and information, specificly in project.md (not replit.md, but still read the replit.md) where you can get the all related this project, database structure and detailed changes log. Don't just fucking use grep to get few lines to read it, fucking open the file and read the full context.
+2. Always and keep remember that you're SHOULDN'T delete any information in project.md, for every update and changes, you should write in Recent Changes inside the project.md with proper timeline format like the other without delete anything.
+3. If you need to make debug/test file to fix the problem, then make it. But keep in mind to delete that file again after it's solved and before you end the action chain.
+4. For after every changes you made, don't forget to add it in timeline changlongs in project.md in Recent Changes section.
+5. As this project using Supabase database, which you didn't have access directly to it, if you need to know the database format beside that I put in project.md, you can give me SQL queries for me to run to see, changes or update database related. Keep in your mind to not push anything related to DB in your local.
+6. If you need to add debug, never use console.log that can appear on user's browser, we don't want that.
+7. New features or any that I ask must be good refactoed code, not single code that handle all functions.
+8. If you need to add/changes variable in .env, you can't change the .env itself directly. You must edit the .env.example then cp it as a .env
+
+After that, I want you to deep dive into this project and start to enhance and made API documentation for the new feature CPT (right now the active one is Job Posting). 
+Just for the information, before we develop the custom post type for me to enable/disable custom post type other than post default post-type, and I enable the job post type. 
