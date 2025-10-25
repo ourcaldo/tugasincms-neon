@@ -1,0 +1,407 @@
+import { NextRequest } from 'next/server'
+import { sql } from '@/lib/database'
+import { verifyApiToken, extractBearerToken } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getCachedData, setCachedData } from '@/lib/cache'
+import { z } from 'zod'
+import {
+  processJobCategoriesInput,
+  processJobTagsInput,
+  processJobSkillsInput,
+} from '@/lib/job-utils'
+
+const updateJobPostSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().min(1).optional(),
+  excerpt: z.string().max(1000).optional(),
+  slug: z.string().min(1).max(200).optional(),
+  featured_image: z.string().optional(),
+  publish_date: z.string().optional(),
+  status: z.enum(['draft', 'published', 'scheduled']).optional(),
+  seo_title: z.string().max(200).optional(),
+  meta_description: z.string().max(500).optional(),
+  focus_keyword: z.string().max(100).optional(),
+  
+  // Job-specific fields
+  job_company_name: z.string().max(200).optional(),
+  job_company_logo: z.string().max(500).optional(),
+  job_company_website: z.string().max(500).optional(),
+  job_employment_type_id: z.string().uuid().optional().nullable(),
+  job_experience_level_id: z.string().uuid().optional().nullable(),
+  job_salary_min: z.number().optional().nullable(),
+  job_salary_max: z.number().optional().nullable(),
+  job_salary_currency: z.string().max(10).optional(),
+  job_salary_period: z.string().max(50).optional(),
+  job_is_salary_negotiable: z.boolean().optional(),
+  job_province_id: z.string().max(2).optional().nullable(),
+  job_regency_id: z.string().max(4).optional().nullable(),
+  job_district_id: z.string().max(6).optional().nullable(),
+  job_village_id: z.string().max(10).optional().nullable(),
+  job_address_detail: z.string().optional().nullable(),
+  job_is_remote: z.boolean().optional(),
+  job_is_hybrid: z.boolean().optional(),
+  job_application_email: z.string().max(200).optional().nullable(),
+  job_application_url: z.string().max(500).optional().nullable(),
+  job_application_deadline: z.string().optional().nullable(),
+  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
+  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
+  job_requirements: z.string().optional().nullable(),
+  job_responsibilities: z.string().optional().nullable(),
+  
+  // Relations - can be UUIDs, names, or comma-separated strings
+  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
+  job_tags: z.union([z.array(z.string()), z.string()]).optional()
+})
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return handleCorsPreflightRequest(origin)
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const origin = request.headers.get('origin')
+  
+  try {
+    const token = extractBearerToken(request)
+    
+    const validToken = await verifyApiToken(token || '')
+    
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
+    }
+    
+    const { id } = await params
+    const userId = validToken.user_id
+    
+    const cacheKey = `api:v1:job-posts:user:${userId}:${id}`
+    
+    const cachedData = await getCachedData(cacheKey)
+    if (cachedData) {
+      return setCorsHeaders(successResponse(cachedData, true), origin)
+    }
+    
+    const post = await sql`
+      SELECT 
+        p.*,
+        jpm.job_company_name,
+        jpm.job_company_logo,
+        jpm.job_company_website,
+        jpm.job_employment_type_id,
+        jpm.job_experience_level_id,
+        jpm.job_salary_min,
+        jpm.job_salary_max,
+        jpm.job_salary_currency,
+        jpm.job_salary_period,
+        jpm.job_is_salary_negotiable,
+        jpm.job_province_id,
+        jpm.job_regency_id,
+        jpm.job_district_id,
+        jpm.job_village_id,
+        jpm.job_address_detail,
+        jpm.job_is_remote,
+        jpm.job_is_hybrid,
+        jpm.job_application_email,
+        jpm.job_application_url,
+        jpm.job_application_deadline,
+        jpm.job_skills,
+        jpm.job_benefits,
+        jpm.job_requirements,
+        jpm.job_responsibilities,
+        jet.name as employment_type,
+        jel.name as experience_level,
+        prov.name as location_province,
+        reg.name as location_regency,
+        dist.name as location_district,
+        vill.name as location_village,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug)) 
+          FILTER (WHERE jc.id IS NOT NULL),
+          '[]'::json
+        ) as job_categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jt.id, 'name', jt.name, 'slug', jt.slug))
+          FILTER (WHERE jt.id IS NOT NULL),
+          '[]'::json
+        ) as job_tags
+      FROM posts p
+      LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
+      LEFT JOIN job_employment_types jet ON jpm.job_employment_type_id = jet.id
+      LEFT JOIN job_experience_levels jel ON jpm.job_experience_level_id = jel.id
+      LEFT JOIN reg_provinces prov ON jpm.job_province_id = prov.id
+      LEFT JOIN reg_regencies reg ON jpm.job_regency_id = reg.id
+      LEFT JOIN reg_districts dist ON jpm.job_district_id = dist.id
+      LEFT JOIN reg_villages vill ON jpm.job_village_id = vill.id
+      LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+      LEFT JOIN job_categories jc ON jpc.category_id = jc.id
+      LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
+      LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
+      WHERE p.id = ${id} AND p.post_type = 'job' AND p.author_id = ${userId}
+      GROUP BY p.id, jpm.post_id, jpm.job_company_name, jpm.job_company_logo, jpm.job_company_website,
+        jpm.job_employment_type_id, jpm.job_experience_level_id, jpm.job_salary_min, jpm.job_salary_max,
+        jpm.job_salary_currency, jpm.job_salary_period, jpm.job_is_salary_negotiable,
+        jpm.job_province_id, jpm.job_regency_id, jpm.job_district_id, jpm.job_village_id,
+        jpm.job_address_detail, jpm.job_is_remote, jpm.job_is_hybrid, jpm.job_application_email,
+        jpm.job_application_url, jpm.job_application_deadline, jpm.job_skills, jpm.job_benefits,
+        jpm.job_requirements, jpm.job_responsibilities, jet.name, jel.name, prov.name, reg.name, dist.name, vill.name
+    `
+    
+    if (!post || post.length === 0) {
+      return setCorsHeaders(notFoundResponse('Job post not found'), origin)
+    }
+    
+    await setCachedData(cacheKey, post[0], 3600)
+    
+    return setCorsHeaders(successResponse(post[0], false), origin)
+  } catch (error) {
+    console.error('Error fetching job post:', error)
+    return setCorsHeaders(errorResponse('Failed to fetch job post'), origin)
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const origin = request.headers.get('origin')
+  
+  try {
+    const token = extractBearerToken(request)
+    
+    const validToken = await verifyApiToken(token || '')
+    
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
+    }
+    
+    const userId = validToken.user_id
+    
+    const { id } = await params
+    
+    const existingPost = await sql`
+      SELECT post_type FROM posts WHERE id = ${id} AND post_type = 'job' AND author_id = ${userId}
+    `
+    
+    if (!existingPost || existingPost.length === 0) {
+      return setCorsHeaders(notFoundResponse('Job post not found'), origin)
+    }
+    
+    const body = await request.json()
+    const validation = updateJobPostSchema.safeParse(body)
+    
+    if (!validation.success) {
+      return setCorsHeaders(validationErrorResponse(validation.error.issues[0].message), origin)
+    }
+    
+    const {
+      title, content, excerpt, slug, featured_image, publish_date, status,
+      seo_title, meta_description, focus_keyword,
+      job_company_name, job_company_logo, job_company_website,
+      job_employment_type_id, job_experience_level_id,
+      job_salary_min, job_salary_max, job_salary_currency, job_salary_period,
+      job_is_salary_negotiable, job_province_id, job_regency_id, job_district_id,
+      job_village_id, job_address_detail, job_is_remote, job_is_hybrid,
+      job_application_email, job_application_url, job_application_deadline,
+      job_skills, job_benefits, job_requirements, job_responsibilities,
+      job_categories, job_tags
+    } = validation.data
+    
+    // Process categories if provided (accepts UUIDs, names, or comma-separated strings)
+    let categoryIds: string[] | undefined
+    if (job_categories !== undefined) {
+      categoryIds = await processJobCategoriesInput(job_categories)
+    }
+    
+    // Process tags if provided (accepts UUIDs, names, or comma-separated strings)
+    let tagIds: string[] | undefined
+    if (job_tags !== undefined) {
+      tagIds = await processJobTagsInput(job_tags)
+    }
+    
+    // Process skills if provided (accepts array or comma-separated string)
+    let processedSkills: string[] | undefined
+    if (job_skills !== undefined) {
+      processedSkills = processJobSkillsInput(job_skills)
+    }
+    
+    // Process benefits if provided (accepts array or comma-separated string)
+    let processedBenefits: string[] | undefined
+    if (job_benefits !== undefined) {
+      processedBenefits = processJobSkillsInput(job_benefits)
+    }
+    
+    // Update post
+    await sql`
+      UPDATE posts
+      SET 
+        title = COALESCE(${title}, title),
+        content = COALESCE(${content}, content),
+        excerpt = COALESCE(${excerpt}, excerpt),
+        slug = COALESCE(${slug}, slug),
+        featured_image = COALESCE(${featured_image}, featured_image),
+        publish_date = COALESCE(${publish_date}, publish_date),
+        status = COALESCE(${status}, status),
+        seo_title = COALESCE(${seo_title}, seo_title),
+        meta_description = COALESCE(${meta_description}, meta_description),
+        focus_keyword = COALESCE(${focus_keyword}, focus_keyword),
+        updated_at = NOW()
+      WHERE id = ${id} AND author_id = ${userId}
+    `
+    
+    // Update job meta
+    await sql`
+      UPDATE job_post_meta
+      SET 
+        job_company_name = COALESCE(${job_company_name}, job_company_name),
+        job_company_logo = COALESCE(${job_company_logo}, job_company_logo),
+        job_company_website = COALESCE(${job_company_website}, job_company_website),
+        job_employment_type_id = COALESCE(${job_employment_type_id}, job_employment_type_id),
+        job_experience_level_id = COALESCE(${job_experience_level_id}, job_experience_level_id),
+        job_salary_min = COALESCE(${job_salary_min}, job_salary_min),
+        job_salary_max = COALESCE(${job_salary_max}, job_salary_max),
+        job_salary_currency = COALESCE(${job_salary_currency}, job_salary_currency),
+        job_salary_period = COALESCE(${job_salary_period}, job_salary_period),
+        job_is_salary_negotiable = COALESCE(${job_is_salary_negotiable}, job_is_salary_negotiable),
+        job_province_id = COALESCE(${job_province_id}, job_province_id),
+        job_regency_id = COALESCE(${job_regency_id}, job_regency_id),
+        job_district_id = COALESCE(${job_district_id}, job_district_id),
+        job_village_id = COALESCE(${job_village_id}, job_village_id),
+        job_address_detail = COALESCE(${job_address_detail}, job_address_detail),
+        job_is_remote = COALESCE(${job_is_remote}, job_is_remote),
+        job_is_hybrid = COALESCE(${job_is_hybrid}, job_is_hybrid),
+        job_application_email = COALESCE(${job_application_email}, job_application_email),
+        job_application_url = COALESCE(${job_application_url}, job_application_url),
+        job_application_deadline = COALESCE(${job_application_deadline}, job_application_deadline),
+        job_skills = COALESCE(${processedSkills}, job_skills),
+        job_benefits = COALESCE(${processedBenefits}, job_benefits),
+        job_requirements = COALESCE(${job_requirements}, job_requirements),
+        job_responsibilities = COALESCE(${job_responsibilities}, job_responsibilities),
+        updated_at = NOW()
+      WHERE post_id = ${id} AND post_id IN (SELECT id FROM posts WHERE author_id = ${userId})
+    `
+    
+    // Update categories
+    if (categoryIds !== undefined) {
+      await sql`DELETE FROM job_post_categories WHERE post_id = ${id}`
+      if (categoryIds.length > 0) {
+        for (const catId of categoryIds) {
+          await sql`INSERT INTO job_post_categories (post_id, category_id) VALUES (${id}, ${catId})`
+        }
+      }
+    }
+    
+    // Update tags
+    if (tagIds !== undefined) {
+      await sql`DELETE FROM job_post_tags WHERE post_id = ${id}`
+      if (tagIds.length > 0) {
+        for (const tagId of tagIds) {
+          await sql`INSERT INTO job_post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
+        }
+      }
+    }
+    
+    // Fetch updated job post
+    const fullPost = await sql`
+      SELECT 
+        p.*,
+        jpm.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug)) 
+          FILTER (WHERE jc.id IS NOT NULL),
+          '[]'::json
+        ) as job_categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', jt.id, 'name', jt.name, 'slug', jt.slug))
+          FILTER (WHERE jt.id IS NOT NULL),
+          '[]'::json
+        ) as job_tags
+      FROM posts p
+      LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
+      LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+      LEFT JOIN job_categories jc ON jpc.category_id = jc.id
+      LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
+      LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
+      WHERE p.id = ${id}
+      GROUP BY p.id, jpm.id
+    `
+    
+    return setCorsHeaders(successResponse(fullPost[0], false), origin)
+  } catch (error) {
+    console.error('Error updating job post:', error)
+    return setCorsHeaders(errorResponse('Failed to update job post'), origin)
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const origin = request.headers.get('origin')
+  
+  try {
+    const token = extractBearerToken(request)
+    
+    const validToken = await verifyApiToken(token || '')
+    
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
+    }
+    
+    const userId = validToken.user_id
+    
+    const { id } = await params
+    
+    const existingPost = await sql`
+      SELECT author_id, post_type FROM posts WHERE id = ${id}
+    `
+    
+    if (!existingPost || existingPost.length === 0) {
+      return setCorsHeaders(notFoundResponse('Job post not found'), origin)
+    }
+    
+    if (existingPost[0].author_id !== userId) {
+      return setCorsHeaders(forbiddenResponse('You can only delete your own job posts'), origin)
+    }
+    
+    if (existingPost[0].post_type !== 'job') {
+      return setCorsHeaders(forbiddenResponse('This is not a job post'), origin)
+    }
+    
+    // Delete job post (cascades will handle relations)
+    await sql`DELETE FROM posts WHERE id = ${id}`
+    
+    const response = new Response(null, { status: 204 })
+    return setCorsHeaders(response, origin)
+  } catch (error) {
+    console.error('Error deleting job post:', error)
+    return setCorsHeaders(errorResponse('Failed to delete job post'), origin)
+  }
+}

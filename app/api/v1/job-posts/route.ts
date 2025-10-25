@@ -1,7 +1,10 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { getUserIdFromClerk } from '@/lib/auth'
+import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { getCachedData, setCachedData } from '@/lib/cache'
 import { z } from 'zod'
 import {
   processJobCategoriesInput,
@@ -52,11 +55,29 @@ const jobPostSchema = z.object({
   job_tags: z.union([z.array(z.string()), z.string()]).optional()
 })
 
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return handleCorsPreflightRequest(origin)
+}
+
 export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  
   try {
-    const userId = await getUserIdFromClerk()
-    if (!userId) {
-      return unauthorizedResponse('You must be logged in')
+    const token = extractBearerToken(request)
+    
+    const validToken = await verifyApiToken(token || '')
+    
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
     }
     
     const { searchParams } = new URL(request.url)
@@ -69,6 +90,14 @@ export async function GET(request: NextRequest) {
     const job_category = searchParams.get('job_category') || ''
     
     const offset = (page - 1) * limit
+    const userId = validToken.user_id
+    
+    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${job_category}`
+    
+    const cachedData = await getCachedData(cacheKey)
+    if (cachedData) {
+      return setCorsHeaders(successResponse(cachedData, true), origin)
+    }
     
     // Count total
     const countResult = await sql`
@@ -77,10 +106,10 @@ export async function GET(request: NextRequest) {
       LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
       LEFT JOIN job_employment_types jet ON jpm.job_employment_type_id = jet.id
       LEFT JOIN job_experience_levels jel ON jpm.job_experience_level_id = jel.id
-      WHERE p.author_id = ${userId}
-        AND p.post_type = 'job'
+      WHERE p.post_type = 'job'
+        AND p.author_id = ${userId}
         ${search ? sql`AND p.title ILIKE ${`%${search}%`}` : sql``}
-        ${status ? sql`AND p.status = ${status}` : sql``}
+        ${status ? sql`AND p.status = ${status}` : sql`AND p.status = 'published'`}
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
         ${job_category ? sql`AND EXISTS (SELECT 1 FROM job_post_categories WHERE post_id = p.id AND category_id = ${job_category})` : sql``}
@@ -138,10 +167,10 @@ export async function GET(request: NextRequest) {
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
       LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
       LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
-      WHERE p.author_id = ${userId}
-        AND p.post_type = 'job'
+      WHERE p.post_type = 'job'
+        AND p.author_id = ${userId}
         ${search ? sql`AND p.title ILIKE ${`%${search}%`}` : sql``}
-        ${status ? sql`AND p.status = ${status}` : sql``}
+        ${status ? sql`AND p.status = ${status}` : sql`AND p.status = 'published'`}
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
         ${job_category ? sql`AND EXISTS (SELECT 1 FROM job_post_categories WHERE post_id = p.id AND category_id = ${job_category})` : sql``}
@@ -155,31 +184,63 @@ export async function GET(request: NextRequest) {
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    return successResponse({
+    const totalPages = Math.ceil(total / limit)
+    
+    const responseData = {
       posts: posts || [],
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
-    }, false)
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+      filters: {
+        search: search || null,
+        status: status || null,
+        employment_type: employment_type || null,
+        experience_level: experience_level || null,
+        job_category: job_category || null,
+      }
+    }
+    
+    await setCachedData(cacheKey, responseData, 3600)
+    
+    return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {
     console.error('Error fetching job posts:', error)
-    return errorResponse('Failed to fetch job posts')
+    return setCorsHeaders(errorResponse('Failed to fetch job posts'), origin)
   }
 }
 
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  
   try {
-    const userId = await getUserIdFromClerk()
-    if (!userId) {
-      return unauthorizedResponse('You must be logged in')
+    const token = extractBearerToken(request)
+    
+    const validToken = await verifyApiToken(token || '')
+    
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
     }
+    
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+    if (!rateLimitResult.success) {
+      return setCorsHeaders(
+        errorResponse('Rate limit exceeded. Please try again later.', 429),
+        origin
+      )
+    }
+    
+    const userId = validToken.user_id
     
     const body = await request.json()
     const validation = jobPostSchema.safeParse(body)
     
     if (!validation.success) {
-      return validationErrorResponse(validation.error.issues[0].message)
+      return setCorsHeaders(validationErrorResponse(validation.error.issues[0].message), origin)
     }
     
     const {
@@ -284,12 +345,12 @@ export async function POST(request: NextRequest) {
       GROUP BY p.id, jpm.id
     `
     
-    return successResponse(fullPost[0], false, 201)
+    return setCorsHeaders(successResponse(fullPost[0], false, 201), origin)
   } catch (error: any) {
     console.error('Error creating job post:', error)
     if (error?.code === '23505') {
-      return validationErrorResponse('A job post with this slug already exists')
+      return setCorsHeaders(validationErrorResponse('A job post with this slug already exists'), origin)
     }
-    return errorResponse('Failed to create job post')
+    return setCorsHeaders(errorResponse('Failed to create job post'), origin)
   }
 }

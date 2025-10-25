@@ -700,12 +700,19 @@ const pagination = data.pagination;
 
 Job Posts are a custom post type in TugasCMS designed for managing job listings. The API provides full CRUD operations with support for job-specific fields including categories, tags, skills, company information, location, salary details, and application requirements.
 
+**Base URL**: `https://your-domain.com/api/v1/job-posts`
+
+**Authentication**: Bearer token required (`Authorization: Bearer <your-api-token>`)
+
 ### Special Features
 
 1. **Flexible Input Formats**: The API accepts comma-separated strings for categories, tags, and skills
 2. **Auto-Creation**: If a category or tag doesn't exist, it will be automatically created
 3. **Case-Insensitive Matching**: Values are matched case-insensitively and formatted to Title Case (e.g., "software engineer" → "Software Engineer")
 4. **Backward Compatible**: Accepts both UUIDs (existing behavior) and value names (new behavior)
+5. **Rate Limiting**: 1000 requests per minute per API token
+6. **Caching**: 1 hour cache for GET requests
+7. **CORS**: Fully supported for cross-origin requests
 
 ---
 
@@ -713,9 +720,9 @@ Job Posts are a custom post type in TugasCMS designed for managing job listings.
 
 Retrieve a paginated list of job posts with optional filtering.
 
-**Endpoint**: `GET /api/job-posts`
+**Endpoint**: `GET /api/v1/job-posts`
 
-**Authentication**: Required (Clerk session - internal CMS use only)
+**Authentication**: Required (Bearer token)
 
 **Query Parameters**:
 
@@ -731,8 +738,8 @@ Retrieve a paginated list of job posts with optional filtering.
 
 **Example Request**:
 ```bash
-curl -X GET "https://your-domain.com/api/job-posts?page=1&limit=10&status=published" \
-  -H "Cookie: your-clerk-session-cookie"
+curl -X GET "https://your-domain.com/api/v1/job-posts?page=1&limit=10&status=published" \
+  -H "Authorization: Bearer your-api-token"
 ```
 
 **Example Response**:
@@ -758,29 +765,13 @@ curl -X GET "https://your-domain.com/api/job-posts?page=1&limit=10&status=publis
         "created_at": "2025-10-24T10:00:00Z",
         "updated_at": "2025-10-25T10:00:00Z",
         "job_company_name": "Acme Corporation",
-        "job_company_logo": "https://...",
-        "job_company_website": "https://acme.com",
         "employment_type": "Full Time",
         "experience_level": "Senior",
         "job_salary_min": 80000000,
         "job_salary_max": 120000000,
         "job_salary_currency": "IDR",
         "job_salary_period": "month",
-        "job_is_salary_negotiable": true,
-        "location_province": "DKI Jakarta",
-        "location_regency": "Jakarta Selatan",
-        "location_district": "Kebayoran Baru",
-        "location_village": null,
-        "job_address_detail": "Sudirman St. 123",
-        "remote": false,
-        "hybrid": true,
-        "job_application_email": "careers@acme.com",
-        "job_application_url": "https://acme.com/careers/apply",
-        "job_application_deadline": "2025-11-30T23:59:59Z",
         "job_skills": ["React", "Node.js", "TypeScript", "PostgreSQL"],
-        "job_benefits": ["Health Insurance", "Remote Work", "Flexible Hours"],
-        "job_requirements": "HTML content of requirements...",
-        "job_responsibilities": "HTML content of responsibilities...",
         "job_categories": [
           {
             "id": "uuid",
@@ -793,19 +784,25 @@ curl -X GET "https://your-domain.com/api/job-posts?page=1&limit=10&status=publis
             "id": "uuid",
             "name": "Full Stack",
             "slug": "full-stack"
-          },
-          {
-            "id": "uuid",
-            "name": "Remote Friendly",
-            "slug": "remote-friendly"
           }
         ]
       }
     ],
-    "total": 45,
-    "page": 1,
-    "limit": 10,
-    "totalPages": 5
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 45,
+      "totalPages": 5,
+      "hasNextPage": true,
+      "hasPrevPage": false
+    },
+    "filters": {
+      "search": null,
+      "status": "published",
+      "employment_type": null,
+      "experience_level": null,
+      "job_category": null
+    }
   },
   "cached": false
 }
@@ -815,11 +812,11 @@ curl -X GET "https://your-domain.com/api/job-posts?page=1&limit=10&status=publis
 
 ### Create Job Post
 
-Create a new job posting with comprehensive details.
+Create a new job posting via external API.
 
-**Endpoint**: `POST /api/job-posts`
+**Endpoint**: `POST /api/v1/job-posts`
 
-**Authentication**: Required (Clerk session - internal CMS use only)
+**Authentication**: Required (Bearer token)
 
 **Request Body**:
 
@@ -864,14 +861,13 @@ Create a new job posting with comprehensive details.
 
 **Example Request (with comma-separated values)**:
 ```bash
-curl -X POST "https://your-domain.com/api/job-posts" \
+curl -X POST "https://your-domain.com/api/v1/job-posts" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-clerk-session-cookie" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "title": "Senior Full Stack Developer",
-    "slug": "senior-full-stack-developer",
+    "slug": "senior-full-stack-developer-2025",
     "content": "<p>We are looking for an experienced developer...</p>",
-    "excerpt": "Exciting opportunity to join our tech team",
     "status": "published",
     "job_company_name": "Acme Corporation",
     "job_salary_min": 80000000,
@@ -886,9 +882,9 @@ curl -X POST "https://your-domain.com/api/job-posts" \
 
 **Example Request (with UUIDs - backward compatible)**:
 ```bash
-curl -X POST "https://your-domain.com/api/job-posts" \
+curl -X POST "https://your-domain.com/api/v1/job-posts" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-clerk-session-cookie" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "title": "Senior Full Stack Developer",
     "slug": "senior-full-stack-developer",
@@ -907,8 +903,7 @@ curl -X POST "https://your-domain.com/api/job-posts" \
   "data": {
     "id": "new-uuid",
     "title": "Senior Full Stack Developer",
-    "slug": "senior-full-stack-developer",
-    // ... all job post fields
+    "slug": "senior-full-stack-developer-2025",
     "job_categories": [
       {
         "id": "uuid",
@@ -957,17 +952,17 @@ curl -X POST "https://your-domain.com/api/job-posts" \
 
 Retrieve a single job post by ID.
 
-**Endpoint**: `GET /api/job-posts/{id}`
+**Endpoint**: `GET /api/v1/job-posts/{id}`
 
-**Authentication**: Required (Clerk session - internal CMS use only)
+**Authentication**: Required (Bearer token)
 
 **Path Parameters**:
 - `id` (string): Job post UUID
 
 **Example Request**:
 ```bash
-curl -X GET "https://your-domain.com/api/job-posts/uuid" \
-  -H "Cookie: your-clerk-session-cookie"
+curl -X GET "https://your-domain.com/api/v1/job-posts/uuid" \
+  -H "Authorization: Bearer your-api-token"
 ```
 
 **Example Response**:
@@ -991,11 +986,11 @@ curl -X GET "https://your-domain.com/api/job-posts/uuid" \
 
 ### Update Job Post
 
-Update an existing job post. Only the fields you provide will be updated.
+Update an existing job post via external API. Only the fields you provide will be updated.
 
-**Endpoint**: `PUT /api/job-posts/{id}`
+**Endpoint**: `PUT /api/v1/job-posts/{id}`
 
-**Authentication**: Required (Clerk session - must be the post owner)
+**Authentication**: Required (Bearer token - must be post owner)
 
 **Path Parameters**:
 - `id` (string): Job post UUID
@@ -1004,9 +999,9 @@ Update an existing job post. Only the fields you provide will be updated.
 
 **Example Request**:
 ```bash
-curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
+curl -X PUT "https://your-domain.com/api/v1/job-posts/uuid" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-clerk-session-cookie" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "title": "Lead Full Stack Developer",
     "status": "published",
@@ -1036,19 +1031,19 @@ curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
 
 ### Delete Job Post
 
-Delete a job post and all associated relationships.
+Delete a job post via external API.
 
-**Endpoint**: `DELETE /api/job-posts/{id}`
+**Endpoint**: `DELETE /api/v1/job-posts/{id}`
 
-**Authentication**: Required (Clerk session - must be the post owner)
+**Authentication**: Required (Bearer token - must be post owner)
 
 **Path Parameters**:
 - `id` (string): Job post UUID
 
 **Example Request**:
 ```bash
-curl -X DELETE "https://your-domain.com/api/job-posts/uuid" \
-  -H "Cookie: your-clerk-session-cookie"
+curl -X DELETE "https://your-domain.com/api/v1/job-posts/uuid" \
+  -H "Authorization: Bearer your-api-token"
 ```
 
 **Example Response**:
@@ -1063,13 +1058,13 @@ HTTP 204 No Content
 
 ---
 
-## Job Posts - Common Use Cases
+## Common Use Cases
 
 ### 1. Create Job with Auto-Created Categories and Tags
 ```bash
-curl -X POST "https://your-domain.com/api/job-posts" \
+curl -X POST "https://your-domain.com/api/v1/job-posts" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-clerk-session-cookie" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "title": "Frontend Developer",
     "slug": "frontend-developer-2025",
@@ -1083,9 +1078,9 @@ curl -X POST "https://your-domain.com/api/job-posts" \
 
 ### 2. Update Job Status and Skills
 ```bash
-curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
+curl -X PUT "https://your-domain.com/api/v1/job-posts/uuid" \
   -H "Content-Type: application/json" \
-  -H "Cookie: your-clerk-session-cookie" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "status": "published",
     "job_skills": "HTML, CSS, JavaScript, React, Redux, Next.js"
@@ -1094,19 +1089,19 @@ curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
 
 ### 3. Filter Jobs by Employment Type and Status
 ```bash
-curl -X GET "https://your-domain.com/api/job-posts?employment_type=Full Time&status=published&page=1&limit=20" \
-  -H "Cookie: your-clerk-session-cookie"
+curl -X GET "https://your-domain.com/api/v1/job-posts?employment_type=Full Time&status=published&page=1&limit=20" \
+  -H "Authorization: Bearer your-api-token"
 ```
 
 ### 4. Search Jobs by Title
 ```bash
-curl -X GET "https://your-domain.com/api/job-posts?search=developer&page=1" \
-  -H "Cookie: your-clerk-session-cookie"
+curl -X GET "https://your-domain.com/api/v1/job-posts?search=developer&page=1" \
+  -H "Authorization: Bearer your-api-token"
 ```
 
 ---
 
-## Job Posts - Field Format Reference
+## Field Format Reference
 
 ### Categories and Tags Input Formats
 
