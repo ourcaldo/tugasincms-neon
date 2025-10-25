@@ -12,6 +12,10 @@ import {
   User,
   LogOut,
   Briefcase,
+  FolderKanban,
+  Tags,
+  Users,
+  Award,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -84,32 +88,50 @@ export function AppSidebar() {
         const enabled = cpts.filter((cpt: CustomPostType) => cpt.is_enabled);
         setCustomPostTypes(enabled);
         
-        // Build dynamic menu items
-        const dynamicMenus = enabled.map((cpt: CustomPostType) => {
-          const capitalizedName = cpt.name.charAt(0).toUpperCase() + cpt.name.slice(1);
-          return {
-            title: `${capitalizedName} Posts`,
-            icon: cpt.slug === 'job' ? Briefcase : FileText,
-            items: [
-              { 
-                title: `All ${capitalizedName} Posts`, 
-                href: `/${cpt.slug}-posts`, 
-                tooltip: `View and manage all ${cpt.name} posts` 
-              },
-              { 
-                title: `Add New ${capitalizedName} Post`, 
-                href: `/${cpt.slug}-posts/new`, 
-                icon: PlusCircle, 
-                tooltip: `Create a new ${cpt.name} post` 
-              },
-            ],
-          };
-        });
+        // Build dynamic menu items (exclude 'post' as it's already in baseMenuItems)
+        const dynamicMenus = enabled
+          .filter((cpt: CustomPostType) => cpt.slug !== 'post')
+          .map((cpt: CustomPostType) => {
+            const capitalizedName = cpt.name.charAt(0).toUpperCase() + cpt.name.slice(1);
+            return {
+              title: `${capitalizedName} Posts`,
+              icon: cpt.slug === 'job' ? Briefcase : FileText,
+              items: [
+                { 
+                  title: `All ${capitalizedName} Posts`, 
+                  href: `/${cpt.slug}-posts`, 
+                  tooltip: `View and manage all ${cpt.name} posts` 
+                },
+                { 
+                  title: `Add New ${capitalizedName} Post`, 
+                  href: `/${cpt.slug}-posts/new`, 
+                  icon: PlusCircle, 
+                  tooltip: `Create a new ${cpt.name} post` 
+                },
+              ],
+            };
+          });
+
+        // Check if job CPT is enabled
+        const isJobEnabled = enabled.some((cpt: CustomPostType) => cpt.slug === 'job');
+        
+        // Build Job Management menu if job CPT is enabled
+        const jobManagementMenu = isJobEnabled ? [{
+          title: 'Job Management',
+          icon: BarChart3,
+          items: [
+            { title: 'Job Categories', href: '/job-categories', icon: FolderKanban, tooltip: 'Manage job categories' },
+            { title: 'Job Tags', href: '/job-tags', icon: Tags, tooltip: 'Manage job tags' },
+            { title: 'Employment Types', href: '/employment-types', icon: Users, tooltip: 'Manage employment types' },
+            { title: 'Experience Levels', href: '/experience-levels', icon: Award, tooltip: 'Manage experience levels' },
+          ],
+        }] : [];
 
         // Insert dynamic menus after Posts section
         const newMenuItems = [
           baseMenuItems[0], // Posts
           ...dynamicMenus,
+          ...jobManagementMenu, // Job Management (if enabled)
           baseMenuItems[1], // Management
           baseMenuItems[2], // Settings
         ];

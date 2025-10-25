@@ -62,8 +62,8 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     job_category: undefined,
   });
   const [jobCategories, setJobCategories] = useState<Array<{ id: string; name: string; }>>([]);
-  const [employmentTypes, setEmploymentTypes] = useState<string[]>([]);
-  const [experienceLevels, setExperienceLevels] = useState<string[]>([]);
+  const [employmentTypes, setEmploymentTypes] = useState<Array<{ id: string; name: string; slug: string; }>>([]);
+  const [experienceLevels, setExperienceLevels] = useState<Array<{ id: string; name: string; slug: string; }>>([]);
   const apiClient = useApiClient();
 
   useEffect(() => {
@@ -275,8 +275,8 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {employmentTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
+                  <SelectItem key={type.id} value={type.name}>
+                    {type.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -289,8 +289,8 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
               <SelectContent>
                 <SelectItem value="all">All Levels</SelectItem>
                 {experienceLevels.map((level) => (
-                  <SelectItem key={level} value={level}>
-                    {level}
+                  <SelectItem key={level.id} value={level.name}>
+                    {level.name}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -235,6 +235,80 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job CPT Bug Fixes and Taxonomy Management System (October 25, 2025 - 04:00 UTC)
+
+**Summary**: Fixed critical bugs in the Job Post CPT system including duplicate menu items, React key errors, and added complete CRUD management for employment types and experience levels.
+
+**Issues Fixed**:
+1. **Duplicate "Post Posts" Menu** - Fixed sidebar showing duplicate "Post Posts" menu when job CPT was enabled
+   - Root cause: Dynamic menu generation was creating menus for ALL enabled CPTs including the default "post" type
+   - Solution: Filtered out "post" CPT from dynamic menu generation (already handled in baseMenuItems)
+   - File: `components/layout/app-sidebar.tsx`
+
+2. **React Key Error in Job Posts List** - Fixed "Encountered two children with the same key" error
+   - Root cause: employmentTypes and experienceLevels were incorrectly typed as string[] but API returned objects
+   - Solution: Updated types to proper interface with { id, name, slug } and fixed SelectItem to use object properties
+   - Files: `components/job-posts/job-posts-list.tsx`
+
+**New Features Added**:
+
+1. **Employment Types Management**:
+   - Enhanced API: Added POST to `/api/job-data/employment-types/route.ts` for creating employment types
+   - Created API: `/api/job-data/employment-types/[id]/route.ts` with PUT and DELETE operations
+   - Created Component: `components/job-posts/employment-types-list.tsx` with full CRUD, pagination, bulk operations
+   - Created Page: `/employment-types` for managing employment types
+   - Features: Auto-slug generation, duplicate detection, toast notifications
+
+2. **Experience Levels Management**:
+   - Enhanced API: Added POST to `/api/job-data/experience-levels/route.ts` for creating experience levels
+   - Created API: `/api/job-data/experience-levels/[id]/route.ts` with PUT and DELETE operations
+   - Created Component: `components/job-posts/experience-levels-list.tsx` with years range fields, smart formatting
+   - Created Page: `/experience-levels` for managing experience levels
+   - Features: Years range support (years_min, years_max), auto-slug, bulk operations
+
+3. **Job Management Sidebar Menu**:
+   - Added conditional "Job Management" section to sidebar when Job CPT is enabled
+   - Includes links to: Job Categories, Job Tags, Employment Types, Experience Levels
+   - File: `components/layout/app-sidebar.tsx`
+   - Icons: FolderKanban (categories), Tags (tags), Users (employment), Award (experience)
+
+**Technical Highlights**:
+- All new APIs use Zod validation with proper schemas
+- getUserIdFromClerk authentication on all endpoints
+- Auto-slug generation (lowercase with hyphens) if slug not provided
+- Proper error handling including duplicate detection (PostgreSQL error 23505)
+- Consistent use of toast notifications for user feedback
+- Pagination support (20 items per page)
+- Bulk delete with select-all functionality
+- TypeScript types throughout with proper interfaces
+- Responsive UI using Radix UI components
+
+**Files Modified**:
+- `components/layout/app-sidebar.tsx` - Fixed duplicate menu, added Job Management section
+- `components/job-posts/job-posts-list.tsx` - Fixed React key error with employment/experience types
+
+**Files Created** (8 new files):
+- API Routes (4):
+  - `app/api/job-data/employment-types/[id]/route.ts`
+  - `app/api/job-data/experience-levels/[id]/route.ts`
+  - Enhanced: `app/api/job-data/employment-types/route.ts` (added POST)
+  - Enhanced: `app/api/job-data/experience-levels/route.ts` (added POST)
+- Components (2):
+  - `components/job-posts/employment-types-list.tsx`
+  - `components/job-posts/experience-levels-list.tsx`
+- Pages (2):
+  - `app/(dashboard)/employment-types/page.tsx`
+  - `app/(dashboard)/experience-levels/page.tsx`
+
+**User Impact**:
+- ✅ No more duplicate "Post Posts" menu confusion
+- ✅ Job post filtering now works without React errors
+- ✅ Complete management UI for all job-related taxonomy
+- ✅ Clean, organized sidebar with conditional Job Management section
+- ✅ All job taxonomy data can now be managed through the UI (previously required direct database access)
+
+---
+
 ### Job Posting Custom Post Type Implementation (October 24, 2025 - 18:15 UTC)
 
 **Summary**: Successfully implemented complete job posting functionality as a custom post type, including API routes, database integration, UI components, and dashboard pages.
