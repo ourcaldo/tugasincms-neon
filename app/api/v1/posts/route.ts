@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    let whereConditions = [sql`p.status = ${status}`]
+    let whereConditions = [sql`p.status = ${status}`, sql`p.post_type = 'post'`]
     
     if (search) {
       whereConditions.push(sql`(p.title ILIKE ${`%${search}%`} OR p.content ILIKE ${`%${search}%`} OR p.excerpt ILIKE ${`%${search}%`})`)

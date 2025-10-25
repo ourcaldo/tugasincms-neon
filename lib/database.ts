@@ -1,9 +1,7 @@
-import { neon, neonConfig } from '@neondatabase/serverless'
+import { neon } from '@neondatabase/serverless'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
-
-neonConfig.fetchConnectionCache = true
 
 // Force load .env file to override system environment variables
 const envPath = path.resolve(process.cwd(), '.env')

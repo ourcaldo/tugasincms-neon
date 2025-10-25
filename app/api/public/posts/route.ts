@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN post_tags pt ON p.id = pt.post_id
       LEFT JOIN tags t ON pt.tag_id = t.id
       WHERE p.status = 'published'
+        AND p.post_type = 'post'
       GROUP BY p.id
       ORDER BY p.publish_date DESC
     `
