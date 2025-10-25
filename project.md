@@ -235,6 +235,75 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts API Enhancement - Flexible Input Format with Auto-Creation (October 25, 2025 - 14:00 UTC)
+
+**Summary**: Enhanced the Job Posts API to accept comma-separated values for categories, tags, and skills. Added auto-creation functionality for missing categories/tags with case-insensitive matching and Title Case formatting. Created comprehensive API documentation and reusable autocomplete UI components.
+
+**API Enhancements**:
+
+1. **Utility Functions** (`lib/job-utils.ts`):
+   - `toTitleCase(str)` - Converts strings to Title Case with proper whitespace normalization (e.g., "software    engineer" → "Software Engineer")
+   - `createSlug(str)` - Generates URL-friendly slugs with whitespace normalization (e.g., "Software Engineer" → "software-engineer")
+   - `findOrCreateJobCategory(name)` - Finds existing category by name (case-insensitive) or creates new one with auto-generated slug
+   - `findOrCreateJobTag(name)` - Finds existing tag by name (case-insensitive) or creates new one with auto-generated slug
+   - `parseCommaSeparatedOrArray(value)` - Parses comma-separated strings, arrays, or UUIDs into normalized arrays
+   - Critical Fix: Added `.trim().replace(/\s+/g, ' ')` to prevent duplicate entries from extra whitespace
+
+2. **POST /api/job-posts Endpoint Enhancements**:
+   - Accepts `job_categories` as: comma-separated string, array of names, array of UUIDs, or mixed format
+   - Accepts `job_tags` as: comma-separated string, array of names, array of UUIDs, or mixed format
+   - Accepts `job_skills` as: comma-separated string or array of strings
+   - Auto-creates missing categories/tags with case-insensitive matching
+   - Formats all values to Title Case for consistency
+   - Updated Zod schema to accept `z.union([z.string(), z.array(z.string())])` for flexible input
+
+3. **PUT /api/job-posts/[id] Endpoint Enhancements**:
+   - Same flexible input format as POST endpoint
+   - Full replacement strategy for categories/tags/skills (not merge)
+   - Maintains backward compatibility with UUID arrays
+
+**UI Components**:
+
+1. **MultiCombobox Component** (`components/ui/multi-combobox.tsx`):
+   - Reusable autocomplete component for multi-select with search
+   - Features: Type-to-search, keyboard navigation, clear all, remove individual items
+   - Props: `options`, `selected`, `onChange`, `placeholder`, `emptyText`
+   - Ready for integration with categories, tags, and skills selection
+
+**API Documentation** (`API_DOCUMENTATION.md`):
+- Added complete "Job Posts Endpoints" section with:
+  - GET /api/job-posts - List with filtering and pagination
+  - POST /api/job-posts - Create with flexible input formats
+  - GET /api/job-posts/{id} - Get single job post
+  - PUT /api/job-posts/{id} - Update with flexible input formats
+  - DELETE /api/job-posts/{id} - Delete job post
+- Comprehensive examples showing comma-separated values, UUIDs, and mixed formats
+- Field reference tables with all parameters and descriptions
+- Common use cases section with practical examples
+- Value formatting rules and auto-creation behavior explanation
+
+**Technical Details**:
+- Whitespace normalization prevents duplicate entries (e.g., "React" and "react   " are the same)
+- Case-insensitive matching using `LOWER(name)` in SQL queries
+- Title Case formatting ensures consistent display ("full stack" → "Full Stack")
+- Backward compatible with existing UUID-based API calls
+- Security: Proper parameterized queries prevent SQL injection
+
+**Files Modified**:
+- `lib/job-utils.ts` - Created with utility functions
+- `app/api/job-posts/route.ts` - Enhanced POST endpoint
+- `app/api/job-posts/[id]/route.ts` - Enhanced PUT endpoint
+- `components/ui/multi-combobox.tsx` - Created reusable autocomplete component
+- `API_DOCUMENTATION.md` - Added comprehensive Job Posts documentation
+
+**Next Steps** (Pending):
+- Update JobPostEditor component to use MultiCombobox for categories, tags, and skills
+- Add frontend autocomplete with live search
+- End-to-end testing of API with various input formats
+- Optional: Add unit tests for utility functions
+
+---
+
 ### Job CPT Bug Fixes and Taxonomy Management System (October 25, 2025 - 04:00 UTC)
 
 **Summary**: Fixed critical bugs in the Job Post CPT system including duplicate menu items, React key errors, and added complete CRUD management for employment types and experience levels.
