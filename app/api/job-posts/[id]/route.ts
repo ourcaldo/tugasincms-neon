@@ -3,6 +3,11 @@ import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { z } from 'zod'
+import {
+  processJobCategoriesInput,
+  processJobTagsInput,
+  processJobSkillsInput,
+} from '@/lib/job-utils'
 
 const updateJobPostSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -37,14 +42,14 @@ const updateJobPostSchema = z.object({
   job_application_email: z.string().max(200).optional().nullable(),
   job_application_url: z.string().max(500).optional().nullable(),
   job_application_deadline: z.string().optional().nullable(),
-  job_skills: z.array(z.string()).optional(),
-  job_benefits: z.array(z.string()).optional(),
+  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
+  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
   job_requirements: z.string().optional().nullable(),
   job_responsibilities: z.string().optional().nullable(),
   
-  // Relations
-  job_categories: z.array(z.string().uuid()).optional(),
-  job_tags: z.array(z.string().uuid()).optional()
+  // Relations - can be UUIDs, names, or comma-separated strings
+  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
+  job_tags: z.union([z.array(z.string()), z.string()]).optional()
 })
 
 export async function GET(
@@ -183,6 +188,30 @@ export async function PUT(
       job_categories, job_tags
     } = validation.data
     
+    // Process categories if provided (accepts UUIDs, names, or comma-separated strings)
+    let categoryIds: string[] | undefined
+    if (job_categories !== undefined) {
+      categoryIds = await processJobCategoriesInput(job_categories)
+    }
+    
+    // Process tags if provided (accepts UUIDs, names, or comma-separated strings)
+    let tagIds: string[] | undefined
+    if (job_tags !== undefined) {
+      tagIds = await processJobTagsInput(job_tags)
+    }
+    
+    // Process skills if provided (accepts array or comma-separated string)
+    let processedSkills: string[] | undefined
+    if (job_skills !== undefined) {
+      processedSkills = processJobSkillsInput(job_skills)
+    }
+    
+    // Process benefits if provided (accepts array or comma-separated string)
+    let processedBenefits: string[] | undefined
+    if (job_benefits !== undefined) {
+      processedBenefits = processJobSkillsInput(job_benefits)
+    }
+    
     // Update post
     await sql`
       UPDATE posts
@@ -225,8 +254,8 @@ export async function PUT(
         job_application_email = COALESCE(${job_application_email}, job_application_email),
         job_application_url = COALESCE(${job_application_url}, job_application_url),
         job_application_deadline = COALESCE(${job_application_deadline}, job_application_deadline),
-        job_skills = COALESCE(${job_skills}, job_skills),
-        job_benefits = COALESCE(${job_benefits}, job_benefits),
+        job_skills = COALESCE(${processedSkills}, job_skills),
+        job_benefits = COALESCE(${processedBenefits}, job_benefits),
         job_requirements = COALESCE(${job_requirements}, job_requirements),
         job_responsibilities = COALESCE(${job_responsibilities}, job_responsibilities),
         updated_at = NOW()
@@ -234,20 +263,20 @@ export async function PUT(
     `
     
     // Update categories
-    if (job_categories !== undefined) {
+    if (categoryIds !== undefined) {
       await sql`DELETE FROM job_post_categories WHERE post_id = ${id}`
-      if (job_categories.length > 0) {
-        for (const catId of job_categories) {
+      if (categoryIds.length > 0) {
+        for (const catId of categoryIds) {
           await sql`INSERT INTO job_post_categories (post_id, category_id) VALUES (${id}, ${catId})`
         }
       }
     }
     
     // Update tags
-    if (job_tags !== undefined) {
+    if (tagIds !== undefined) {
       await sql`DELETE FROM job_post_tags WHERE post_id = ${id}`
-      if (job_tags.length > 0) {
-        for (const tagId of job_tags) {
+      if (tagIds.length > 0) {
+        for (const tagId of tagIds) {
           await sql`INSERT INTO job_post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
         }
       }

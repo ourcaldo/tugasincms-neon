@@ -694,6 +694,477 @@ const pagination = data.pagination;
 
 ---
 
+## Job Posts Endpoints
+
+### Overview
+
+Job Posts are a custom post type in TugasCMS designed for managing job listings. The API provides full CRUD operations with support for job-specific fields including categories, tags, skills, company information, location, salary details, and application requirements.
+
+### Special Features
+
+1. **Flexible Input Formats**: The API accepts comma-separated strings for categories, tags, and skills
+2. **Auto-Creation**: If a category or tag doesn't exist, it will be automatically created
+3. **Case-Insensitive Matching**: Values are matched case-insensitively and formatted to Title Case (e.g., "software engineer" → "Software Engineer")
+4. **Backward Compatible**: Accepts both UUIDs (existing behavior) and value names (new behavior)
+
+---
+
+### Get All Job Posts
+
+Retrieve a paginated list of job posts with optional filtering.
+
+**Endpoint**: `GET /api/job-posts`
+
+**Authentication**: Required (Clerk user session)
+
+**Query Parameters**:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number for pagination |
+| `limit` | integer | 20 | Number of posts per page |
+| `search` | string | - | Search by job title |
+| `status` | string | - | Filter by status (draft, published, scheduled) |
+| `employment_type` | string | - | Filter by employment type name |
+| `experience_level` | string | - | Filter by experience level name |
+| `job_category` | string | - | Filter by category ID |
+
+**Example Request**:
+```bash
+curl -X GET "https://your-domain.com/api/job-posts?page=1&limit=10&status=published" \
+  -H "Cookie: your-session-cookie"
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "posts": [
+      {
+        "id": "uuid",
+        "title": "Senior Full Stack Developer",
+        "content": "Job description HTML...",
+        "excerpt": "Exciting opportunity...",
+        "slug": "senior-full-stack-developer",
+        "featured_image": "https://...",
+        "publish_date": "2025-10-25T10:00:00Z",
+        "status": "published",
+        "author_id": "uuid",
+        "post_type": "job",
+        "seo_title": "Senior Full Stack Developer - Acme Corp",
+        "meta_description": "Join our team...",
+        "focus_keyword": "full stack developer",
+        "created_at": "2025-10-24T10:00:00Z",
+        "updated_at": "2025-10-25T10:00:00Z",
+        "job_company_name": "Acme Corporation",
+        "job_company_logo": "https://...",
+        "job_company_website": "https://acme.com",
+        "employment_type": "Full Time",
+        "experience_level": "Senior",
+        "job_salary_min": 80000000,
+        "job_salary_max": 120000000,
+        "job_salary_currency": "IDR",
+        "job_salary_period": "month",
+        "job_is_salary_negotiable": true,
+        "location_province": "DKI Jakarta",
+        "location_regency": "Jakarta Selatan",
+        "location_district": "Kebayoran Baru",
+        "location_village": null,
+        "job_address_detail": "Sudirman St. 123",
+        "remote": false,
+        "hybrid": true,
+        "job_application_email": "careers@acme.com",
+        "job_application_url": "https://acme.com/careers/apply",
+        "job_application_deadline": "2025-11-30T23:59:59Z",
+        "job_skills": ["React", "Node.js", "TypeScript", "PostgreSQL"],
+        "job_benefits": ["Health Insurance", "Remote Work", "Flexible Hours"],
+        "job_requirements": "HTML content of requirements...",
+        "job_responsibilities": "HTML content of responsibilities...",
+        "job_categories": [
+          {
+            "id": "uuid",
+            "name": "Software Development",
+            "slug": "software-development"
+          }
+        ],
+        "job_tags": [
+          {
+            "id": "uuid",
+            "name": "Full Stack",
+            "slug": "full-stack"
+          },
+          {
+            "id": "uuid",
+            "name": "Remote Friendly",
+            "slug": "remote-friendly"
+          }
+        ]
+      }
+    ],
+    "total": 45,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 5
+  },
+  "cached": false
+}
+```
+
+---
+
+### Create Job Post
+
+Create a new job posting with comprehensive details.
+
+**Endpoint**: `POST /api/job-posts`
+
+**Authentication**: Required (Clerk user session)
+
+**Request Body**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | string | Yes | Job title (max 500 chars) |
+| `content` | string | Yes | Job description (HTML) |
+| `excerpt` | string | No | Short summary (max 1000 chars) |
+| `slug` | string | Yes | URL-friendly identifier (max 200 chars) |
+| `featured_image` | string | No | Featured image URL |
+| `publish_date` | string (ISO 8601) | No | Publish date (defaults to now) |
+| `status` | enum | Yes | `draft`, `published`, or `scheduled` |
+| `seo_title` | string | No | SEO title (max 200 chars) |
+| `meta_description` | string | No | Meta description (max 500 chars) |
+| `focus_keyword` | string | No | Focus keyword (max 100 chars) |
+| `job_company_name` | string | No | Company name (max 200 chars) |
+| `job_company_logo` | string | No | Company logo URL |
+| `job_company_website` | string | No | Company website URL |
+| `job_employment_type_id` | string (UUID) | No | Employment type ID |
+| `job_experience_level_id` | string (UUID) | No | Experience level ID |
+| `job_salary_min` | number | No | Minimum salary |
+| `job_salary_max` | number | No | Maximum salary |
+| `job_salary_currency` | string | No | Currency code (default: IDR) |
+| `job_salary_period` | string | No | Salary period (default: monthly) |
+| `job_is_salary_negotiable` | boolean | No | Whether salary is negotiable |
+| `job_province_id` | string | No | Province ID (max 2 chars) |
+| `job_regency_id` | string | No | Regency/city ID (max 4 chars) |
+| `job_district_id` | string | No | District ID (max 6 chars) |
+| `job_village_id` | string | No | Village ID (max 10 chars) |
+| `job_address_detail` | string | No | Detailed address |
+| `job_is_remote` | boolean | No | Whether job is remote |
+| `job_is_hybrid` | boolean | No | Whether job is hybrid |
+| `job_application_email` | string | No | Application email |
+| `job_application_url` | string | No | Application URL |
+| `job_application_deadline` | string (ISO 8601) | No | Application deadline |
+| `job_skills` | string or array | No | Skills (comma-separated or array) |
+| `job_benefits` | string or array | No | Benefits (comma-separated or array) |
+| `job_requirements` | string | No | Job requirements (HTML) |
+| `job_responsibilities` | string | No | Job responsibilities (HTML) |
+| `job_categories` | string or array | No | Categories (names, IDs, or comma-separated) |
+| `job_tags` | string or array | No | Tags (names, IDs, or comma-separated) |
+
+**Example Request (with comma-separated values)**:
+```bash
+curl -X POST "https://your-domain.com/api/job-posts" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: your-session-cookie" \
+  -d '{
+    "title": "Senior Full Stack Developer",
+    "slug": "senior-full-stack-developer",
+    "content": "<p>We are looking for an experienced developer...</p>",
+    "excerpt": "Exciting opportunity to join our tech team",
+    "status": "published",
+    "job_company_name": "Acme Corporation",
+    "job_salary_min": 80000000,
+    "job_salary_max": 120000000,
+    "job_salary_currency": "IDR",
+    "job_salary_period": "month",
+    "job_categories": "Software Development, Engineering",
+    "job_tags": "Full Stack, Remote Friendly, TypeScript",
+    "job_skills": "React, Node.js, TypeScript, PostgreSQL, Docker"
+  }'
+```
+
+**Example Request (with UUIDs - backward compatible)**:
+```bash
+curl -X POST "https://your-domain.com/api/job-posts" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: your-session-cookie" \
+  -d '{
+    "title": "Senior Full Stack Developer",
+    "slug": "senior-full-stack-developer",
+    "content": "<p>We are looking for an experienced developer...</p>",
+    "status": "published",
+    "job_categories": ["uuid-1", "uuid-2"],
+    "job_tags": ["uuid-3", "uuid-4"],
+    "job_skills": ["React", "Node.js", "TypeScript"]
+  }'
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "new-uuid",
+    "title": "Senior Full Stack Developer",
+    "slug": "senior-full-stack-developer",
+    // ... all job post fields
+    "job_categories": [
+      {
+        "id": "uuid",
+        "name": "Software Development",
+        "slug": "software-development"
+      },
+      {
+        "id": "new-uuid",
+        "name": "Engineering",
+        "slug": "engineering"
+      }
+    ],
+    "job_tags": [
+      {
+        "id": "uuid",
+        "name": "Full Stack",
+        "slug": "full-stack"
+      },
+      {
+        "id": "new-uuid",
+        "name": "Remote Friendly",
+        "slug": "remote-friendly"
+      },
+      {
+        "id": "new-uuid-2",
+        "name": "Typescript",
+        "slug": "typescript"
+      }
+    ],
+    "job_skills": ["React", "Node.Js", "Typescript", "Postgresql", "Docker"]
+  },
+  "cached": false
+}
+```
+
+**Important Notes**:
+- **Auto-Creation**: Categories and tags that don't exist will be created automatically
+- **Title Case**: All values are converted to Title Case (e.g., "full stack" becomes "Full Stack")
+- **Case-Insensitive**: Matching is case-insensitive to avoid duplicates
+- **Comma-Separated**: You can send `"React, Node.js, TypeScript"` instead of `["React", "Node.js", "TypeScript"]`
+- **Mixed Format**: You can mix UUIDs and names: `["uuid-1", "New Category Name"]`
+
+---
+
+### Get Single Job Post
+
+Retrieve a single job post by ID.
+
+**Endpoint**: `GET /api/job-posts/{id}`
+
+**Authentication**: Required (Clerk user session)
+
+**Path Parameters**:
+- `id` (string): Job post UUID
+
+**Example Request**:
+```bash
+curl -X GET "https://your-domain.com/api/job-posts/uuid" \
+  -H "Cookie: your-session-cookie"
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "title": "Senior Full Stack Developer",
+    // ... all job post fields (same as in list response)
+    "job_employment_type_id": "uuid",
+    "job_experience_level_id": "uuid",
+    "job_categories": [...],
+    "job_tags": [...]
+  },
+  "cached": false
+}
+```
+
+---
+
+### Update Job Post
+
+Update an existing job post. Only the fields you provide will be updated.
+
+**Endpoint**: `PUT /api/job-posts/{id}`
+
+**Authentication**: Required (Clerk user session - must be the post owner)
+
+**Path Parameters**:
+- `id` (string): Job post UUID
+
+**Request Body**: Same fields as POST, but all optional
+
+**Example Request**:
+```bash
+curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: your-session-cookie" \
+  -d '{
+    "title": "Lead Full Stack Developer",
+    "status": "published",
+    "job_categories": "Software Development, Team Lead",
+    "job_skills": "React, Node.js, TypeScript, Team Management"
+  }'
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    // Updated job post with all fields
+  },
+  "cached": false
+}
+```
+
+**Important Notes**:
+- **Partial Updates**: Only send fields you want to update
+- **Ownership Check**: You can only update your own job posts
+- **Auto-Creation**: New categories/tags in the update will be created automatically
+- **Full Replacement**: For categories/tags/skills, the entire list is replaced (not merged)
+
+---
+
+### Delete Job Post
+
+Delete a job post and all associated relationships.
+
+**Endpoint**: `DELETE /api/job-posts/{id}`
+
+**Authentication**: Required (Clerk user session - must be the post owner)
+
+**Path Parameters**:
+- `id` (string): Job post UUID
+
+**Example Request**:
+```bash
+curl -X DELETE "https://your-domain.com/api/job-posts/uuid" \
+  -H "Cookie: your-session-cookie"
+```
+
+**Example Response**:
+```
+HTTP 204 No Content
+```
+
+**Important Notes**:
+- **Cascading Delete**: All related job categories, tags, and metadata are deleted automatically
+- **Permanent**: This action cannot be undone
+- **Ownership Check**: You can only delete your own job posts
+
+---
+
+## Job Posts - Common Use Cases
+
+### 1. Create Job with Auto-Created Categories and Tags
+```bash
+curl -X POST "https://your-domain.com/api/job-posts" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: your-session-cookie" \
+  -d '{
+    "title": "Frontend Developer",
+    "slug": "frontend-developer-2025",
+    "content": "<p>Join our team...</p>",
+    "status": "draft",
+    "job_categories": "Frontend Development, Web Development",
+    "job_tags": "React, TypeScript, Remote",
+    "job_skills": "HTML, CSS, JavaScript, React, Redux"
+  }'
+```
+
+### 2. Update Job Status and Skills
+```bash
+curl -X PUT "https://your-domain.com/api/job-posts/uuid" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: your-session-cookie" \
+  -d '{
+    "status": "published",
+    "job_skills": "HTML, CSS, JavaScript, React, Redux, Next.js"
+  }'
+```
+
+### 3. Filter Jobs by Employment Type and Status
+```bash
+curl -X GET "https://your-domain.com/api/job-posts?employment_type=Full Time&status=published&page=1&limit=20" \
+  -H "Cookie: your-session-cookie"
+```
+
+### 4. Search Jobs by Title
+```bash
+curl -X GET "https://your-domain.com/api/job-posts?search=developer&page=1" \
+  -H "Cookie: your-session-cookie"
+```
+
+---
+
+## Job Posts - Field Format Reference
+
+### Categories and Tags Input Formats
+
+The API accepts three formats for categories and tags:
+
+1. **Comma-Separated String**:
+```json
+{
+  "job_categories": "Software Development, Engineering, Remote Work"
+}
+```
+
+2. **Array of Names**:
+```json
+{
+  "job_categories": ["Software Development", "Engineering", "Remote Work"]
+}
+```
+
+3. **Array of UUIDs** (backward compatible):
+```json
+{
+  "job_categories": ["uuid-1", "uuid-2", "uuid-3"]
+}
+```
+
+4. **Mixed Format**:
+```json
+{
+  "job_categories": ["uuid-1", "New Category", "Another New Category"]
+}
+```
+
+### Skills and Benefits Input Formats
+
+1. **Comma-Separated String**:
+```json
+{
+  "job_skills": "React, Node.js, TypeScript, Docker, Kubernetes"
+}
+```
+
+2. **Array of Strings**:
+```json
+{
+  "job_skills": ["React", "Node.js", "TypeScript", "Docker", "Kubernetes"]
+}
+```
+
+### Value Formatting Rules
+
+- **Case-Insensitive**: "react", "React", and "REACT" are treated as the same value
+- **Title Case Output**: All values are converted to Title Case ("react js" → "React Js")
+- **Slug Generation**: Automatically generated from name (spaces to hyphens, lowercase)
+- **Duplicate Prevention**: Case-insensitive matching prevents creating "React" and "react" separately
+
+---
+
 ## Support
 
 For API support or questions:

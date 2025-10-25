@@ -3,6 +3,11 @@ import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { z } from 'zod'
+import {
+  processJobCategoriesInput,
+  processJobTagsInput,
+  processJobSkillsInput,
+} from '@/lib/job-utils'
 
 const jobPostSchema = z.object({
   title: z.string().min(1).max(500),
@@ -37,14 +42,14 @@ const jobPostSchema = z.object({
   job_application_email: z.string().max(200).optional(),
   job_application_url: z.string().max(500).optional(),
   job_application_deadline: z.string().optional(),
-  job_skills: z.array(z.string()).optional(),
-  job_benefits: z.array(z.string()).optional(),
+  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
+  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
   job_requirements: z.string().optional(),
   job_responsibilities: z.string().optional(),
   
-  // Relations
-  job_categories: z.array(z.string().uuid()).optional(),
-  job_tags: z.array(z.string().uuid()).optional()
+  // Relations - can be UUIDs, names, or comma-separated strings
+  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
+  job_tags: z.union([z.array(z.string()), z.string()]).optional()
 })
 
 export async function GET(request: NextRequest) {
@@ -205,6 +210,18 @@ export async function POST(request: NextRequest) {
       job_categories, job_tags
     } = validation.data
     
+    // Process categories (accepts UUIDs, names, or comma-separated strings)
+    const categoryIds = await processJobCategoriesInput(job_categories)
+    
+    // Process tags (accepts UUIDs, names, or comma-separated strings)
+    const tagIds = await processJobTagsInput(job_tags)
+    
+    // Process skills (accepts array or comma-separated string)
+    const processedSkills = processJobSkillsInput(job_skills)
+    
+    // Process benefits (accepts array or comma-separated string)
+    const processedBenefits = processJobSkillsInput(job_benefits)
+    
     // Create post
     const postResult = await sql`
       INSERT INTO posts (
@@ -239,20 +256,20 @@ export async function POST(request: NextRequest) {
         ${job_is_salary_negotiable || false}, ${job_province_id || null}, ${job_regency_id || null}, ${job_district_id || null},
         ${job_village_id || null}, ${job_address_detail || null}, ${job_is_remote || false}, ${job_is_hybrid || false},
         ${job_application_email || null}, ${job_application_url || null}, ${job_application_deadline || null},
-        ${job_skills || []}, ${job_benefits || []}, ${job_requirements || null}, ${job_responsibilities || null}
+        ${processedSkills}, ${processedBenefits}, ${job_requirements || null}, ${job_responsibilities || null}
       )
     `
     
     // Add categories
-    if (job_categories && job_categories.length > 0) {
-      for (const catId of job_categories) {
+    if (categoryIds.length > 0) {
+      for (const catId of categoryIds) {
         await sql`INSERT INTO job_post_categories (post_id, category_id) VALUES (${postId}, ${catId})`
       }
     }
     
     // Add tags
-    if (job_tags && job_tags.length > 0) {
-      for (const tagId of job_tags) {
+    if (tagIds.length > 0) {
+      for (const tagId of tagIds) {
         await sql`INSERT INTO job_post_tags (post_id, tag_id) VALUES (${postId}, ${tagId})`
       }
     }
