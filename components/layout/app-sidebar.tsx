@@ -45,15 +45,14 @@ const baseMenuItems = [
     icon: FileText,
     items: [
       { title: 'All Posts', href: '/posts', tooltip: 'View and manage all blog posts' },
-      { title: 'Add New Post', href: '/posts/new', icon: PlusCircle, tooltip: 'Create a new blog post' },
+      { title: 'Categories', href: '/categories', tooltip: 'Organize posts with categories' },
+      { title: 'Tags', href: '/tags', tooltip: 'Manage post tags for better organization' },
     ],
   },
   {
     title: 'Management',
     icon: BarChart3,
     items: [
-      { title: 'Categories', href: '/categories', tooltip: 'Organize posts with categories' },
-      { title: 'Tags', href: '/tags', tooltip: 'Manage post tags for better organization' },
       { title: 'Media Library', href: '/media', tooltip: 'Upload and manage images and files' },
     ],
   },
@@ -93,45 +92,40 @@ export function AppSidebar() {
           .filter((cpt: CustomPostType) => cpt.slug !== 'post')
           .map((cpt: CustomPostType) => {
             const capitalizedName = cpt.name.charAt(0).toUpperCase() + cpt.name.slice(1);
+            // Fix double "Post" issue - if name already ends with "Post", don't add it again
+            const menuTitle = capitalizedName.endsWith('Post') ? capitalizedName : `${capitalizedName} Posts`;
+            const allItemsTitle = capitalizedName.endsWith('Post') ? `All ${capitalizedName}s` : `All ${capitalizedName} Posts`;
+            
+            // Build base items
+            const baseItems: any[] = [
+              { 
+                title: allItemsTitle, 
+                href: `/${cpt.slug}-posts`, 
+                tooltip: `View and manage all ${cpt.name} posts` 
+              },
+            ];
+            
+            // Add job-specific items if this is the job CPT
+            if (cpt.slug === 'job') {
+              baseItems.push(
+                { title: 'Job Categories', href: '/job-categories', icon: FolderKanban, tooltip: 'Manage job categories' },
+                { title: 'Job Tags', href: '/job-tags', icon: Tags, tooltip: 'Manage job tags' },
+                { title: 'Employment Types', href: '/employment-types', icon: Users, tooltip: 'Manage employment types' },
+                { title: 'Experience Levels', href: '/experience-levels', icon: Award, tooltip: 'Manage experience levels' }
+              );
+            }
+            
             return {
-              title: `${capitalizedName} Posts`,
+              title: menuTitle,
               icon: cpt.slug === 'job' ? Briefcase : FileText,
-              items: [
-                { 
-                  title: `All ${capitalizedName} Posts`, 
-                  href: `/${cpt.slug}-posts`, 
-                  tooltip: `View and manage all ${cpt.name} posts` 
-                },
-                { 
-                  title: `Add New ${capitalizedName} Post`, 
-                  href: `/${cpt.slug}-posts/new`, 
-                  icon: PlusCircle, 
-                  tooltip: `Create a new ${cpt.name} post` 
-                },
-              ],
+              items: baseItems,
             };
           });
-
-        // Check if job CPT is enabled
-        const isJobEnabled = enabled.some((cpt: CustomPostType) => cpt.slug === 'job');
-        
-        // Build Job Management menu if job CPT is enabled
-        const jobManagementMenu = isJobEnabled ? [{
-          title: 'Job Management',
-          icon: BarChart3,
-          items: [
-            { title: 'Job Categories', href: '/job-categories', icon: FolderKanban, tooltip: 'Manage job categories' },
-            { title: 'Job Tags', href: '/job-tags', icon: Tags, tooltip: 'Manage job tags' },
-            { title: 'Employment Types', href: '/employment-types', icon: Users, tooltip: 'Manage employment types' },
-            { title: 'Experience Levels', href: '/experience-levels', icon: Award, tooltip: 'Manage experience levels' },
-          ],
-        }] : [];
 
         // Insert dynamic menus after Posts section
         const newMenuItems = [
           baseMenuItems[0], // Posts
           ...dynamicMenus,
-          ...jobManagementMenu, // Job Management (if enabled)
           baseMenuItems[1], // Management
           baseMenuItems[2], // Settings
         ];
@@ -166,7 +160,7 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => {
+                {group.items.map((item: any) => {
                   const ItemIcon = item.icon;
                   const isActive = pathname === item.href || 
                                  (item.href === '/posts' && pathname?.startsWith('/posts'));
