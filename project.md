@@ -235,6 +235,44 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Bug Fixes and Missing Component Addition (October 26, 2025 - 17:30 UTC)
+
+**Summary**: Fixed critical issues with SQL migration queries, created missing pages frontend component, and clarified database junction table design.
+
+**Issues Fixed**:
+
+1. **SQL Migration Query for Job Posts**:
+   - **Problem**: Migration query tried to select job-specific columns (job_company_name, employment_type, etc.) directly from `posts` table, but these fields exist in `job_post_meta` table
+   - **Error**: `ERROR: column "job_company_name" does not exist (SQLSTATE 42703)`
+   - **Solution**: Rewrote migration query to properly join `posts` with `job_post_meta` and other related tables (job_employment_types, job_experience_levels, location tables)
+   - **Impact**: Migration query now works correctly and can successfully move job posts from posts+job_post_meta to the new dedicated job_posts table
+
+2. **Missing Pages Frontend Component**:
+   - **Problem**: Navigating to `/pages` resulted in 404 Not Found error
+   - **Solution**: Created missing components:
+     - `app/(dashboard)/pages/page.tsx` - Main pages listing page
+     - `components/pages/pages-list.tsx` - Pages list component with full CRUD interface
+   - **Impact**: Users can now access and manage pages through the CMS dashboard
+
+3. **Database Junction Tables Clarification**:
+   - **Confusion**: User thought `page_categories` and `page_tags` were separate taxonomy tables
+   - **Reality**: These are junction tables (many-to-many linking tables) that reference the existing shared `categories` and `tags` tables
+   - **Design**: This is correct database normalization - pages share the same categories/tags as posts, with junction tables handling the relationships
+   - **SQL**: The queries correctly reference `categories` and `tags` tables via foreign keys
+
+**Files Modified**:
+- `sql-queries-for-user.md` - Fixed job posts migration query to properly join posts with job_post_meta
+- `app/(dashboard)/pages/page.tsx` - Created missing pages component
+- `components/pages/pages-list.tsx` - Created pages list component with filters, pagination, and CRUD operations
+
+**Impact**:
+- ✅ Job posts migration SQL now works correctly
+- ✅ Pages feature fully accessible via dashboard at `/pages` route
+- ✅ Database design for shared taxonomies confirmed correct
+- ✅ All issues from user feedback resolved
+
+---
+
 ### Pages Feature Implementation (October 26, 2025 - 16:00 UTC)
 
 **Summary**: Implemented a complete Pages feature allowing users to manage static content pages (About Us, Contact, Privacy Policy, etc.) separate from blog posts. Pages share the same categories and tags taxonomy as posts and include full API support for external frontend consumption.
