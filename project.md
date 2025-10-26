@@ -235,6 +235,77 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### API Endpoint Testing & Next.js 15 Async Params Fix (October 26, 2025 - 18:47 UTC)
+
+**Summary**: Successfully tested all v1 API endpoints with bearer token authentication and fixed Next.js 15 async params compatibility issues in dynamic route handlers.
+
+**API Endpoint Testing**:
+- Created comprehensive test script to validate all v1 API endpoints
+- Tested bearer token: `cms_4iL1SEEXB7oQoiYDEfNJBTpeHeFVLP3k`
+- **Results**: 18/18 endpoints passed (100% success rate)
+
+**Endpoints Tested**:
+1. **Posts** (4 endpoints):
+   - ✅ GET /api/v1/posts (paginated listing)
+   - ✅ GET /api/v1/posts/{id} (by UUID)
+   - ✅ GET /api/v1/posts/{slug} (by slug)
+   - ✅ GET /api/v1/posts?search (search functionality)
+
+2. **Categories** (3 endpoints):
+   - ✅ GET /api/v1/categories (all categories)
+   - ✅ GET /api/v1/categories/{id} (by UUID)
+   - ✅ GET /api/v1/categories/{slug} (by slug)
+
+3. **Tags** (3 endpoints):
+   - ✅ GET /api/v1/tags (all tags)
+   - ✅ GET /api/v1/tags/{id} (by UUID)
+   - ✅ GET /api/v1/tags/{slug} (by slug)
+
+4. **Job Posts** (5 endpoints):
+   - ✅ GET /api/v1/job-posts (paginated listing)
+   - ✅ GET /api/v1/job-posts/{id} (single job post)
+   - ✅ POST /api/v1/job-posts (create new job post)
+   - ✅ PUT /api/v1/job-posts/{id} (update job post)
+   - ✅ DELETE /api/v1/job-posts/{id} (delete job post)
+
+5. **Pages** (3 endpoints):
+   - ✅ GET /api/v1/pages (all pages)
+   - ✅ GET /api/v1/pages/{id} (by UUID)
+   - ✅ GET /api/v1/pages/{slug} (by slug)
+
+**Next.js 15 Async Params Fix**:
+- **Issue**: Next.js 15 requires route parameters to be awaited before accessing properties
+- **Error**: `Route "/api/v1/pages/[id]" used params.id. params should be awaited`
+- **Solution**: Updated all dynamic route handlers to use async params
+
+**Files Modified**:
+- `app/api/v1/pages/[id]/route.ts` - Changed `params: { id: string }` to `params: Promise<{ id: string }>` and added `await` before destructuring
+- `app/api/pages/[id]/route.ts` - Fixed both GET and PUT methods for async params
+
+**Breaking Change Context**:
+Next.js 15 changed how route parameters work:
+```typescript
+// Before (Next.js 14):
+export async function GET(request, { params }: { params: { id: string } }) {
+  const { id } = params  // Direct access
+}
+
+// After (Next.js 15):
+export async function GET(request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params  // Must await first
+}
+```
+
+**Note**: Other v1 API routes (`posts/[id]`, `categories/[id]`, `tags/[id]`, `job-posts/[id]`) were already updated in previous changes.
+
+**Impact**:
+- ✅ All v1 API endpoints working correctly with 100% test success rate
+- ✅ No more async params errors in console logs
+- ✅ Next.js 15 compatibility maintained across all dynamic routes
+- ✅ API ready for external integrations with bearer token authentication
+
+---
+
 ### Job Posts Sitemap Query Fix (October 26, 2025 - 19:28 UTC)
 
 **Summary**: Fixed database query error in sitemap generation that was causing posts to fail when updating.

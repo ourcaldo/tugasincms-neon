@@ -14,7 +14,7 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const origin = request.headers.get('origin')
   
@@ -35,7 +35,7 @@ export async function GET(
       )
     }
     
-    const { id } = params
+    const { id } = await params
     
     const cacheKey = `api:v1:pages:${id}`
     

@@ -9,7 +9,7 @@ import { invalidateSitemaps } from '@/lib/sitemap'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await getUserIdFromClerk()
@@ -17,7 +17,7 @@ export async function GET(
       return unauthorizedResponse('You must be logged in')
     }
     
-    const { id } = params
+    const { id } = await params
     
     const pageResult = await sql`
       SELECT 
@@ -54,7 +54,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await getUserIdFromClerk()
@@ -62,7 +62,7 @@ export async function PUT(
       return unauthorizedResponse('You must be logged in')
     }
     
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     
     const validation = updatePageSchema.safeParse(body)
