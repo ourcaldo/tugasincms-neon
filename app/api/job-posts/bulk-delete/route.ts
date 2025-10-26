@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
     
     const { postIds } = validation.data
     
-    // Verify ownership and post type
+    // Verify ownership
     const posts = await sql`
-      SELECT id, author_id, post_type
-      FROM posts
+      SELECT id, author_id
+      FROM job_posts
       WHERE id = ANY(${postIds})
     `
     
@@ -40,17 +40,11 @@ export async function POST(request: NextRequest) {
       return forbiddenResponse('You can only delete your own job posts')
     }
     
-    const nonJobPosts = posts.filter(p => p.post_type !== 'job')
-    if (nonJobPosts.length > 0) {
-      return errorResponse('One or more posts are not job posts')
-    }
-    
     // Delete all posts (cascades will handle relations)
     await sql`
-      DELETE FROM posts
+      DELETE FROM job_posts
       WHERE id = ANY(${postIds})
         AND author_id = ${userId}
-        AND post_type = 'job'
     `
     
     return successResponse({

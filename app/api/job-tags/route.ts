@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         jt.slug,
         jt.created_at,
         jt.updated_at,
-        COUNT(jpt.post_id) as post_count
+        COUNT(jpt.job_post_id) as post_count
       FROM job_tags jt
       LEFT JOIN job_post_tags jpt ON jt.id = jpt.tag_id
       GROUP BY jt.id

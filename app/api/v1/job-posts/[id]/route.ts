@@ -95,37 +95,7 @@ export async function GET(
     
     const post = await sql`
       SELECT 
-        p.*,
-        jpm.job_company_name,
-        jpm.job_company_logo,
-        jpm.job_company_website,
-        jpm.job_employment_type_id,
-        jpm.job_experience_level_id,
-        jpm.job_salary_min,
-        jpm.job_salary_max,
-        jpm.job_salary_currency,
-        jpm.job_salary_period,
-        jpm.job_is_salary_negotiable,
-        jpm.job_province_id,
-        jpm.job_regency_id,
-        jpm.job_district_id,
-        jpm.job_village_id,
-        jpm.job_address_detail,
-        jpm.job_is_remote,
-        jpm.job_is_hybrid,
-        jpm.job_application_email,
-        jpm.job_application_url,
-        jpm.job_application_deadline,
-        jpm.job_skills,
-        jpm.job_benefits,
-        jpm.job_requirements,
-        jpm.job_responsibilities,
-        jet.name as employment_type,
-        jel.name as experience_level,
-        prov.name as location_province,
-        reg.name as location_regency,
-        dist.name as location_district,
-        vill.name as location_village,
+        jp.*,
         COALESCE(
           json_agg(DISTINCT jsonb_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug)) 
           FILTER (WHERE jc.id IS NOT NULL),
@@ -136,26 +106,13 @@ export async function GET(
           FILTER (WHERE jt.id IS NOT NULL),
           '[]'::json
         ) as job_tags
-      FROM posts p
-      LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
-      LEFT JOIN job_employment_types jet ON jpm.job_employment_type_id = jet.id
-      LEFT JOIN job_experience_levels jel ON jpm.job_experience_level_id = jel.id
-      LEFT JOIN reg_provinces prov ON jpm.job_province_id = prov.id
-      LEFT JOIN reg_regencies reg ON jpm.job_regency_id = reg.id
-      LEFT JOIN reg_districts dist ON jpm.job_district_id = dist.id
-      LEFT JOIN reg_villages vill ON jpm.job_village_id = vill.id
-      LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+      FROM job_posts jp
+      LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
-      LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
+      LEFT JOIN job_post_tags jpt ON jp.id = jpt.job_post_id
       LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
-      WHERE p.id = ${id} AND p.post_type = 'job' AND p.author_id = ${userId}
-      GROUP BY p.id, jpm.post_id, jpm.job_company_name, jpm.job_company_logo, jpm.job_company_website,
-        jpm.job_employment_type_id, jpm.job_experience_level_id, jpm.job_salary_min, jpm.job_salary_max,
-        jpm.job_salary_currency, jpm.job_salary_period, jpm.job_is_salary_negotiable,
-        jpm.job_province_id, jpm.job_regency_id, jpm.job_district_id, jpm.job_village_id,
-        jpm.job_address_detail, jpm.job_is_remote, jpm.job_is_hybrid, jpm.job_application_email,
-        jpm.job_application_url, jpm.job_application_deadline, jpm.job_skills, jpm.job_benefits,
-        jpm.job_requirements, jpm.job_responsibilities, jet.name, jel.name, prov.name, reg.name, dist.name, vill.name
+      WHERE jp.id = ${id} AND jp.author_id = ${userId}
+      GROUP BY jp.id
     `
     
     if (!post || post.length === 0) {
@@ -199,7 +156,7 @@ export async function PUT(
     const { id } = await params
     
     const existingPost = await sql`
-      SELECT post_type FROM posts WHERE id = ${id} AND post_type = 'job' AND author_id = ${userId}
+      SELECT author_id FROM job_posts WHERE id = ${id} AND author_id = ${userId}
     `
     
     if (!existingPost || existingPost.length === 0) {
@@ -250,9 +207,9 @@ export async function PUT(
       processedBenefits = processJobSkillsInput(job_benefits)
     }
     
-    // Update post
+    // Update job post
     await sql`
-      UPDATE posts
+      UPDATE job_posts
       SET 
         title = COALESCE(${title}, title),
         content = COALESCE(${content}, content),
@@ -264,14 +221,6 @@ export async function PUT(
         seo_title = COALESCE(${seo_title}, seo_title),
         meta_description = COALESCE(${meta_description}, meta_description),
         focus_keyword = COALESCE(${focus_keyword}, focus_keyword),
-        updated_at = NOW()
-      WHERE id = ${id} AND author_id = ${userId}
-    `
-    
-    // Update job meta
-    await sql`
-      UPDATE job_post_meta
-      SET 
         job_company_name = COALESCE(${job_company_name}, job_company_name),
         job_company_logo = COALESCE(${job_company_logo}, job_company_logo),
         job_company_website = COALESCE(${job_company_website}, job_company_website),
@@ -291,31 +240,31 @@ export async function PUT(
         job_is_hybrid = COALESCE(${job_is_hybrid}, job_is_hybrid),
         job_application_email = COALESCE(${job_application_email}, job_application_email),
         job_application_url = COALESCE(${job_application_url}, job_application_url),
-        job_application_deadline = COALESCE(${job_application_deadline}, job_application_deadline),
+        job_deadline = COALESCE(${job_application_deadline}, job_deadline),
         job_skills = COALESCE(${processedSkills}, job_skills),
         job_benefits = COALESCE(${processedBenefits}, job_benefits),
         job_requirements = COALESCE(${job_requirements}, job_requirements),
         job_responsibilities = COALESCE(${job_responsibilities}, job_responsibilities),
         updated_at = NOW()
-      WHERE post_id = ${id} AND post_id IN (SELECT id FROM posts WHERE author_id = ${userId})
+      WHERE id = ${id} AND author_id = ${userId}
     `
     
     // Update categories
     if (categoryIds !== undefined) {
-      await sql`DELETE FROM job_post_categories WHERE post_id = ${id}`
+      await sql`DELETE FROM job_post_categories WHERE job_post_id = ${id}`
       if (categoryIds.length > 0) {
         for (const catId of categoryIds) {
-          await sql`INSERT INTO job_post_categories (post_id, category_id) VALUES (${id}, ${catId})`
+          await sql`INSERT INTO job_post_categories (job_post_id, category_id) VALUES (${id}, ${catId})`
         }
       }
     }
     
     // Update tags
     if (tagIds !== undefined) {
-      await sql`DELETE FROM job_post_tags WHERE post_id = ${id}`
+      await sql`DELETE FROM job_post_tags WHERE job_post_id = ${id}`
       if (tagIds.length > 0) {
         for (const tagId of tagIds) {
-          await sql`INSERT INTO job_post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
+          await sql`INSERT INTO job_post_tags (job_post_id, tag_id) VALUES (${id}, ${tagId})`
         }
       }
     }
@@ -323,8 +272,7 @@ export async function PUT(
     // Fetch updated job post
     const fullPost = await sql`
       SELECT 
-        p.*,
-        jpm.*,
+        jp.*,
         COALESCE(
           json_agg(DISTINCT jsonb_build_object('id', jc.id, 'name', jc.name, 'slug', jc.slug)) 
           FILTER (WHERE jc.id IS NOT NULL),
@@ -335,14 +283,13 @@ export async function PUT(
           FILTER (WHERE jt.id IS NOT NULL),
           '[]'::json
         ) as job_tags
-      FROM posts p
-      LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
-      LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+      FROM job_posts jp
+      LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
-      LEFT JOIN job_post_tags jpt ON p.id = jpt.post_id
+      LEFT JOIN job_post_tags jpt ON jp.id = jpt.job_post_id
       LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
-      WHERE p.id = ${id}
-      GROUP BY p.id, jpm.id
+      WHERE jp.id = ${id}
+      GROUP BY jp.id
     `
     
     return setCorsHeaders(successResponse(fullPost[0], false), origin)
@@ -380,7 +327,7 @@ export async function DELETE(
     const { id } = await params
     
     const existingPost = await sql`
-      SELECT author_id, post_type FROM posts WHERE id = ${id}
+      SELECT author_id FROM job_posts WHERE id = ${id}
     `
     
     if (!existingPost || existingPost.length === 0) {
@@ -391,12 +338,8 @@ export async function DELETE(
       return setCorsHeaders(forbiddenResponse('You can only delete your own job posts'), origin)
     }
     
-    if (existingPost[0].post_type !== 'job') {
-      return setCorsHeaders(forbiddenResponse('This is not a job post'), origin)
-    }
-    
     // Delete job post (cascades will handle relations)
-    await sql`DELETE FROM posts WHERE id = ${id}`
+    await sql`DELETE FROM job_posts WHERE id = ${id}`
     
     const response = new NextResponse(null, { status: 204 })
     return setCorsHeaders(response, origin)

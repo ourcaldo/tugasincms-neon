@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
         jc.description,
         jc.created_at,
         jc.updated_at,
-        COUNT(jpc.post_id) as post_count
+        COUNT(jpc.job_post_id) as post_count
       FROM job_categories jc
       LEFT JOIN job_post_categories jpc ON jc.id = jpc.category_id
       GROUP BY jc.id
