@@ -235,6 +235,43 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts Sitemap Query Fix (October 26, 2025 - 19:28 UTC)
+
+**Summary**: Fixed database query error in sitemap generation that was causing posts to fail when updating.
+
+**Issue**:
+- Error: `column jpc.post_id does not exist`
+- Occurred when updating any post because it triggered sitemap regeneration
+- The `generateJobSitemaps` function was using the old table structure from when job posts were stored in the `posts` table
+
+**Root Cause**:
+- Job posts now have a dedicated `job_posts` table (not in `posts` table anymore)
+- The sitemap query was still trying to join with `posts` table using `post_type = 'job'`
+- Junction table column names are `job_post_id` and `job_category_id`, not `post_id` and `category_id`
+
+**Solution**:
+```typescript
+// Before (broken):
+FROM posts p
+LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+WHERE p.post_type = 'job'
+
+// After (fixed):
+FROM job_posts jp
+LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
+LEFT JOIN job_categories jc ON jpc.job_category_id = jc.id
+```
+
+**Files Modified**:
+- `lib/sitemap.ts` - Updated `generateJobSitemaps` function to use correct table structure
+
+**Impact**:
+- ✅ Posts can now be saved and updated without sitemap errors
+- ✅ Job posts sitemap generation now works correctly
+- ✅ Sitemap regeneration no longer causes 500 errors
+
+---
+
 ### Posts and Pages Validation Fix - Complete Resolution (October 26, 2025 - 19:15 UTC)
 
 **Summary**: Fixed validation and request body issues for both Posts and Pages that were causing "Invalid author ID" errors and overly strict validation.

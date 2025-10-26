@@ -166,16 +166,15 @@ export async function generateJobSitemaps(baseUrl?: string): Promise<{ index: st
   // Fetch all published job posts with their first category
   const posts = await sql`
     SELECT 
-      p.id,
-      p.slug,
-      p.updated_at,
+      jp.id,
+      jp.slug,
+      jp.updated_at,
       COALESCE(jc.slug, 'uncategorized') as category_slug
-    FROM posts p
-    LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
-    LEFT JOIN job_categories jc ON jpc.category_id = jc.id
-    WHERE p.status = 'published'
-      AND p.post_type = 'job'
-    ORDER BY p.updated_at DESC
+    FROM job_posts jp
+    LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
+    LEFT JOIN job_categories jc ON jpc.job_category_id = jc.id
+    WHERE jp.status = 'published'
+    ORDER BY jp.updated_at DESC
   `
   
   // Group posts by id to get only the first category for each post
