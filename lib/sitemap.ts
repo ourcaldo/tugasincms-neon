@@ -112,7 +112,7 @@ export async function generatePagesSitemap(baseUrl?: string): Promise<string> {
 export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: string, chunks: string[] }> {
   const url = baseUrl || getBaseUrl()
   
-  // Fetch all published posts with their first category
+  // Fetch all published blog posts (excluding other post types like job posts) with their first category
   const posts = await sql`
     SELECT 
       p.id,
@@ -123,6 +123,7 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
     LEFT JOIN post_categories pc ON p.id = pc.post_id
     LEFT JOIN categories c ON pc.category_id = c.id
     WHERE p.status = 'published'
+      AND (p.post_type = 'post' OR p.post_type IS NULL)
     ORDER BY p.updated_at DESC
   `
   

@@ -235,6 +235,38 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Sitemap Blog Post Type Filter (October 26, 2025 - 07:00 UTC)
+
+**Summary**: Fixed blog sitemap generation to exclude job posts and other custom post types, preventing broken URLs in sitemap.
+
+**Issue Fixed**:
+- The `generateBlogSitemaps` function was fetching ALL published posts without filtering by `post_type`
+- This caused job posts to appear in the blog sitemap with incorrect URLs (e.g., `/blog/{category}/{slug}/` instead of `/jobs/{slug}/`)
+- Job posts don't have public-facing frontend pages yet, so including them would create 404 errors for search engines
+
+**Solution Implemented**:
+1. **Blog Sitemap Filter** (`lib/sitemap.ts`):
+   - Added `WHERE` clause to filter by `post_type = 'post' OR post_type IS NULL`
+   - The `IS NULL` check ensures backward compatibility with posts created before the post_type column was added
+   - Blog sitemap now only includes regular blog posts, excluding job posts and any future custom post types
+
+**Technical Details**:
+- Job posts are stored in the `posts` table with `post_type = 'job'`
+- Job posts use a separate taxonomy (`job_categories`, `job_tags`) from regular blog posts
+- Job posts will get their own sitemap (`sitemap-job.xml`) once public job detail pages are implemented at `/jobs/{category_slug}/{slug}/`
+- Until then, job posts are correctly excluded from all sitemaps to avoid 404s
+
+**Files Modified**:
+- `lib/sitemap.ts` - Updated `generateBlogSitemaps` query to filter by post_type
+
+**Impact**:
+- ✅ Blog sitemap now contains only valid blog post URLs
+- ✅ Job posts no longer appear with broken URLs in sitemap
+- ✅ Search engines will only index existing, accessible content
+- ✅ Sitemap cache will auto-refresh on next cron run (60 minutes) or manual regeneration
+
+---
+
 ### TypeScript Build Errors Fixed (October 26, 2025 - 06:30 UTC)
 
 **Summary**: Fixed multiple TypeScript compilation errors preventing production build from completing successfully.
