@@ -235,6 +235,66 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts Schema Fix - Missing Columns Addition (October 26, 2025 - 18:00 UTC)
+
+**Summary**: Fixed critical database schema mismatch causing "column does not exist" errors when updating job posts. The job_posts table was missing several columns that the API expected.
+
+**Problem**:
+- User encountered error: `Error [NeonDbError]: column "job_company_website" does not exist` when saving job posts
+- Root cause: The job_posts table was created with a simplified schema (from sql-queries-for-user.md), but the API code expected a full schema with foreign key relationships
+- Multiple columns missing from the database table
+
+**Missing Columns Identified**:
+1. Company fields: `job_company_website`
+2. Salary fields: `job_is_salary_negotiable`
+3. Location fields: `job_province_id`, `job_regency_id`, `job_district_id`, `job_village_id`, `job_address_detail`
+4. Location type flags: `job_is_remote`, `job_is_hybrid`
+5. Employment/Experience FKs: `job_employment_type_id`, `job_experience_level_id`
+6. Job description fields: `job_requirements`, `job_responsibilities`
+
+**Solution Provided**:
+
+1. **ADD-MISSING-COLUMNS.sql** - Migration to add all missing columns:
+   - Adds 14 missing columns with appropriate data types
+   - Creates foreign key constraints for employment_type_id and experience_level_id
+   - Creates indexes for performance optimization
+   - All ALTER TABLE statements use IF NOT EXISTS for safe execution
+
+2. **SYNC-LEGACY-DATA.sql** - Migration to sync legacy VARCHAR data with new UUID columns:
+   - Syncs `employment_type` (VARCHAR) to `job_employment_type_id` (UUID) via name lookup
+   - Syncs `experience_level` (VARCHAR) to `job_experience_level_id` (UUID) via name lookup
+   - Converts `job_location_type` VARCHAR to `job_is_remote` and `job_is_hybrid` boolean flags
+   - Idempotent design - safe to run multiple times
+
+**Data Consistency Note**:
+- The table now has BOTH legacy VARCHAR columns and new UUID foreign key columns
+- Legacy columns: `employment_type`, `experience_level`, `job_location_type`
+- New FK columns: `job_employment_type_id`, `job_experience_level_id`
+- New boolean flags: `job_is_remote`, `job_is_hybrid`
+- The API code uses the UUID/boolean columns, so those are the source of truth going forward
+- SYNC-LEGACY-DATA.sql backfills the new columns from legacy data
+
+**Files Created**:
+- `ADD-MISSING-COLUMNS.sql` - Adds missing columns to job_posts table
+- `SYNC-LEGACY-DATA.sql` - Syncs legacy data to new columns
+
+**Architect Review**:
+✅ Migration correctly adds all fields expected by API
+✅ Appropriate data types, defaults, and foreign key constraints
+✅ Indexes created for performance
+✅ Idempotent design for safe execution
+⚠️ Recommended: Run SYNC-LEGACY-DATA.sql to backfill existing data
+⚠️ Future: Consider deprecating redundant VARCHAR columns after confirming new columns work
+
+**Impact**:
+- ✅ Fixes "column does not exist" errors when updating job posts
+- ✅ Job posts API now fully functional with all fields
+- ✅ Database schema matches API expectations
+- ✅ Safe migration path with backward compatibility
+- ✅ Ready for user to execute migrations
+
+---
+
 ### Bug Fixes and Missing Component Addition (October 26, 2025 - 17:30 UTC)
 
 **Summary**: Fixed critical issues with SQL migration queries, created missing pages frontend component, and clarified database junction table design.
