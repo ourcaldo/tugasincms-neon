@@ -80,31 +80,26 @@ export async function PUT(
     
     const { title, content, excerpt, slug, featuredImage, publishDate, status, seo, categories, tags, template, parentPageId, menuOrder } = validation.data
     
-    const updateFields: any = {}
-    if (title !== undefined) updateFields.title = title
-    if (content !== undefined) updateFields.content = content
-    if (excerpt !== undefined) updateFields.excerpt = excerpt
-    if (slug !== undefined) updateFields.slug = slug
-    if (featuredImage !== undefined) updateFields.featured_image = featuredImage
-    if (publishDate !== undefined) updateFields.publish_date = publishDate
-    if (status !== undefined) updateFields.status = status
-    if (seo?.title !== undefined) updateFields.seo_title = seo.title
-    if (seo?.metaDescription !== undefined) updateFields.meta_description = seo.metaDescription
-    if (seo?.focusKeyword !== undefined) updateFields.focus_keyword = seo.focusKeyword
-    if (template !== undefined) updateFields.template = template
-    if (parentPageId !== undefined) updateFields.parent_page_id = parentPageId
-    if (menuOrder !== undefined) updateFields.menu_order = menuOrder
-    
-    if (Object.keys(updateFields).length > 0) {
-      const setClauses = Object.keys(updateFields)
-        .map((key) => `${key} = $${Object.keys(updateFields).indexOf(key) + 1}`)
-        .join(', ')
-      
-      const values = Object.values(updateFields)
-      values.push(id)
-      
-      await sql.unsafe(`UPDATE pages SET ${setClauses} WHERE id = $${values.length}`, values)
-    }
+    // Update page fields - using COALESCE to only update provided fields
+    await sql`
+      UPDATE pages
+      SET 
+        title = COALESCE(${title}, title),
+        content = COALESCE(${content}, content),
+        excerpt = COALESCE(${excerpt}, excerpt),
+        slug = COALESCE(${slug}, slug),
+        featured_image = COALESCE(${featuredImage}, featured_image),
+        publish_date = COALESCE(${publishDate}, publish_date),
+        status = COALESCE(${status}, status),
+        seo_title = COALESCE(${seo?.title}, seo_title),
+        meta_description = COALESCE(${seo?.metaDescription}, meta_description),
+        focus_keyword = COALESCE(${seo?.focusKeyword}, focus_keyword),
+        template = COALESCE(${template}, template),
+        parent_page_id = COALESCE(${parentPageId}, parent_page_id),
+        menu_order = COALESCE(${menuOrder}, menu_order),
+        updated_at = NOW()
+      WHERE id = ${id} AND author_id = ${userId}
+    `
     
     if (categories !== undefined) {
       await sql`DELETE FROM page_categories WHERE page_id = ${id}`
@@ -165,7 +160,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await getUserIdFromClerk()
@@ -173,7 +168,7 @@ export async function DELETE(
       return unauthorizedResponse('You must be logged in')
     }
     
-    const { id } = params
+    const { id } = await params
     
     const existingPage = await sql`
       SELECT * FROM pages WHERE id = ${id} AND author_id = ${userId}

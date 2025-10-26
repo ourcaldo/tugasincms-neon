@@ -235,9 +235,9 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
-### API Endpoint Testing & Next.js 15 Async Params Fix (October 26, 2025 - 18:47 UTC)
+### Production Build Fix & Next.js 15 Compatibility (October 26, 2025 - 18:47 UTC)
 
-**Summary**: Successfully tested all v1 API endpoints with bearer token authentication and fixed Next.js 15 async params compatibility issues in dynamic route handlers.
+**Summary**: Successfully tested all v1 API endpoints, fixed Next.js 15 async params compatibility issues, and resolved production build errors.
 
 **API Endpoint Testing**:
 - Created comprehensive test script to validate all v1 API endpoints
@@ -280,7 +280,8 @@ SITEMAP_HOST=tugasin.me
 
 **Files Modified**:
 - `app/api/v1/pages/[id]/route.ts` - Changed `params: { id: string }` to `params: Promise<{ id: string }>` and added `await` before destructuring
-- `app/api/pages/[id]/route.ts` - Fixed both GET and PUT methods for async params
+- `app/api/pages/[id]/route.ts` - Fixed GET, PUT, and DELETE methods for async params
+- `app/api/pages/[id]/route.ts` - Rewrote UPDATE query to use SQL template literals instead of `sql.unsafe()`
 
 **Breaking Change Context**:
 Next.js 15 changed how route parameters work:
@@ -298,10 +299,43 @@ export async function GET(request, { params }: { params: Promise<{ id: string }>
 
 **Note**: Other v1 API routes (`posts/[id]`, `categories/[id]`, `tags/[id]`, `job-posts/[id]`) were already updated in previous changes.
 
+**Production Build Errors Fixed**:
+
+1. **Missing DELETE async params**:
+   - Error: `Type "{ params: { id: string; }; }" is not a valid type for DELETE export`
+   - Fix: Updated DELETE method to use `Promise<{ id: string }>` and `await params`
+
+2. **SQL.unsafe TypeScript error**:
+   - Error: `Expected 1 arguments, but got 2` on `sql.unsafe(query, values)`
+   - Root cause: Neon SQL library's `unsafe()` method doesn't support parameterized queries
+   - Fix: Rewrote dynamic UPDATE using SQL template literals with COALESCE:
+   ```typescript
+   // Before (broken):
+   await sql.unsafe(`UPDATE pages SET ${setClauses} WHERE id = $${values.length}`, values)
+   
+   // After (fixed):
+   await sql`
+     UPDATE pages
+     SET 
+       title = COALESCE(${title}, title),
+       content = COALESCE(${content}, content),
+       ...
+     WHERE id = ${id} AND author_id = ${userId}
+   `
+   ```
+
+**Build Results**:
+- ✅ Production build successful (`npm run build`)
+- ✅ All TypeScript types valid
+- ✅ 70 routes compiled successfully
+- ✅ No compilation errors or warnings
+- ✅ Build size optimized (102kB shared chunks, 81.4kB middleware)
+
 **Impact**:
 - ✅ All v1 API endpoints working correctly with 100% test success rate
 - ✅ No more async params errors in console logs
 - ✅ Next.js 15 compatibility maintained across all dynamic routes
+- ✅ Production build ready for deployment
 - ✅ API ready for external integrations with bearer token authentication
 
 ---
