@@ -259,8 +259,10 @@ WHERE p.post_type = 'job'
 // After (fixed):
 FROM job_posts jp
 LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
-LEFT JOIN job_categories jc ON jpc.job_category_id = jc.id
+LEFT JOIN job_categories jc ON jpc.category_id = jc.id
 ```
+
+**Note**: The junction table uses `category_id`, not `job_category_id` - this matches the actual database schema.
 
 **Files Modified**:
 - `lib/sitemap.ts` - Updated `generateJobSitemaps` function to use correct table structure

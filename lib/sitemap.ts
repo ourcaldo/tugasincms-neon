@@ -172,7 +172,7 @@ export async function generateJobSitemaps(baseUrl?: string): Promise<{ index: st
       COALESCE(jc.slug, 'uncategorized') as category_slug
     FROM job_posts jp
     LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
-    LEFT JOIN job_categories jc ON jpc.job_category_id = jc.id
+    LEFT JOIN job_categories jc ON jpc.category_id = jc.id
     WHERE jp.status = 'published'
     ORDER BY jp.updated_at DESC
   `
