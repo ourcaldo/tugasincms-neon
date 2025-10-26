@@ -58,8 +58,8 @@ export function mapPostFromDB(post: PostFromDB): MappedPost {
       focusKeyword: post.focus_keyword || undefined,
       slug: post.slug,
     },
-    categories: (post.categories || []).map((pc: any) => pc.category).filter(Boolean),
-    tags: (post.tags || []).map((pt: any) => pt.tag).filter(Boolean),
+    categories: Array.isArray(post.categories) ? post.categories.filter(Boolean) : [],
+    tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : [],
   }
 }
 

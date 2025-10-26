@@ -1160,6 +1160,191 @@ The API accepts three formats for categories and tags:
 
 ---
 
+## Pages Endpoints
+
+### Overview
+
+Pages are static content pages in TugasCMS (like About Us, Contact, etc.). The API provides access to published pages with support for categories, tags, and custom templates. Pages share the same categories and tags taxonomy as posts.
+
+**Base URL**: `https://your-domain.com/api/v1/pages`
+
+**Authentication**: Required (Bearer token)
+
+### Get All Pages
+
+Retrieve a paginated list of published pages with optional filtering.
+
+**Endpoint**: `GET /api/v1/pages`
+
+**Authentication**: Required (Bearer token)
+
+**Query Parameters**:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number for pagination |
+| `limit` | integer | 20 | Number of pages per page (max 100) |
+| `search` | string | - | Search by page title or content |
+| `category` | string | - | Filter by category ID or slug |
+| `tag` | string | - | Filter by tag ID or slug |
+| `status` | string | published | Filter by status (published, draft, scheduled) |
+
+**Example Request**:
+```bash
+curl -X GET "https://your-domain.com/api/v1/pages?page=1&limit=10" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "pages": [
+      {
+        "id": "uuid",
+        "title": "About Us",
+        "content": "Page content...",
+        "excerpt": "Brief excerpt...",
+        "slug": "about-us",
+        "featuredImage": "https://...",
+        "publishDate": "2025-10-03T10:00:00Z",
+        "status": "published",
+        "authorId": "uuid",
+        "createdAt": "2025-10-01T10:00:00Z",
+        "updatedAt": "2025-10-03T10:00:00Z",
+        "seo": {
+          "title": "About Us - TugasCMS",
+          "metaDescription": "Learn more about TugasCMS...",
+          "focusKeyword": "about us",
+          "slug": "about-us"
+        },
+        "categories": [
+          {
+            "id": "uuid",
+            "name": "Company",
+            "slug": "company",
+            "description": "Company pages"
+          }
+        ],
+        "tags": [
+          {
+            "id": "uuid",
+            "name": "Information",
+            "slug": "information"
+          }
+        ],
+        "template": "default",
+        "parentPageId": null,
+        "menuOrder": 0
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 15,
+      "totalPages": 2,
+      "hasNextPage": true,
+      "hasPrevPage": false
+    },
+    "filters": {
+      "search": null,
+      "category": null,
+      "tag": null,
+      "status": "published"
+    }
+  },
+  "cached": false
+}
+```
+
+---
+
+### Get Single Page
+
+Retrieve a single published page by ID or slug.
+
+**Endpoint**: `GET /api/v1/pages/{id}`
+
+**Path Parameters**:
+- `id` (string): Page UUID or slug
+
+**Example Request**:
+```bash
+curl -X GET "https://your-domain.com/api/v1/pages/about-us" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "title": "About Us",
+    "content": "Full page content...",
+    "excerpt": "Brief excerpt...",
+    "slug": "about-us",
+    "featuredImage": "https://...",
+    "publishDate": "2025-10-03T10:00:00Z",
+    "status": "published",
+    "authorId": "uuid",
+    "createdAt": "2025-10-01T10:00:00Z",
+    "updatedAt": "2025-10-03T10:00:00Z",
+    "seo": {
+      "title": "About Us - TugasCMS",
+      "metaDescription": "Learn more about TugasCMS...",
+      "focusKeyword": "about us",
+      "slug": "about-us"
+    },
+    "categories": [...],
+    "tags": [...],
+    "template": "default",
+    "parentPageId": null,
+    "menuOrder": 0
+  },
+  "cached": false
+}
+```
+
+---
+
+### Pages API Features
+
+1. **Template Support**: Pages can use custom templates (e.g., 'default', 'full-width', 'landing')
+2. **Hierarchical Structure**: Pages can have parent-child relationships via `parentPageId`
+3. **Menu Ordering**: Pages are ordered by `menuOrder` for navigation menus
+4. **Shared Taxonomy**: Pages use the same categories and tags as posts
+5. **SEO Optimized**: Full SEO fields support for meta titles, descriptions, and keywords
+
+### Common Use Cases for Pages
+
+#### 1. Get All Pages for Navigation Menu
+```bash
+curl -X GET "https://your-domain.com/api/v1/pages?status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+#### 2. Get Page by Slug for Frontend Display
+```bash
+curl -X GET "https://your-domain.com/api/v1/pages/contact" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+#### 3. Search Pages
+```bash
+curl -X GET "https://your-domain.com/api/v1/pages?search=privacy" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+#### 4. Get Pages by Category
+```bash
+curl -X GET "https://your-domain.com/api/v1/pages?category=legal" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+---
+
 ## Support
 
 For API support or questions:

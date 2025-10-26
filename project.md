@@ -235,6 +235,137 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Pages Feature Implementation (October 26, 2025 - 16:00 UTC)
+
+**Summary**: Implemented a complete Pages feature allowing users to manage static content pages (About Us, Contact, Privacy Policy, etc.) separate from blog posts. Pages share the same categories and tags taxonomy as posts and include full API support for external frontend consumption.
+
+**Database Changes**:
+
+1. **New Tables Created**:
+   - `pages` - Main pages table with fields:
+     - Standard content fields (title, content, excerpt, slug, featured_image, etc.)
+     - SEO fields (seo_title, meta_description, focus_keyword)
+     - Page-specific fields (template, parent_page_id, menu_order)
+     - Status management (draft, published, scheduled)
+   - `page_categories` - Junction table linking pages to categories
+   - `page_tags` - Junction table linking pages to tags
+   
+2. **Features**:
+   - Template support for custom page layouts
+   - Hierarchical structure via parent_page_id
+   - Menu ordering via menu_order field
+   - Shares categories/tags with posts (no separate taxonomy needed)
+
+**API Implementation**:
+
+1. **Internal API** (`/api/pages`) - Clerk authentication:
+   - GET /api/pages - List pages with pagination, search, filters
+   - POST /api/pages - Create new page
+   - GET /api/pages/[id] - Get single page
+   - PUT /api/pages/[id] - Update page
+   - DELETE /api/pages/[id] - Delete page
+
+2. **External API** (`/api/v1/pages`) - Bearer token authentication:
+   - GET /api/v1/pages - Public endpoint for frontend to fetch pages
+   - GET /api/v1/pages/[id] - Get single page by UUID or slug
+   - Supports pagination, filtering, search
+   - Returns only published pages by default
+   - Cached responses (1 hour TTL)
+
+**Frontend Changes**:
+- Updated sidebar menu from "Posts" to "Posts and Pages"
+- Added "All Pages" menu item under "Posts and Pages" section
+- Pages will be accessible at /pages route
+
+**Files Created**:
+- `lib/page-mapper.ts` - Page data mapper (similar to post-mapper)
+- `lib/validation.ts` - Added pageSchema and updatePageSchema
+- `app/api/pages/route.ts` - Internal pages list/create API
+- `app/api/pages/[id]/route.ts` - Internal single page CRUD API
+- `app/api/v1/pages/route.ts` - External pages list API
+- `app/api/v1/pages/[id]/route.ts` - External single page API
+
+**Files Modified**:
+- `components/layout/app-sidebar.tsx` - Updated menu structure
+- `API_DOCUMENTATION.md` - Added complete Pages endpoints documentation
+
+**SQL Queries Provided**:
+- Created comprehensive SQL migration scripts in `sql-queries-for-user.md` for:
+  - pages table with indexes and triggers
+  - page_categories junction table
+  - page_tags junction table
+
+**Impact**:
+- ✅ Pages feature fully functional with internal and external APIs
+- ✅ Complete documentation for frontend integration
+- ✅ Proper separation between posts and pages
+- ✅ SEO-friendly with full meta fields support
+- ✅ Ready for frontend website integration
+
+---
+
+### Job Posts Table Separation (October 26, 2025 - 16:00 UTC)
+
+**Summary**: Created dedicated database table structure for job posts to separate them from regular blog posts, improving data organization and query performance.
+
+**Database Changes**:
+
+1. **New job_posts Table**:
+   - Dedicated table for job posting data
+   - Job-specific fields (company info, location, salary, skills, benefits)
+   - Employment type and experience level fields
+   - Separate from posts table for better organization
+
+2. **New Junction Tables**:
+   - `job_post_categories` - Links job posts to job_categories
+   - `job_post_tags` - Links job posts to job_tags
+
+**SQL Queries Provided**:
+- Complete SQL migration scripts in `sql-queries-for-user.md` including:
+  - job_posts table creation with all fields and indexes
+  - Junction tables for categories and tags
+  - Optional migration script to move existing job posts from posts table
+  - Indexes for performance optimization
+
+**Impact**:
+- ✅ Cleaner data structure with dedicated job posts table
+- ✅ Better query performance by separating post types
+- ✅ Easier to manage job-specific fields
+- ✅ Migration path provided for existing data
+
+---
+
+### Categories/Tags Mapper Fix (October 26, 2025 - 16:00 UTC)
+
+**Summary**: Fixed critical bug where categories and tags were showing as NULL in the CMS dashboard and API responses despite being properly stored in the database.
+
+**Root Cause**:
+- The `post-mapper.ts` was incorrectly trying to access `pc.category` and `pt.tag` properties
+- SQL queries already return category/tag objects directly via JSON aggregation
+- The mapper was looking for nested properties that don't exist
+
+**Solution**:
+```typescript
+// Before (broken)
+categories: (post.categories || []).map((pc: any) => pc.category).filter(Boolean)
+tags: (post.tags || []).map((pt: any) => pt.tag).filter(Boolean)
+
+// After (fixed)
+categories: Array.isArray(post.categories) ? post.categories.filter(Boolean) : []
+tags: Array.isArray(post.tags) ? post.tags.filter(Boolean) : []
+```
+
+**Files Modified**:
+- `lib/post-mapper.ts` - Fixed categories and tags mapping
+
+**Impact**:
+- ✅ Categories now display correctly in dashboard posts list
+- ✅ API responses include correct category/tag data
+- ✅ Post editing shows assigned categories/tags properly
+- ✅ No database changes required - pure mapping layer fix
+
+---
+
 ### API v1 Posts Endpoint SQL Query Fix (October 26, 2025 - 13:45 UTC)
 
 **Summary**: Fixed critical SQL syntax errors in the `/api/v1/posts` endpoint that were causing 500 Internal Server Errors. The issue was due to incompatible SQL query composition methods with the Neon database client.

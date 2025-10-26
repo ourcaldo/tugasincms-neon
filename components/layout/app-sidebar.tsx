@@ -41,10 +41,11 @@ interface CustomPostType {
 
 const baseMenuItems = [
   {
-    title: 'Posts',
+    title: 'Posts and Pages',
     icon: FileText,
     items: [
       { title: 'All Posts', href: '/posts', tooltip: 'View and manage all blog posts' },
+      { title: 'All Pages', href: '/pages', tooltip: 'View and manage all pages' },
       { title: 'Categories', href: '/categories', tooltip: 'Organize posts with categories' },
       { title: 'Tags', href: '/tags', tooltip: 'Manage post tags for better organization' },
     ],
