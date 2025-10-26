@@ -1,0 +1,32 @@
+-- Remove job-related columns from posts table
+-- These columns are no longer needed since job posts have a dedicated table
+
+ALTER TABLE posts 
+DROP COLUMN IF EXISTS job_company_name,
+DROP COLUMN IF EXISTS job_company_logo,
+DROP COLUMN IF EXISTS job_company_website,
+DROP COLUMN IF EXISTS job_location,
+DROP COLUMN IF EXISTS job_location_type,
+DROP COLUMN IF EXISTS job_salary_min,
+DROP COLUMN IF EXISTS job_salary_max,
+DROP COLUMN IF EXISTS job_salary_currency,
+DROP COLUMN IF EXISTS job_salary_period,
+DROP COLUMN IF EXISTS job_is_salary_negotiable,
+DROP COLUMN IF EXISTS job_application_url,
+DROP COLUMN IF EXISTS job_application_email,
+DROP COLUMN IF EXISTS job_deadline,
+DROP COLUMN IF EXISTS job_skills,
+DROP COLUMN IF EXISTS job_benefits,
+DROP COLUMN IF EXISTS job_province_id,
+DROP COLUMN IF EXISTS job_regency_id,
+DROP COLUMN IF EXISTS job_district_id,
+DROP COLUMN IF EXISTS job_village_id,
+DROP COLUMN IF EXISTS job_address_detail,
+DROP COLUMN IF EXISTS job_is_remote,
+DROP COLUMN IF EXISTS job_is_hybrid,
+DROP COLUMN IF EXISTS job_employment_type_id,
+DROP COLUMN IF EXISTS job_experience_level_id,
+DROP COLUMN IF EXISTS job_requirements,
+DROP COLUMN IF EXISTS job_responsibilities,
+DROP COLUMN IF EXISTS employment_type,
+DROP COLUMN IF EXISTS experience_level;
