@@ -308,16 +308,17 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
         excerpt: formData.excerpt,
         featuredImage: formData.featuredImage,
         status: formData.status,
-        publishDate: formData.publishDate,
-        seoTitle: formData.seo?.title,
-        metaDescription: formData.seo?.metaDescription,
-        focusKeyword: formData.seo?.focusKeyword,
+        publishDate: formData.publishDate.toISOString(),
+        seo: {
+          title: formData.seo?.title,
+          metaDescription: formData.seo?.metaDescription,
+          focusKeyword: formData.seo?.focusKeyword,
+        },
         template: formData.template,
         parentPageId: formData.parentPageId || null,
         menuOrder: formData.menuOrder,
-        authorId: user.id,
-        categoryIds: formData.categories.map(c => c.id),
-        tagIds: formData.tags.map(t => t.id),
+        categories: formData.categories.map(c => c.id),
+        tags: formData.tags.map(t => t.id),
       };
 
       if (pageId) {
@@ -354,16 +355,17 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
         excerpt: publishData.excerpt,
         featuredImage: publishData.featuredImage,
         status: publishData.status,
-        publishDate: publishData.publishDate,
-        seoTitle: publishData.seo?.title,
-        metaDescription: publishData.seo?.metaDescription,
-        focusKeyword: publishData.seo?.focusKeyword,
+        publishDate: publishData.publishDate.toISOString(),
+        seo: {
+          title: publishData.seo?.title,
+          metaDescription: publishData.seo?.metaDescription,
+          focusKeyword: publishData.seo?.focusKeyword,
+        },
         template: publishData.template,
         parentPageId: publishData.parentPageId || null,
         menuOrder: publishData.menuOrder,
-        authorId: user.id,
-        categoryIds: publishData.categories.map(c => c.id),
-        tagIds: publishData.tags.map(t => t.id),
+        categories: publishData.categories.map(c => c.id),
+        tags: publishData.tags.map(t => t.id),
       };
 
       if (pageId) {

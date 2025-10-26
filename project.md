@@ -235,6 +235,74 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Page Editor Request Body Fix (October 26, 2025 - 18:55 UTC)
+
+**Summary**: Fixed page editor to send request data in the correct format expected by the validation schema and API.
+
+**Issues Fixed**:
+
+1. **Invalid author ID Error**:
+   - **Problem**: Page editor was sending `authorId` in request body, but API gets author ID from Clerk session
+   - **Solution**: Removed `authorId` from request body since API doesn't use it
+
+2. **Incorrect Field Names**:
+   - **Problem**: Page editor was sending flat SEO fields (`seoTitle`, `metaDescription`, `focusKeyword`) but validation schema expects nested `seo` object
+   - **Problem**: Page editor was sending `categoryIds` and `tagIds` but schema expects `categories` and `tags`
+   - **Solution**: Restructured request data to match validation schema:
+     - `seo: { title, metaDescription, focusKeyword }` instead of flat fields
+     - `categories` and `tags` instead of `categoryIds` and `tagIds`
+
+3. **Date Format**:
+   - **Problem**: Sending Date object instead of ISO string
+   - **Solution**: Convert to ISO string with `.toISOString()`
+
+**Files Modified**:
+- `components/pages/page-editor.tsx` - Fixed request body structure in both `handleSave` and `handlePublish`
+
+**Impact**:
+- ✅ Pages can now be created and saved successfully
+- ✅ No more "Invalid author ID" errors
+- ✅ Request data matches validation schema exactly
+- ✅ Proper date format for publishDate
+
+---
+
+### Validation Fix - Featured Image Optional (October 26, 2025 - 18:50 UTC)
+
+**Summary**: Removed strict URL validation from optional featured image fields in posts and pages schemas.
+
+**Issue**:
+- User encountered "Invalid image URL" error when trying to save pages/posts without featured images
+- The validation schema was incorrectly requiring valid URLs even for optional fields
+- Empty strings failed URL validation
+
+**Root Cause**:
+```typescript
+// Before (broken)
+featuredImage: z.string().url('Invalid image URL').optional()
+```
+- The `.optional()` only allows `undefined`, but empty string `""` still triggers URL validation
+- Featured images should be completely optional - no image required
+
+**Solution**:
+```typescript
+// After (fixed)
+featuredImage: z.string().optional()
+```
+- Removed `.url()` validation entirely since the field is optional
+- Now accepts any string value including empty strings
+- Categories and tags were already optional
+
+**Files Modified**:
+- `lib/validation.ts` - Fixed both `postSchema` and `pageSchema`
+
+**Impact**:
+- ✅ Pages and posts can be saved without featured images
+- ✅ No more "Invalid image URL" validation errors
+- ✅ Images, categories, and tags are all truly optional as intended
+
+---
+
 ### Bug Fixes - Select Component and Job Post Publish (October 26, 2025 - 18:45 UTC)
 
 **Summary**: Fixed critical bugs in Select components and job post publish functionality.
