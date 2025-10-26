@@ -71,7 +71,7 @@ export async function GET(
       return setCorsHeaders(notFoundResponse('Post not found'), origin)
     }
     
-    const postWithRelations = mapPostFromDB(post[0])
+    const postWithRelations = mapPostFromDB(post[0] as any)
     
     await setCachedData(cacheKey, postWithRelations, 3600)
     

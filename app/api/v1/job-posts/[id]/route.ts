@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
@@ -398,7 +398,7 @@ export async function DELETE(
     // Delete job post (cascades will handle relations)
     await sql`DELETE FROM posts WHERE id = ${id}`
     
-    const response = new Response(null, { status: 204 })
+    const response = new NextResponse(null, { status: 204 })
     return setCorsHeaders(response, origin)
   } catch (error) {
     console.error('Error deleting job post:', error)

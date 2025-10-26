@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
@@ -345,7 +345,7 @@ export async function DELETE(
     // Delete job post (cascades will handle relations)
     await sql`DELETE FROM posts WHERE id = ${id}`
     
-    return new Response(null, { status: 204 })
+    return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('Error deleting job post:', error)
     return errorResponse('Failed to delete job post')

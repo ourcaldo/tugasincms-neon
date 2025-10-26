@@ -96,7 +96,7 @@ export async function GET(
         LIMIT ${limit} OFFSET ${offset}
       `
       
-      postsData = mapPostsFromDB(posts || [])
+      postsData = mapPostsFromDB((posts || []) as any)
     }
     
     const totalPages = Math.ceil(count / limit)

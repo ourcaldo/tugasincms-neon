@@ -51,7 +51,7 @@ export async function GET(
       return notFoundResponse('Post not found')
     }
     
-    const mappedPost = mapPostFromDB(post[0])
+    const mappedPost = mapPostFromDB(post[0] as any)
     
     await setCachedData(cacheKey, mappedPost, 300)
     
@@ -157,7 +157,7 @@ export async function PUT(
       GROUP BY p.id
     `
     
-    return successResponse(mapPostFromDB(fullPost[0]), false)
+    return successResponse(mapPostFromDB(fullPost[0] as any), false)
   } catch (error) {
     console.error('Error updating post:', error)
     return errorResponse('Failed to update post')

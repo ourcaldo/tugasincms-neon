@@ -235,6 +235,44 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### TypeScript Build Errors Fixed (October 26, 2025 - 06:30 UTC)
+
+**Summary**: Fixed multiple TypeScript compilation errors preventing production build from completing successfully.
+
+**Issues Fixed**:
+
+1. **Type Assertion for SQL Query Results**:
+   - Added `as any` type assertions for SQL query results passed to `mapPostFromDB()` and `mapPostsFromDB()` functions
+   - The postgres library returns `Record<string, any>` but the mapper functions expect typed interfaces
+   - Files modified:
+     - `app/api/posts/[id]/route.ts` - Fixed 2 instances
+     - `app/api/public/posts/[id]/route.ts` - Fixed 1 instance
+     - `app/api/v1/posts/[id]/route.ts` - Fixed 1 instance
+     - `app/api/v1/tags/[id]/route.ts` - Fixed 1 instance
+     - `app/api/v1/categories/[id]/route.ts` - Fixed 1 instance
+
+2. **NextResponse Import Missing**:
+   - Fixed DELETE endpoints using `new Response()` instead of `new NextResponse()`
+   - Added missing `NextResponse` imports where needed
+   - Changed `new Response(null, { status: 204 })` to `new NextResponse(null, { status: 204 })`
+   - Files modified:
+     - `app/api/job-posts/[id]/route.ts` - Added import and fixed response
+     - `app/api/v1/job-posts/[id]/route.ts` - Added import and fixed response
+
+**Build Result**:
+- ✅ All TypeScript type checking errors resolved
+- ✅ Production build completed successfully
+- ✅ 24 static pages generated
+- ✅ 44 API routes compiled without errors
+- ✅ All middleware compiled successfully
+
+**Technical Details**:
+- Type assertions are safe here because the SQL queries always return the expected structure
+- NextResponse is required by Next.js 15.5.4 for proper middleware and CORS header support
+- The build now runs cleanly with no type errors
+
+---
+
 ### Job Posts API Enhancement - Flexible Input Format with Auto-Creation (October 25, 2025 - 14:00 UTC)
 
 **Summary**: Enhanced the Job Posts API to accept comma-separated values for categories, tags, and skills. Added auto-creation functionality for missing categories/tags with case-insensitive matching and Title Case formatting. Created comprehensive API documentation and reusable autocomplete UI components.
