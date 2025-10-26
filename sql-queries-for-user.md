@@ -188,12 +188,14 @@ CREATE INDEX IF NOT EXISTS idx_page_tags_page_id ON page_tags(page_id);
 CREATE INDEX IF NOT EXISTS idx_page_tags_tag_id ON page_tags(tag_id);
 ```
 
-## 7. Migrate Existing Job Posts from posts Table to job_posts Table (Optional)
+## 7. Migrate Existing Job Posts from posts + job_post_meta Tables to job_posts Table (Optional)
 
-**WARNING**: Only run this if you want to migrate existing job posts. This will move all job posts from the `posts` table to the new `job_posts` table.
+**WARNING**: Only run this if you want to migrate existing job posts. This will move all job posts from the `posts` and `job_post_meta` tables to the new `job_posts` table.
+
+**IMPORTANT**: This query correctly joins `posts` with `job_post_meta` to get all the job-specific fields.
 
 ```sql
--- Migrate existing job posts from posts table to job_posts table
+-- Migrate existing job posts from posts + job_post_meta tables to job_posts table
 INSERT INTO job_posts (
     id,
     title,
@@ -208,61 +210,83 @@ INSERT INTO job_posts (
     meta_description,
     focus_keyword,
     job_company_name,
-    employment_type,
-    experience_level,
+    job_company_logo,
+    job_location,
+    job_location_type,
     job_salary_min,
     job_salary_max,
     job_salary_currency,
     job_salary_period,
+    job_application_url,
+    job_application_email,
+    job_deadline,
     job_skills,
+    job_benefits,
+    employment_type,
+    experience_level,
     created_at,
     updated_at
 )
 SELECT 
-    id,
-    title,
-    content,
-    excerpt,
-    slug,
-    featured_image,
-    publish_date,
-    status,
-    author_id,
-    seo_title,
-    meta_description,
-    focus_keyword,
-    job_company_name,
-    employment_type,
-    experience_level,
-    job_salary_min,
-    job_salary_max,
-    job_salary_currency,
-    job_salary_period,
-    job_skills,
-    created_at,
-    updated_at
-FROM posts
-WHERE post_type = 'job';
+    p.id,
+    p.title,
+    p.content,
+    p.excerpt,
+    p.slug,
+    p.featured_image,
+    p.publish_date,
+    p.status,
+    p.author_id,
+    p.seo_title,
+    p.meta_description,
+    p.focus_keyword,
+    jpm.job_company_name,
+    jpm.job_company_logo,
+    COALESCE(prov.name || ', ' || reg.name, reg.name, prov.name) as job_location,
+    CASE 
+        WHEN jpm.job_is_remote THEN 'remote'
+        WHEN jpm.job_is_hybrid THEN 'hybrid'
+        ELSE 'onsite'
+    END as job_location_type,
+    jpm.job_salary_min,
+    jpm.job_salary_max,
+    jpm.job_salary_currency,
+    jpm.job_salary_period,
+    jpm.job_application_url,
+    jpm.job_application_email,
+    jpm.job_application_deadline,
+    jpm.job_skills,
+    jpm.job_benefits,
+    COALESCE(jet.name, 'full-time') as employment_type,
+    COALESCE(jel.name, 'entry') as experience_level,
+    p.created_at,
+    p.updated_at
+FROM posts p
+LEFT JOIN job_post_meta jpm ON p.id = jpm.post_id
+LEFT JOIN job_employment_types jet ON jpm.job_employment_type_id = jet.id
+LEFT JOIN job_experience_levels jel ON jpm.job_experience_level_id = jel.id
+LEFT JOIN reg_provinces prov ON jpm.job_province_id = prov.id
+LEFT JOIN reg_regencies reg ON jpm.job_regency_id = reg.id
+WHERE p.post_type = 'job';
 
--- Migrate job post categories
+-- Migrate job post categories (use existing junction table data)
 INSERT INTO job_post_categories (job_post_id, category_id)
-SELECT pc.post_id, jc.id
-FROM post_categories pc
-INNER JOIN posts p ON p.id = pc.post_id
-INNER JOIN job_categories jc ON jc.name = (
-    SELECT c.name FROM categories c WHERE c.id = pc.category_id
-)
-WHERE p.post_type = 'job';
+SELECT jpc.post_id, jpc.category_id
+FROM job_post_categories jpc
+INNER JOIN posts p ON p.id = jpc.post_id
+WHERE p.post_type = 'job'
+ON CONFLICT DO NOTHING;
 
--- Migrate job post tags
+-- Migrate job post tags (use existing junction table data)
 INSERT INTO job_post_tags (job_post_id, tag_id)
-SELECT pt.post_id, jt.id
-FROM post_tags pt
-INNER JOIN posts p ON p.id = pt.post_id
-INNER JOIN job_tags jt ON jt.name = (
-    SELECT t.name FROM tags t WHERE t.id = pt.tag_id
-)
-WHERE p.post_type = 'job';
+SELECT jpt.post_id, jpt.tag_id
+FROM job_post_tags jpt
+INNER JOIN posts p ON p.id = jpt.post_id
+WHERE p.post_type = 'job'
+ON CONFLICT DO NOTHING;
+
+-- Delete job post metadata (only after confirming migration was successful)
+-- DELETE FROM job_post_meta WHERE post_id IN (SELECT id FROM posts WHERE post_type = 'job');
 
 -- Delete job posts from posts table (only after confirming migration was successful)
 -- DELETE FROM posts WHERE post_type = 'job';
