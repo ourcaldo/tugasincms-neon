@@ -224,14 +224,26 @@ export async function POST(request: NextRequest) {
           json_agg(DISTINCT jsonb_build_object('id', jt.id, 'name', jt.name, 'slug', jt.slug))
           FILTER (WHERE jt.id IS NOT NULL),
           '[]'::json
-        ) as job_tags
+        ) as job_tags,
+        CASE WHEN prov.id IS NOT NULL THEN jsonb_build_object('id', prov.id, 'name', prov.name) ELSE NULL END as province,
+        CASE WHEN reg.id IS NOT NULL THEN jsonb_build_object('id', reg.id, 'name', reg.name, 'province_id', reg.province_id) ELSE NULL END as regency,
+        CASE WHEN dist.id IS NOT NULL THEN jsonb_build_object('id', dist.id, 'name', dist.name, 'regency_id', dist.regency_id) ELSE NULL END as district,
+        CASE WHEN vill.id IS NOT NULL THEN jsonb_build_object('id', vill.id, 'name', vill.name, 'district_id', vill.district_id) ELSE NULL END as village,
+        CASE WHEN jet.id IS NOT NULL THEN jsonb_build_object('id', jet.id, 'name', jet.name, 'slug', jet.slug) ELSE NULL END as employment_type,
+        CASE WHEN jel.id IS NOT NULL THEN jsonb_build_object('id', jel.id, 'name', jel.name, 'slug', jel.slug, 'years_min', jel.years_min, 'years_max', jel.years_max) ELSE NULL END as experience_level
       FROM job_posts jp
       LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
       LEFT JOIN job_post_tags jpt ON jp.id = jpt.job_post_id
       LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
+      LEFT JOIN reg_provinces prov ON jp.job_province_id = prov.id
+      LEFT JOIN reg_regencies reg ON jp.job_regency_id = reg.id
+      LEFT JOIN reg_districts dist ON jp.job_district_id = dist.id
+      LEFT JOIN reg_villages vill ON jp.job_village_id = vill.id
+      LEFT JOIN job_employment_types jet ON jp.job_employment_type_id = jet.id
+      LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
       WHERE jp.id = ${postId}
-      GROUP BY jp.id
+      GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max
     `
     
     // Invalidate sitemaps if published
