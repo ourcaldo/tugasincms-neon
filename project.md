@@ -235,6 +235,63 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Posts and Pages Validation Fix - Complete Resolution (October 26, 2025 - 19:15 UTC)
+
+**Summary**: Fixed validation and request body issues for both Posts and Pages that were causing "Invalid author ID" errors and overly strict validation.
+
+**Issues Fixed**:
+
+1. **Invalid Author ID Error (Posts & Pages)**:
+   - **Problem**: Both editors were sending `authorId` in request body, but APIs get author ID automatically from Clerk session
+   - **Solution**: Removed `authorId` from both `postSchema` and `pageSchema` validation schemas
+   - **Impact**: API now correctly uses userId from Clerk session without validation conflicts
+
+2. **Overly Strict Slug Validation**:
+   - **Problem**: Slug was required and strictly validated even though it auto-generates from title
+   - **Solution**: Made `slug` optional in both `postSchema` and `pageSchema`
+   - **Impact**: Users don't need to manually enter slugs - they auto-generate from titles
+
+3. **Post Editor Request Format**:
+   - **Problem**: Post editor was sending flat SEO fields (`seoTitle`, `metaDescription`, `focusKeyword`) and wrong array names (`categoryIds`, `tagIds`)
+   - **Solution**: Fixed both `handleSave` and `handlePublish` to send:
+     - Nested `seo` object: `{ title, metaDescription, focusKeyword }`
+     - Array names: `categories` and `tags` instead of `categoryIds` and `tagIds`
+     - Date format: Convert to ISO string with `.toISOString()`
+   - **Impact**: Post creation and updates now work correctly
+
+4. **Validation Schema Consistency**:
+   - **Problem**: Only title and content should be required, but other fields had strict validation
+   - **Solution**: Made all fields except `title` and `content` optional in both schemas
+   - **Impact**: Users only need to fill required fields - everything else is optional
+
+**Files Modified**:
+- `lib/validation.ts` - Fixed `postSchema` and `pageSchema` validation schemas
+- `components/posts/post-editor.tsx` - Fixed request body structure in both `handleSave` and `handlePublish`
+- `components/pages/page-editor.tsx` - Already had correct structure, benefits from validation fixes
+
+**Technical Details**:
+```typescript
+// postSchema and pageSchema now correctly structured:
+- title: required, max 500 chars
+- content: required
+- slug: optional (auto-generated)
+- featuredImage: optional
+- seo: optional nested object
+- categories: optional array of UUIDs
+- tags: optional array of UUIDs
+- parentPageId: optional and nullable (pages only)
+```
+
+**Impact**:
+- ✅ Posts can be created and saved without "Invalid author ID" errors
+- ✅ Pages can be created and saved without "Invalid author ID" errors
+- ✅ Only title and content are required - all other fields are optional
+- ✅ Slugs auto-generate from titles
+- ✅ Request data format matches API expectations exactly
+- ✅ Consistent with Job Posts implementation
+
+---
+
 ### Page Editor Request Body Fix (October 26, 2025 - 18:55 UTC)
 
 **Summary**: Fixed page editor to send request data in the correct format expected by the validation schema and API.

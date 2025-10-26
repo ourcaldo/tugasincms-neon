@@ -273,13 +273,14 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
         excerpt: formData.excerpt,
         featuredImage: formData.featuredImage,
         status: formData.status,
-        publishDate: formData.publishDate,
-        seoTitle: formData.seo.title,
-        metaDescription: formData.seo.metaDescription,
-        focusKeyword: formData.seo.focusKeyword,
-        authorId: user.id,
-        categoryIds: formData.categories.map(c => c.id),
-        tagIds: formData.tags.map(t => t.id),
+        publishDate: formData.publishDate.toISOString(),
+        seo: {
+          title: formData.seo.title,
+          metaDescription: formData.seo.metaDescription,
+          focusKeyword: formData.seo.focusKeyword,
+        },
+        categories: formData.categories.map(c => c.id),
+        tags: formData.tags.map(t => t.id),
       };
 
       if (postId) {
@@ -317,13 +318,14 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
         excerpt: publishData.excerpt,
         featuredImage: publishData.featuredImage,
         status: publishData.status,
-        publishDate: publishData.publishDate,
-        seoTitle: publishData.seo.title,
-        metaDescription: publishData.seo.metaDescription,
-        focusKeyword: publishData.seo.focusKeyword,
-        authorId: user.id,
-        categoryIds: publishData.categories.map(c => c.id),
-        tagIds: publishData.tags.map(t => t.id),
+        publishDate: publishData.publishDate.toISOString(),
+        seo: {
+          title: publishData.seo.title,
+          metaDescription: publishData.seo.metaDescription,
+          focusKeyword: publishData.seo.focusKeyword,
+        },
+        categories: publishData.categories.map(c => c.id),
+        tags: publishData.tags.map(t => t.id),
       };
 
       if (postId) {

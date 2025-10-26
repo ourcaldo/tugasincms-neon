@@ -4,11 +4,10 @@ export const postSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title is too long'),
   content: z.string().min(1, 'Content is required'),
   excerpt: z.string().max(1000, 'Excerpt is too long').optional(),
-  slug: z.string().min(1, 'Slug is required').max(200, 'Slug is too long').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase and use hyphens'),
+  slug: z.string().max(200, 'Slug is too long').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase and use hyphens').optional(),
   featuredImage: z.string().optional(),
   publishDate: z.string().datetime('Invalid date format').optional(),
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
-  authorId: z.string().uuid('Invalid author ID').optional(),
   seo: z.object({
     title: z.string().max(200, 'SEO title is too long').optional(),
     metaDescription: z.string().max(500, 'Meta description is too long').optional(),
@@ -71,11 +70,10 @@ export const pageSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500, 'Title is too long'),
   content: z.string().min(1, 'Content is required'),
   excerpt: z.string().max(1000, 'Excerpt is too long').optional(),
-  slug: z.string().min(1, 'Slug is required').max(200, 'Slug is too long').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase and use hyphens'),
+  slug: z.string().max(200, 'Slug is too long').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase and use hyphens').optional(),
   featuredImage: z.string().optional(),
   publishDate: z.string().datetime('Invalid date format').optional(),
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
-  authorId: z.string().uuid('Invalid author ID').optional(),
   seo: z.object({
     title: z.string().max(200, 'SEO title is too long').optional(),
     metaDescription: z.string().max(500, 'Meta description is too long').optional(),
@@ -84,7 +82,7 @@ export const pageSchema = z.object({
   categories: z.array(z.string().uuid('Invalid category ID')).optional(),
   tags: z.array(z.string().uuid('Invalid tag ID')).optional(),
   template: z.string().max(50, 'Template name is too long').optional(),
-  parentPageId: z.string().uuid('Invalid parent page ID').optional(),
+  parentPageId: z.string().uuid('Invalid parent page ID').optional().nullable(),
   menuOrder: z.number().int().min(0).optional(),
 })
 
