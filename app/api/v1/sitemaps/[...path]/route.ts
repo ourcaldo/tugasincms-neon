@@ -21,6 +21,11 @@ export async function GET(
     } else if (filename.match(/^sitemap-post-(\d+)\.xml$/)) {
       const chunkNum = filename.match(/^sitemap-post-(\d+)\.xml$/)![1]
       sitemapKey = `sitemap:post:chunk:${chunkNum}`
+    } else if (filename === 'sitemap-job.xml') {
+      sitemapKey = 'sitemap:job:index'
+    } else if (filename.match(/^sitemap-job-(\d+)\.xml$/)) {
+      const chunkNum = filename.match(/^sitemap-job-(\d+)\.xml$/)![1]
+      sitemapKey = `sitemap:job:chunk:${chunkNum}`
     } else {
       return new NextResponse('Not Found', { status: 404 })
     }

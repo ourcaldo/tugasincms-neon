@@ -235,35 +235,82 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
-### Sitemap Blog Post Type Filter (October 26, 2025 - 07:00 UTC)
+### Job Posts Sitemap Implementation (October 26, 2025 - 07:20 UTC)
 
-**Summary**: Fixed blog sitemap generation to exclude job posts and other custom post types, preventing broken URLs in sitemap.
+**Summary**: Implemented complete sitemap support for job posts custom post type with chunked XML generation, automatic cache invalidation, and proper URL structure.
 
-**Issue Fixed**:
-- The `generateBlogSitemaps` function was fetching ALL published posts without filtering by `post_type`
-- This caused job posts to appear in the blog sitemap with incorrect URLs (e.g., `/blog/{category}/{slug}/` instead of `/jobs/{slug}/`)
-- Job posts don't have public-facing frontend pages yet, so including them would create 404 errors for search engines
+**Features Implemented**:
 
-**Solution Implemented**:
-1. **Blog Sitemap Filter** (`lib/sitemap.ts`):
-   - Added `WHERE` clause to filter by `post_type = 'post' OR post_type IS NULL`
-   - The `IS NULL` check ensures backward compatibility with posts created before the post_type column was added
-   - Blog sitemap now only includes regular blog posts, excluding job posts and any future custom post types
+1. **Job Sitemap Generation** (`lib/sitemap.ts`):
+   - Created `generateJobSitemaps()` function mirroring the blog sitemap structure
+   - Fetches published job posts with their first category from `job_categories` taxonomy
+   - Generates URLs in format: `{baseUrl}/jobs/{category_slug}/{slug}/`
+   - Supports chunking (200 job posts per file) for scalability
+   - Creates sitemap index (`sitemap-job.xml`) pointing to chunked files (`sitemap-job-1.xml`, `sitemap-job-2.xml`, etc.)
+
+2. **Sitemap Route Handler Updates** (`app/api/v1/sitemaps/[...path]/route.ts`):
+   - Added support for `sitemap-job.xml` (job sitemap index)
+   - Added support for `sitemap-job-N.xml` (job sitemap chunks)
+   - Serves cached job sitemaps from Redis with 1-hour TTL
+   - Auto-generates missing sitemaps on first request
+
+3. **Root Sitemap Integration** (`lib/sitemap.ts` - `generateAllSitemaps`):
+   - Job sitemap index added to root sitemap alongside blog and pages sitemaps
+   - Caches job sitemap index and all chunks in Redis
+   - Tracks chunk count for efficient cache management
+
+4. **Sitemap Info API** (`/api/v1/sitemaps` endpoint):
+   - Returns job sitemap metadata with proper structure:
+     ```json
+     {
+       "type": "job",
+       "url": "https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job.xml",
+       "index": "https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job.xml",
+       "references": [
+         "https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-1.xml",
+         "https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-2.xml"
+       ]
+     }
+     ```
+
+5. **Automatic Cache Invalidation**:
+   - Added sitemap invalidation to job post CRUD operations:
+     - `POST /api/job-posts` - Invalidates when creating published job posts
+     - `PUT /api/job-posts/[id]` - Invalidates when updating to/from published status
+     - `DELETE /api/job-posts/[id]` - Invalidates when deleting published job posts
+   - Files modified:
+     - `app/api/job-posts/route.ts` - Added import and POST invalidation
+     - `app/api/job-posts/[id]/route.ts` - Added import, PUT invalidation, DELETE invalidation
+
+6. **Blog Sitemap Filter**:
+   - Updated `generateBlogSitemaps` to exclude job posts: `WHERE p.post_type = 'post' OR p.post_type IS NULL`
+   - Prevents job posts from appearing with incorrect blog URLs
+   - Maintains backward compatibility with posts created before `post_type` column
 
 **Technical Details**:
-- Job posts are stored in the `posts` table with `post_type = 'job'`
-- Job posts use a separate taxonomy (`job_categories`, `job_tags`) from regular blog posts
-- Job posts will get their own sitemap (`sitemap-job.xml`) once public job detail pages are implemented at `/jobs/{category_slug}/{slug}/`
-- Until then, job posts are correctly excluded from all sitemaps to avoid 404s
+- Job posts use separate taxonomy: `job_categories` and `job_tags` tables
+- URL pattern: `/jobs/{job_category_slug}/{job_slug}/`
+- Chunk size: 200 posts per XML file (configurable via `POSTS_PER_SITEMAP`)
+- Cache keys: `sitemap:job:index`, `sitemap:job:chunk:N`, `sitemap:job:chunk:count`
+- Redis TTL: 3600 seconds (1 hour)
+- XML follows sitemap protocol 0.9 standard
+- Proper XML escaping for special characters
 
 **Files Modified**:
-- `lib/sitemap.ts` - Updated `generateBlogSitemaps` query to filter by post_type
+- `lib/sitemap.ts` - Added `generateJobSitemaps`, updated `generateAllSitemaps`, filtered `generateBlogSitemaps`
+- `app/api/v1/sitemaps/[...path]/route.ts` - Added job sitemap routing
+- `app/api/job-posts/route.ts` - Added sitemap invalidation on create
+- `app/api/job-posts/[id]/route.ts` - Added sitemap invalidation on update/delete
 
 **Impact**:
-- ✅ Blog sitemap now contains only valid blog post URLs
-- ✅ Job posts no longer appear with broken URLs in sitemap
-- ✅ Search engines will only index existing, accessible content
-- ✅ Sitemap cache will auto-refresh on next cron run (60 minutes) or manual regeneration
+- ✅ Job posts now included in sitemap with proper URLs
+- ✅ Blog sitemap contains only blog posts (no job posts)
+- ✅ Sitemap follows chunking pattern for scalability
+- ✅ Automatic cache invalidation ensures sitemap freshness
+- ✅ SEO-friendly URLs ready for future public job pages
+- ✅ Consistent structure with blog sitemaps for maintainability
+
+**Note**: Public-facing job detail pages (`/jobs/{category}/{slug}/`) will need to be implemented to make these URLs accessible. Until then, the sitemap provides the URL structure for search engines.
 
 ---
 

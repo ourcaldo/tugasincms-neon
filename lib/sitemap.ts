@@ -160,6 +160,57 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
   return { index: indexXml, chunks }
 }
 
+export async function generateJobSitemaps(baseUrl?: string): Promise<{ index: string, chunks: string[] }> {
+  const url = baseUrl || getBaseUrl()
+  
+  // Fetch all published job posts with their first category
+  const posts = await sql`
+    SELECT 
+      p.id,
+      p.slug,
+      p.updated_at,
+      COALESCE(jc.slug, 'uncategorized') as category_slug
+    FROM posts p
+    LEFT JOIN job_post_categories jpc ON p.id = jpc.post_id
+    LEFT JOIN job_categories jc ON jpc.category_id = jc.id
+    WHERE p.status = 'published'
+      AND p.post_type = 'job'
+    ORDER BY p.updated_at DESC
+  `
+  
+  // Group posts by id to get only the first category for each post
+  const uniquePosts = new Map()
+  posts.forEach((post: any) => {
+    if (!uniquePosts.has(post.id)) {
+      uniquePosts.set(post.id, post)
+    }
+  })
+  
+  const jobUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: any) => {
+    return {
+      loc: `${url}/jobs/${post.category_slug}/${post.slug}/`,
+      lastmod: new Date(post.updated_at).toISOString(),
+      changefreq: 'weekly' as const,
+      priority: 0.8
+    }
+  })
+
+  const chunks: string[] = []
+  const chunkUrls: string[] = []
+  
+  for (let i = 0; i < jobUrls.length; i += POSTS_PER_SITEMAP) {
+    const chunkIndex = Math.floor(i / POSTS_PER_SITEMAP) + 1
+    const chunkPosts = jobUrls.slice(i, i + POSTS_PER_SITEMAP)
+    const chunkXml = generateSitemapXML(chunkPosts)
+    chunks.push(chunkXml)
+    chunkUrls.push(`${url}/api/v1/sitemaps/sitemap-job-${chunkIndex}.xml`)
+  }
+
+  const indexXml = generateSitemapIndexXML(chunkUrls)
+
+  return { index: indexXml, chunks }
+}
+
 export async function generateAllSitemaps(requestHost?: string): Promise<void> {
   try {
     const sitemapHost = getSitemapHost()
@@ -181,9 +232,22 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
       await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), TTL)
     }
 
+    const { index: jobIndex, chunks: jobChunks } = await generateJobSitemaps(sitemapHost)
+    
+    if (jobIndex) {
+      await setCachedData('sitemap:job:index', jobIndex, TTL)
+      
+      for (let i = 0; i < jobChunks.length; i++) {
+        await setCachedData(`sitemap:job:chunk:${i + 1}`, jobChunks[i], TTL)
+      }
+      
+      await setCachedData('sitemap:job:chunk:count', jobChunks.length.toString(), TTL)
+    }
+
     const rootSitemaps = [
       `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
-      ...(blogIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-post.xml`] : [])
+      ...(blogIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-post.xml`] : []),
+      ...(jobIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-job.xml`] : [])
     ]
     const rootSitemap = generateSitemapIndexXML(rootSitemaps)
     await setCachedData('sitemap:root', rootSitemap, TTL)
@@ -208,6 +272,18 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
         url: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
         index: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
         references: blogChunkUrls
+      })
+    }
+
+    if (jobIndex) {
+      const jobChunkUrls = jobChunks.map((_, i) => 
+        `${cmsHost}/api/v1/sitemaps/sitemap-job-${i + 1}.xml`
+      )
+      sitemapInfo.push({
+        type: 'job',
+        url: `${cmsHost}/api/v1/sitemaps/sitemap-job.xml`,
+        index: `${cmsHost}/api/v1/sitemaps/sitemap-job.xml`,
+        references: jobChunkUrls
       })
     }
 

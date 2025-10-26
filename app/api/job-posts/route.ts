@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { invalidateSitemaps } from '@/lib/sitemap'
 import { z } from 'zod'
 import {
   processJobCategoriesInput,
@@ -283,6 +284,11 @@ export async function POST(request: NextRequest) {
       WHERE p.id = ${postId}
       GROUP BY p.id, jpm.id
     `
+    
+    // Invalidate sitemaps if published
+    if (status === 'published') {
+      await invalidateSitemaps()
+    }
     
     return successResponse(fullPost[0], false, 201)
   } catch (error: any) {

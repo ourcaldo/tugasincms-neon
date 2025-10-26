@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { invalidateSitemaps } from '@/lib/sitemap'
 import { z } from 'zod'
 import {
   processJobCategoriesInput,
@@ -153,7 +154,7 @@ export async function PUT(
     const { id } = await params
     
     const existingPost = await sql`
-      SELECT author_id, post_type FROM posts WHERE id = ${id}
+      SELECT author_id, post_type, status FROM posts WHERE id = ${id}
     `
     
     if (!existingPost || existingPost.length === 0) {
@@ -307,6 +308,11 @@ export async function PUT(
       GROUP BY p.id, jpm.id
     `
     
+    // Invalidate sitemaps if the job post is or was published
+    if (status === 'published' || existingPost[0].status === 'published') {
+      await invalidateSitemaps()
+    }
+    
     return successResponse(fullPost[0], false)
   } catch (error) {
     console.error('Error updating job post:', error)
@@ -327,7 +333,7 @@ export async function DELETE(
     const { id } = await params
     
     const existingPost = await sql`
-      SELECT author_id, post_type FROM posts WHERE id = ${id}
+      SELECT author_id, post_type, status FROM posts WHERE id = ${id}
     `
     
     if (!existingPost || existingPost.length === 0) {
@@ -344,6 +350,11 @@ export async function DELETE(
     
     // Delete job post (cascades will handle relations)
     await sql`DELETE FROM posts WHERE id = ${id}`
+    
+    // Invalidate sitemaps if the deleted job post was published
+    if (existingPost[0].status === 'published') {
+      await invalidateSitemaps()
+    }
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {
