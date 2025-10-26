@@ -235,6 +235,82 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### API v1 Posts Endpoint SQL Query Fix (October 26, 2025 - 13:45 UTC)
+
+**Summary**: Fixed critical SQL syntax errors in the `/api/v1/posts` endpoint that were causing 500 Internal Server Errors. The issue was due to incompatible SQL query composition methods with the Neon database client.
+
+**Issues Fixed**:
+
+1. **SQL Query Composition Error**:
+   - **Problem**: The `whereConditions.reduce()` approach for building dynamic WHERE clauses was incompatible with Neon's SQL template tag system
+   - **Error**: `Error [NeonDbError]: syntax error at or near "p"` at line 88 in `/api/v1/posts/route.ts`
+   - **Root Cause**: Attempting to compose `sql` template tag fragments using reduce created invalid SQL syntax
+   - **Solution**: Refactored to use inline conditional expressions with `sql` template tags (matching the pattern used in `/api/v1/job-posts/route.ts`)
+   
+2. **UUID Type Casting Error in Filters**:
+   - **Problem**: When filtering by category/tag slugs (e.g., `?category=ai`), PostgreSQL attempted to cast the slug to UUID type first, causing: `Error [NeonDbError]: invalid input syntax for type uuid: "ai"`
+   - **Root Cause**: Query `WHERE id = ${category} OR slug = ${category}` tried to match against UUID `id` field before checking `slug` field
+   - **Solution**: Added UUID validation regex to detect UUID vs slug format, then conditionally query either `id` or `slug` field separately
+   - **Regex Pattern**: `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`
+
+**Technical Implementation**:
+
+```typescript
+// Before (broken - reduce approach)
+const whereClause = whereConditions.reduce((acc, cond, idx) => 
+  idx === 0 ? sql`WHERE ${cond}` : sql`${acc} AND ${cond}`
+)
+
+// After (working - inline conditionals)
+WHERE (p.post_type = 'post' OR p.post_type IS NULL)
+  AND p.status = ${status}
+  ${search ? sql`AND (p.title ILIKE ${`%${search}%`} ...)` : sql``}
+  ${categoryId ? sql`AND EXISTS (...)` : sql``}
+```
+
+**Category/Tag Filter Fix**:
+```typescript
+// Separate UUID detection and appropriate query selection
+const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category)
+const categoryData = isUuid 
+  ? await sql`SELECT id FROM categories WHERE id = ${category}`
+  : await sql`SELECT id FROM categories WHERE slug = ${category}`
+```
+
+**Testing Results**:
+All 16 API endpoints tested successfully with Bearer token `cms_4iL1SEEXB7oQoiYDEfNJBTpeHeFVLP3k`:
+
+✅ GET /api/v1/posts (list posts with pagination)
+✅ GET /api/v1/posts/{id} (by UUID)
+✅ GET /api/v1/posts/{slug} (by slug)
+✅ GET /api/v1/categories (list with pagination)
+✅ GET /api/v1/categories/{id} (with posts)
+✅ GET /api/v1/tags (list with pagination)
+✅ GET /api/v1/tags/{id} (with posts)
+✅ GET /api/v1/job-posts (list job posts)
+✅ GET /api/v1/sitemaps (sitemap metadata)
+✅ GET /api/v1/sitemaps/sitemap.xml (root sitemap)
+✅ GET /api/v1/sitemaps/sitemap-pages.xml (pages sitemap)
+✅ GET /api/v1/sitemaps/sitemap-post.xml (blog sitemap)
+✅ GET /api/v1/posts?search=guru (search filter)
+✅ GET /api/v1/posts?category=ai (category filter by slug)
+✅ GET /api/v1/posts?tag=17-agustus-2025 (tag filter by slug)
+✅ All responses include proper caching headers and Redis integration
+
+**Files Modified**:
+- `app/api/v1/posts/route.ts` - Fixed SQL query composition and UUID handling
+
+**Impact**:
+- ✅ All public API v1 endpoints now fully functional
+- ✅ Category and tag filtering works with both UUIDs and slugs
+- ✅ Search functionality operational
+- ✅ Pagination working correctly
+- ✅ Redis caching active (1-hour TTL)
+- ✅ Proper CORS headers for cross-origin requests
+- ✅ Rate limiting enforced (100 req/15min)
+
+---
+
 ### Job Posts Sitemap Implementation (October 26, 2025 - 07:20 UTC)
 
 **Summary**: Implemented complete sitemap support for job posts custom post type with chunked XML generation, automatic cache invalidation, and proper URL structure.

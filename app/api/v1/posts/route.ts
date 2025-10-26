@@ -49,46 +49,34 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    let whereConditions = [sql`p.status = ${status}`, sql`p.post_type = 'post'`]
-    
-    if (search) {
-      whereConditions.push(sql`(p.title ILIKE ${`%${search}%`} OR p.content ILIKE ${`%${search}%`} OR p.excerpt ILIKE ${`%${search}%`})`)
-    }
-    
+    let categoryId = null
     if (category) {
-      const categoryData = await sql`
-        SELECT id FROM categories WHERE id = ${category} OR slug = ${category}
-      `
-      
-      if (categoryData.length > 0) {
-        const categoryId = categoryData[0].id
-        whereConditions.push(sql`EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${categoryId})`)
-      } else {
-        whereConditions.push(sql`FALSE`)
-      }
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category)
+      const categoryData = isUuid 
+        ? await sql`SELECT id FROM categories WHERE id = ${category}`
+        : await sql`SELECT id FROM categories WHERE slug = ${category}`
+      categoryId = categoryData.length > 0 ? categoryData[0].id : 'none'
     }
     
+    let tagId = null
     if (tag) {
-      const tagData = await sql`
-        SELECT id FROM tags WHERE id = ${tag} OR slug = ${tag}
-      `
-      
-      if (tagData.length > 0) {
-        const tagId = tagData[0].id
-        whereConditions.push(sql`EXISTS (SELECT 1 FROM post_tags WHERE post_id = p.id AND tag_id = ${tagId})`)
-      } else {
-        whereConditions.push(sql`FALSE`)
-      }
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tag)
+      const tagData = isUuid 
+        ? await sql`SELECT id FROM tags WHERE id = ${tag}`
+        : await sql`SELECT id FROM tags WHERE slug = ${tag}`
+      tagId = tagData.length > 0 ? tagData[0].id : 'none'
     }
-    
-    const whereClause = whereConditions.reduce((acc, cond, idx) => 
-      idx === 0 ? sql`WHERE ${cond}` : sql`${acc} AND ${cond}`
-    )
     
     const countResult = await sql`
       SELECT COUNT(DISTINCT p.id)::int as count
       FROM posts p
-      ${whereClause}
+      ${categoryId ? sql`LEFT JOIN post_categories pc ON p.id = pc.post_id` : sql``}
+      ${tagId ? sql`LEFT JOIN post_tags pt ON p.id = pt.post_id` : sql``}
+      WHERE (p.post_type = 'post' OR p.post_type IS NULL)
+        AND p.status = ${status}
+        ${search ? sql`AND (p.title ILIKE ${`%${search}%`} OR p.content ILIKE ${`%${search}%`} OR p.excerpt ILIKE ${`%${search}%`})` : sql``}
+        ${categoryId === 'none' ? sql`AND FALSE` : categoryId ? sql`AND pc.category_id = ${categoryId}` : sql``}
+        ${tagId === 'none' ? sql`AND FALSE` : tagId ? sql`AND pt.tag_id = ${tagId}` : sql``}
     `
     const count = countResult[0].count
     
@@ -110,7 +98,11 @@ export async function GET(request: NextRequest) {
       LEFT JOIN categories c ON pc.category_id = c.id
       LEFT JOIN post_tags pt ON p.id = pt.post_id
       LEFT JOIN tags t ON pt.tag_id = t.id
-      ${whereClause}
+      WHERE (p.post_type = 'post' OR p.post_type IS NULL)
+        AND p.status = ${status}
+        ${search ? sql`AND (p.title ILIKE ${`%${search}%`} OR p.content ILIKE ${`%${search}%`} OR p.excerpt ILIKE ${`%${search}%`})` : sql``}
+        ${categoryId === 'none' ? sql`AND FALSE` : categoryId ? sql`AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${categoryId})` : sql``}
+        ${tagId === 'none' ? sql`AND FALSE` : tagId ? sql`AND EXISTS (SELECT 1 FROM post_tags WHERE post_id = p.id AND tag_id = ${tagId})` : sql``}
       GROUP BY p.id
       ORDER BY p.publish_date DESC
       LIMIT ${limit} OFFSET ${offset}
