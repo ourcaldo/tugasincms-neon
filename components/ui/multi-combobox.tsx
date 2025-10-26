@@ -54,25 +54,25 @@ export function MultiCombobox({
 
   const handleSelect = async (option: ComboboxOption) => {
     const isSelected = selectedValues.some(
-      (v) => v.id === option.id || v.name.toLowerCase() === option.name.toLowerCase()
+      (v) => v.id === option.id || v.name?.toLowerCase() === option.name?.toLowerCase()
     )
 
     if (isSelected) {
-      onValueChange(selectedValues.filter((v) => v.id !== option.id && v.name.toLowerCase() !== option.name.toLowerCase()))
+      onValueChange(selectedValues.filter((v) => v.id !== option.id && v.name?.toLowerCase() !== option.name?.toLowerCase()))
     } else {
       onValueChange([...selectedValues, option])
     }
   }
 
   const handleRemove = (option: ComboboxOption) => {
-    onValueChange(selectedValues.filter((v) => v.id !== option.id && v.name.toLowerCase() !== option.name.toLowerCase()))
+    onValueChange(selectedValues.filter((v) => v.id !== option.id && v.name?.toLowerCase() !== option.name?.toLowerCase()))
   }
 
   const handleCreateNew = async () => {
     if (!searchValue.trim() || !onCreateNew || !allowCreate) return
 
     const existingOption = options.find(
-      (opt) => opt.name.toLowerCase() === searchValue.trim().toLowerCase()
+      (opt) => opt.name?.toLowerCase() === searchValue.trim().toLowerCase()
     )
 
     if (existingOption) {
@@ -82,7 +82,7 @@ export function MultiCombobox({
     }
 
     const isAlreadySelected = selectedValues.some(
-      (v) => v.name.toLowerCase() === searchValue.trim().toLowerCase()
+      (v) => v.name?.toLowerCase() === searchValue.trim().toLowerCase()
     )
 
     if (isAlreadySelected) {
@@ -103,17 +103,17 @@ export function MultiCombobox({
   }
 
   const filteredOptions = options.filter((option) =>
-    option.name.toLowerCase().includes(searchValue.toLowerCase())
+    option?.name?.toLowerCase()?.includes(searchValue.toLowerCase())
   )
 
   const canCreate =
     allowCreate &&
     searchValue.trim() &&
     !filteredOptions.some(
-      (opt) => opt.name.toLowerCase() === searchValue.trim().toLowerCase()
+      (opt) => opt.name?.toLowerCase() === searchValue.trim().toLowerCase()
     ) &&
     !selectedValues.some(
-      (v) => v.name.toLowerCase() === searchValue.trim().toLowerCase()
+      (v) => v.name?.toLowerCase() === searchValue.trim().toLowerCase()
     )
 
   return (
