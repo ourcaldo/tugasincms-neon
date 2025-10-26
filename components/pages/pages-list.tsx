@@ -50,8 +50,8 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
   const [categories, setCategories] = useState<Category[]>([]);
   const [filters, setFilters] = useState({
     search: '',
-    status: '',
-    category: '',
+    status: 'all',
+    category: 'all',
   });
   const apiClient = useApiClient();
 
@@ -73,8 +73,8 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
       });
       
       if (filters.search) params.append('search', filters.search);
-      if (filters.status) params.append('status', filters.status);
-      if (filters.category) params.append('category', filters.category);
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+      if (filters.category && filters.category !== 'all') params.append('category', filters.category);
       
       const response = await apiClient.get<any>(`/pages?${params.toString()}`);
       const data = response?.data || response;
@@ -172,7 +172,7 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="published">Published</SelectItem>
                 <SelectItem value="scheduled">Scheduled</SelectItem>
@@ -189,7 +189,7 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories.map(cat => (
                   <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                 ))}
