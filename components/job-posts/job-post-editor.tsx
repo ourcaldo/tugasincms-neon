@@ -585,8 +585,101 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
   };
 
   const handlePublish = async () => {
-    setFormData(prev => ({ ...prev, status: 'published' }));
-    setTimeout(() => handleSave(), 100);
+    if (!user) return;
+    
+    if (!formData.title.trim()) {
+      toast.error('Please enter a job title');
+      return;
+    }
+    
+    if (!formData.content.trim()) {
+      toast.error('Please enter job description');
+      return;
+    }
+
+    if (!formData.slug.trim()) {
+      toast.error('Please enter a slug');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const jobPostData = {
+        title: formData.title,
+        slug: formData.slug,
+        content: formData.content,
+        excerpt: formData.excerpt,
+        featured_image: formData.featuredImage || undefined,
+        status: 'published',
+        publish_date: new Date().toISOString(),
+        seo_title: formData.seo.title,
+        meta_description: formData.seo.metaDescription,
+        focus_keyword: formData.seo.focusKeyword,
+        
+        job_company_name: formData.job.companyName || undefined,
+        job_company_logo: formData.job.companyLogo || undefined,
+        job_company_website: formData.job.companyWebsite || undefined,
+        job_employment_type_id: formData.job.employmentTypeId || undefined,
+        job_experience_level_id: formData.job.experienceLevelId || undefined,
+        job_salary_min: formData.job.salaryMin ? parseFloat(formData.job.salaryMin) : undefined,
+        job_salary_max: formData.job.salaryMax ? parseFloat(formData.job.salaryMax) : undefined,
+        job_salary_currency: formData.job.salaryCurrency || undefined,
+        job_salary_period: formData.job.salaryPeriod || undefined,
+        job_is_salary_negotiable: formData.job.isSalaryNegotiable,
+        job_province_id: formData.job.provinceId || undefined,
+        job_regency_id: formData.job.regencyId || undefined,
+        job_district_id: formData.job.districtId || undefined,
+        job_village_id: formData.job.villageId || undefined,
+        job_address_detail: formData.job.addressDetail || undefined,
+        job_is_remote: formData.job.isRemote,
+        job_is_hybrid: formData.job.isHybrid,
+        job_application_email: formData.job.applicationEmail || undefined,
+        job_application_url: formData.job.applicationUrl || undefined,
+        job_application_deadline: formData.job.applicationDeadline?.toISOString() || undefined,
+        job_skills: formData.job.skills.length > 0 ? formData.job.skills : undefined,
+        job_benefits: formData.job.benefits.length > 0 ? formData.job.benefits : undefined,
+        job_requirements: formData.job.requirements || undefined,
+        job_responsibilities: formData.job.responsibilities || undefined,
+        
+        job_categories: formData.jobCategories.map(c => c.id),
+        job_tags: formData.jobTags.map(t => t.id),
+      };
+
+      let response;
+      if (postId) {
+        response = await fetch(`/api/job-posts/${postId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jobPostData),
+        });
+      } else {
+        response = await fetch('/api/job-posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jobPostData),
+        });
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to publish job post');
+      }
+
+      const result = await response.json();
+      const savedPost = result.data || result;
+
+      setFormData(prev => ({ ...prev, status: 'published', publishDate: new Date() }));
+      toast.success('Job post published successfully');
+      
+      if (onSave) {
+        onSave(savedPost);
+      }
+    } catch (error: any) {
+      console.error('Error publishing job post:', error);
+      toast.error(error.message || 'Failed to publish job post');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (isInitialLoad) {

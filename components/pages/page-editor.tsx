@@ -582,12 +582,12 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
                     <p>Create a hierarchical structure by setting a parent page</p>
                   </TooltipContent>
                 </Tooltip>
-                <Select value={formData.parentPageId || ''} onValueChange={(value: string) => handleInputChange('parentPageId', value || null)}>
+                <Select value={formData.parentPageId || 'none'} onValueChange={(value: string) => handleInputChange('parentPageId', value === 'none' ? null : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="None (Top Level)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (Top Level)</SelectItem>
+                    <SelectItem value="none">None (Top Level)</SelectItem>
                     {pages.filter(p => p.id !== pageId).map((p) => (
                       <SelectItem key={p.id} value={p.id!}>{p.title}</SelectItem>
                     ))}

@@ -235,6 +235,40 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Bug Fixes - Select Component and Job Post Publish (October 26, 2025 - 18:45 UTC)
+
+**Summary**: Fixed critical bugs in Select components and job post publish functionality.
+
+**Issues Fixed**:
+
+1. **Select Component Empty String Error**:
+   - **Problem**: Radix UI Select component doesn't allow empty string values, causing error: "A <Select.Item /> must have a value prop that is not an empty string"
+   - **Location**: PageEditor component's parent page selector
+   - **Solution**: Changed empty string value to "none" and handle it as null when saving
+   - **Code Change**: `value={formData.parentPageId || 'none'}` with proper null conversion
+
+2. **Job Post Publish Status Not Updating**:
+   - **Problem**: When editing a draft job post and clicking publish, the status remained as "draft" instead of updating to "published"
+   - **Root Cause**: `handlePublish` function used `setTimeout` to call `handleSave`, but React's async state updates meant the status change hadn't propagated to `formData` yet
+   - **Solution**: Rewrote `handlePublish` to directly save with `status: 'published'` instead of relying on state updates
+   - **Impact**: Publish button now correctly updates job post status to published
+
+**Files Modified**:
+- `components/pages/page-editor.tsx` - Fixed Select empty string value
+- `components/job-posts/job-post-editor.tsx` - Rewrote handlePublish to ensure status updates correctly
+
+**Technical Details**:
+- Select component now uses "none" as placeholder value and converts to null on save
+- Job post publish action no longer depends on async state updates
+- Both save and publish actions now work reliably
+
+**Impact**:
+- ✅ No more Select component errors
+- ✅ Job posts correctly change from draft to published when publish button is clicked
+- ✅ Better reliability for status updates
+
+---
+
 ### Pages Feature Completion - Editor and Routes Added (October 26, 2025 - 18:30 UTC)
 
 **Summary**: Completed the Pages feature implementation by creating the missing PageEditor component and new/edit routes. The user had previously requested Pages functionality, but only the listing page was created, causing 404 errors when trying to create or edit pages.
