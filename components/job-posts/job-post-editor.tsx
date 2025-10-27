@@ -47,6 +47,12 @@ interface ExperienceLevel {
   years_max?: number;
 }
 
+interface EducationLevel {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface LocationData {
   id: string;
   name: string;
@@ -82,6 +88,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
       companyWebsite: '',
       employmentTypeId: '',
       experienceLevelId: '',
+      educationLevelId: '',
       salaryMin: '',
       salaryMax: '',
       salaryCurrency: 'IDR',
@@ -115,6 +122,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
   const [jobTags, setJobTags] = useState<JobTag[]>([]);
   const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([]);
   const [experienceLevels, setExperienceLevels] = useState<ExperienceLevel[]>([]);
+  const [educationLevels, setEducationLevels] = useState<EducationLevel[]>([]);
   const [provinces, setProvinces] = useState<LocationData[]>([]);
   const [regencies, setRegencies] = useState<LocationData[]>([]);
   const [districts, setDistricts] = useState<LocationData[]>([]);
@@ -134,6 +142,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
     fetchJobTags();
     fetchEmploymentTypes();
     fetchExperienceLevels();
+    fetchEducationLevels();
     fetchProvinces();
   }, []);
 
@@ -203,6 +212,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
           companyWebsite: data.job_company_website || '',
           employmentTypeId: data.job_employment_type_id || '',
           experienceLevelId: data.job_experience_level_id || '',
+          educationLevelId: data.job_education_level_id || '',
           salaryMin: data.job_salary_min?.toString() || '',
           salaryMax: data.job_salary_max?.toString() || '',
           salaryCurrency: data.job_salary_currency || 'IDR',
@@ -283,6 +293,19 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
     } catch (error) {
       console.error('Error fetching experience levels:', error);
       setExperienceLevels([]);
+    }
+  };
+
+  const fetchEducationLevels = async () => {
+    try {
+      const response = await fetch('/api/job-data/education-levels');
+      if (!response.ok) throw new Error('Failed to fetch education levels');
+      const result = await response.json();
+      const data = result.data || result;
+      setEducationLevels(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching education levels:', error);
+      setEducationLevels([]);
     }
   };
 
@@ -524,6 +547,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
         job_company_website: formData.job.companyWebsite || undefined,
         job_employment_type_id: formData.job.employmentTypeId || undefined,
         job_experience_level_id: formData.job.experienceLevelId || undefined,
+        job_education_level_id: formData.job.educationLevelId || undefined,
         job_salary_min: formData.job.salaryMin ? parseFloat(formData.job.salaryMin) : undefined,
         job_salary_max: formData.job.salaryMax ? parseFloat(formData.job.salaryMax) : undefined,
         job_salary_currency: formData.job.salaryCurrency || undefined,
@@ -621,6 +645,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
         job_company_website: formData.job.companyWebsite || undefined,
         job_employment_type_id: formData.job.employmentTypeId || undefined,
         job_experience_level_id: formData.job.experienceLevelId || undefined,
+        job_education_level_id: formData.job.educationLevelId || undefined,
         job_salary_min: formData.job.salaryMin ? parseFloat(formData.job.salaryMin) : undefined,
         job_salary_max: formData.job.salaryMax ? parseFloat(formData.job.salaryMax) : undefined,
         job_salary_currency: formData.job.salaryCurrency || undefined,
@@ -1030,6 +1055,25 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
                           {level.name}
                           {level.years_min !== null && level.years_max !== null && 
                             ` (${level.years_min}-${level.years_max} years)`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="educationLevel">Education Level</Label>
+                  <Select
+                    value={formData.job.educationLevelId}
+                    onValueChange={(value) => handleJobChange('educationLevelId', value)}
+                  >
+                    <SelectTrigger id="educationLevel">
+                      <SelectValue placeholder="Select education level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {educationLevels.map(level => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
