@@ -162,6 +162,17 @@ export async function GET(request: NextRequest) {
       ORDER BY post_count DESC, skill ASC
     `
     
+    // Get work policy counts (onsite, remote, hybrid)
+    const workPolicyResult = await sql`
+      SELECT 
+        COUNT(*) FILTER (WHERE job_is_remote = false AND job_is_hybrid = false)::int as onsite_count,
+        COUNT(*) FILTER (WHERE job_is_remote = true)::int as remote_count,
+        COUNT(*) FILTER (WHERE job_is_hybrid = true)::int as hybrid_count
+      FROM job_posts
+      WHERE author_id = ${userId} 
+        AND status = 'published'
+    `
+    
     const filterData = {
       categories: categoriesResult || [],
       tags: tagsResult || [],
@@ -173,6 +184,11 @@ export async function GET(request: NextRequest) {
         max: salaryRangeResult[0]?.max_salary || 0,
         currencies: salaryRangeResult[0]?.currencies || ['IDR']
       },
+      work_policy: [
+        { name: 'Onsite', value: 'onsite', post_count: workPolicyResult[0]?.onsite_count || 0 },
+        { name: 'Remote', value: 'remote', post_count: workPolicyResult[0]?.remote_count || 0 },
+        { name: 'Hybrid', value: 'hybrid', post_count: workPolicyResult[0]?.hybrid_count || 0 }
+      ],
       provinces: provincesResult || [],
       regencies: regenciesResult || [],
       skills: (skillsResult || []).map(row => ({

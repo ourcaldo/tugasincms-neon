@@ -743,6 +743,7 @@ Retrieve a paginated list of job posts with optional filtering.
 | `regency_id` | string | - | Filter by regency/city ID |
 | `is_remote` | boolean | - | Filter remote jobs (true/false) |
 | `is_hybrid` | boolean | - | Filter hybrid jobs (true/false) |
+| `work_policy` | string | - | Filter by work policy: `onsite`, `remote`, or `hybrid` |
 | `skill` | string | - | Filter by specific skill name |
 
 **Example Request**:
@@ -820,11 +821,46 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?page=1&limit=10&status=pub
       "regency_id": null,
       "is_remote": null,
       "is_hybrid": null,
+      "work_policy": null,
       "skill": null
     }
   },
   "cached": false
 }
+```
+
+**Work Policy Filter Details**:
+
+The `work_policy` parameter provides a convenient way to filter jobs by work location policy:
+
+- `work_policy=onsite` - Returns jobs where `job_is_remote=false` AND `job_is_hybrid=false` (Kerja di Kantor)
+- `work_policy=remote` - Returns jobs where `job_is_remote=true` (Kerja di Rumah)
+- `work_policy=hybrid` - Returns jobs where `job_is_hybrid=true` (Kerja di Kantor/Rumah)
+
+**Salary Range Filter Details**:
+
+The salary filter uses range overlap logic to find jobs that match your budget:
+
+- `salary_min=5000000` - Returns jobs where the maximum salary is at least 5,000,000 IDR
+- `salary_max=8000000` - Returns jobs where the minimum salary is at most 8,000,000 IDR
+- `salary_min=5000000&salary_max=8000000` - Returns jobs with salary ranges that overlap with 5-8 million IDR
+
+**Examples**:
+```bash
+# Get only onsite jobs (Kerja di Kantor)
+GET /api/v1/job-posts?work_policy=onsite
+
+# Get remote jobs (Kerja di Rumah)
+GET /api/v1/job-posts?work_policy=remote
+
+# Get hybrid jobs (Kerja di Kantor/Rumah)
+GET /api/v1/job-posts?work_policy=hybrid
+
+# Salary range 5-8 million IDR
+GET /api/v1/job-posts?salary_min=5000000&salary_max=8000000
+
+# Remote jobs with salary 10+ million
+GET /api/v1/job-posts?work_policy=remote&salary_min=10000000
 ```
 
 ---
@@ -1212,6 +1248,23 @@ curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
       "max": 150000000,
       "currencies": ["IDR", "USD"]
     },
+    "work_policy": [
+      {
+        "name": "Onsite",
+        "value": "onsite",
+        "post_count": 25
+      },
+      {
+        "name": "Remote",
+        "value": "remote",
+        "post_count": 18
+      },
+      {
+        "name": "Hybrid",
+        "value": "hybrid",
+        "post_count": 12
+      }
+    ],
     "provinces": [
       {
         "id": "31",
@@ -1249,6 +1302,7 @@ curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
 - `experience_levels`: Experience levels with years range
 - `education_levels`: Education levels (SMA/SMK/Sederajat, D1, D2, D3, D4, S1, S2, S3)
 - `salary_range`: Min/max salary across all job posts and available currencies
+- `work_policy`: Work location policies (Onsite, Remote, Hybrid) with post counts
 - `provinces`: Provinces that have job posts
 - `regencies`: Regencies/cities that have job posts
 - `skills`: All unique skills across job posts sorted by frequency
@@ -1302,37 +1356,61 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?search=developer&page=1" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 5. Filter Remote Jobs by Salary Range
+### 5. Filter Onsite Jobs with Salary Range 5-8 Million IDR
 ```bash
-curl -X GET "https://your-domain.com/api/v1/job-posts?is_remote=true&salary_min=10000000&salary_max=20000000" \
+curl -X GET "https://your-domain.com/api/v1/job-posts?work_policy=onsite&salary_min=5000000&salary_max=8000000" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 6. Filter Jobs by Province and Experience Level
+### 6. Filter Remote Jobs with Salary 10+ Million IDR
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?work_policy=remote&salary_min=10000000" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 7. Filter Hybrid Jobs with Salary Range 7-9 Million IDR
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?work_policy=hybrid&salary_min=7000000&salary_max=9000000" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 8. Filter Jobs by Province and Experience Level
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts?province_id=31&experience_level=Senior&page=1" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 7. Combined Filters - Remote Senior Developer Jobs in Jakarta
+### 9. Combined Filters - Remote Senior Developer Jobs in Jakarta with High Salary
 ```bash
-curl -X GET "https://your-domain.com/api/v1/job-posts?search=developer&is_remote=true&experience_level=Senior&province_id=31&status=published" \
+curl -X GET "https://your-domain.com/api/v1/job-posts?search=developer&work_policy=remote&experience_level=Senior&province_id=31&salary_min=15000000&status=published" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 8. Filter Jobs by Education Level
+### 10. Filter Onsite Jobs with Salary 1-3 Million IDR
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?work_policy=onsite&salary_min=1000000&salary_max=3000000" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 11. Filter Jobs by Salary Range 4-6 Million IDR
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?salary_min=4000000&salary_max=6000000" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 12. Filter Jobs by Education Level
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts?education_level=S1&status=published&page=1" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 9. Filter by Category, Tag, and Skill
+### 13. Filter by Category, Tag, and Skill
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts?job_category=uuid&job_tag=uuid&skill=React" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 10. Get Filter Data to Build UI
+### 14. Get Filter Data to Build UI
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
   -H "Authorization: Bearer your-api-token"

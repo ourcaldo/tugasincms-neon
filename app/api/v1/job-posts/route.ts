@@ -98,12 +98,13 @@ export async function GET(request: NextRequest) {
     const regency_id = searchParams.get('regency_id') || ''
     const is_remote = searchParams.get('is_remote') === 'true' ? true : searchParams.get('is_remote') === 'false' ? false : null
     const is_hybrid = searchParams.get('is_hybrid') === 'true' ? true : searchParams.get('is_hybrid') === 'false' ? false : null
+    const work_policy = searchParams.get('work_policy') || ''
     const skill = searchParams.get('skill') || ''
     
     const offset = (page - 1) * limit
     const userId = validToken.user_id
     
-    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${education_level}:${job_category}:${job_tag}:${salary_min}:${salary_max}:${province_id}:${regency_id}:${is_remote}:${is_hybrid}:${skill}`
+    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${education_level}:${job_category}:${job_tag}:${salary_min}:${salary_max}:${province_id}:${regency_id}:${is_remote}:${is_hybrid}:${work_policy}:${skill}`
     
     const cachedData = await getCachedData(cacheKey)
     if (cachedData) {
@@ -141,6 +142,9 @@ export async function GET(request: NextRequest) {
         ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
         ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
         ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
+        ${work_policy === 'onsite' ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
+        ${work_policy === 'remote' ? sql`AND jp.job_is_remote = true` : sql``}
+        ${work_policy === 'hybrid' ? sql`AND jp.job_is_hybrid = true` : sql``}
         ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
     `
     
@@ -203,6 +207,9 @@ export async function GET(request: NextRequest) {
         ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
         ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
         ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
+        ${work_policy === 'onsite' ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
+        ${work_policy === 'remote' ? sql`AND jp.job_is_remote = true` : sql``}
+        ${work_policy === 'hybrid' ? sql`AND jp.job_is_hybrid = true` : sql``}
         ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
       GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max, jedl.id, jedl.name, jedl.slug
       ORDER BY jp.created_at DESC
@@ -235,6 +242,7 @@ export async function GET(request: NextRequest) {
         regency_id: regency_id || null,
         is_remote: is_remote,
         is_hybrid: is_hybrid,
+        work_policy: work_policy || null,
         skill: skill || null,
       }
     }
