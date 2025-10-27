@@ -96,6 +96,19 @@ export async function GET(request: NextRequest) {
       ORDER BY jel.years_min ASC NULLS LAST, jel.name ASC
     `
     
+    // Get all education levels
+    const educationLevelsResult = await sql`
+      SELECT 
+        jedl.id,
+        jedl.name,
+        jedl.slug,
+        COUNT(DISTINCT jp.id)::int as post_count
+      FROM job_education_levels jedl
+      LEFT JOIN job_posts jp ON jedl.id = jp.job_education_level_id AND jp.author_id = ${userId} AND jp.status = 'published'
+      GROUP BY jedl.id, jedl.name, jedl.slug
+      ORDER BY jedl.name ASC
+    `
+    
     // Get salary range (min and max from all published job posts by this user)
     const salaryRangeResult = await sql`
       SELECT 
@@ -154,6 +167,7 @@ export async function GET(request: NextRequest) {
       tags: tagsResult || [],
       employment_types: employmentTypesResult || [],
       experience_levels: experienceLevelsResult || [],
+      education_levels: educationLevelsResult || [],
       salary_range: {
         min: salaryRangeResult[0]?.min_salary || 0,
         max: salaryRangeResult[0]?.max_salary || 0,
