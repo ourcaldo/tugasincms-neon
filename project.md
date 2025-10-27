@@ -353,11 +353,29 @@ GET /api/v1/job-posts?company=PT%20ABC&employment_type=Full%20Time&experience_le
 - Each unique filter combination gets its own cache entry
 - 1-hour TTL maintained for all cached responses
 
+**Critical Bug Fixes** (October 27, 2025 - 12:45 UTC):
+During architect review, two critical bugs were identified and fixed:
+
+1. **NaN Validation Bug**:
+   - **Problem**: `getIntParam()` helper returned `parseInt(value)` without validating the result
+   - **Impact**: Invalid numeric inputs (e.g., `salary_min=abc`) would pass `NaN` to SQL, causing Postgres errors: "invalid input syntax for type numeric: 'NaN'"
+   - **Fix**: Added `isNaN()` check to return `null` for invalid numeric values
+   - **Code**: `if (!isNaN(parsed)) return parsed;`
+
+2. **Zero Value Handling Bug**:
+   - **Problem**: Truthy check `if (value)` rejected the string "0", so filters like `min_salary=0` were ignored
+   - **Impact**: Edge cases with zero values (e.g., free internships, entry-level positions) couldn't be filtered
+   - **Fix**: Changed to explicit null/empty check: `if (value !== null && value !== "")`
+   - **Code**: Now correctly handles "0" → returns 0, "" → returns null, "abc" → returns null
+
 **Impact**:
 - ✅ **Fixed**: Filter parameters now work with both `job_` prefix and shorter aliases
 - ✅ **Fixed**: User's original issue - `job_salary_min=1000000` now filters correctly
+- ✅ **Fixed**: NaN values no longer break SQL queries - invalid inputs are safely rejected
+- ✅ **Fixed**: Zero value filters work correctly (e.g., `min_salary=0` for unpaid positions)
 - ✅ **Enhanced**: ALL job post fields are now filterable (was 15, now 24 categories)
 - ✅ **Improved UX**: 70+ parameter aliases for maximum flexibility
+- ✅ **Improved Reliability**: Robust parameter validation prevents SQL errors
 - ✅ **Better Search**: Search now covers title, content, requirements, AND responsibilities
 - ✅ **Comprehensive Docs**: 22 API examples covering all filter combinations
 - ✅ **Backwards Compatible**: Existing API consumers continue working without changes
