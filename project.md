@@ -235,6 +235,126 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts Education Level Field Implementation (October 27, 2025 - 09:00 UTC)
+
+**Summary**: Added comprehensive education level field to job posts custom post type with full API support, filtering capabilities, and UI management following the existing employment types and experience levels pattern.
+
+**Database Changes**:
+- Created `job_education_levels` table with id, name, slug, created_at, updated_at fields
+- Added `job_education_level_id` foreign key column to `job_posts` table
+- Education level values: SMA/SMK/Sederajat, D1, D2, D3, D4, S1, S2, S3
+- SQL migration file provided for manual database execution
+
+**API Enhancements**:
+
+1. **Internal Job Posts API** (`/api/job-posts`):
+   - Enhanced GET endpoint with LEFT JOIN to job_education_levels table
+   - Added education level filtering support with `?education_level=` query parameter
+   - Updated POST endpoint to accept and validate `job_education_level_id` field
+   - Updated PUT endpoint to support education level updates
+   - Response includes complete education level object: `{ id, name, slug }`
+
+2. **External Job Posts API** (`/api/v1/job-posts`):
+   - Enhanced GET endpoint with LEFT JOIN to job_education_levels table
+   - Added education level filtering: `?education_level=S1`
+   - Updated POST endpoint with `job_education_level_id` validation (UUID format)
+   - Updated PUT endpoint to support education level updates
+   - Response includes `education_level` field (name string)
+
+3. **Filters API** (`/api/v1/job-posts/filters`):
+   - Added `education_levels` array to response data
+   - Each education level includes: id, name, slug, post_count
+   - Enables building dynamic filter dropdowns in frontend
+
+4. **Education Levels Management API** (`/api/job-data/education-levels`):
+   - **GET**: Retrieve all education levels with creation/update timestamps
+   - **POST**: Create new education level (requires: name, auto-generates slug)
+   - **PUT /:id**: Update existing education level by ID
+   - **DELETE /:id**: Delete education level by ID
+   - Follows same pattern as employment-types and experience-levels APIs
+   - Bearer token authentication required
+   - Response format: `{ success: true, data: EducationLevel | EducationLevel[] }`
+
+**UI Components**:
+
+1. **Education Levels Management**:
+   - Created `components/job-posts/education-levels-list.tsx` component
+   - Features: Add new, edit existing, delete education levels
+   - Real-time table with ID, Name, Slug, Created At, Updated At columns
+   - Toast notifications for success/error feedback
+   - Dashboard page at `/job-data/education-levels`
+
+2. **Job Post Editor Enhancement**:
+   - Added education level dropdown after experience level field
+   - Fetches education levels from `/api/job-data/education-levels` on component mount
+   - Auto-populated from existing job post data when editing
+   - Included in both create and update payloads
+   - Form field: Select with placeholder "Select education level"
+
+**Validation**:
+- `jobPostSchema`: Added optional `job_education_level_id` field (UUID validation)
+- `jobPostV1Schema`: Added optional `job_education_level_id` field (UUID validation)
+- Server-side validation ensures valid UUID format when provided
+- Gracefully handles null/undefined values
+
+**Files Created**:
+- `SQL_EDUCATION_LEVEL_MIGRATION.sql` - Database migration queries (for manual execution)
+- `app/api/job-data/education-levels/route.ts` - GET, POST endpoints
+- `app/api/job-data/education-levels/[id]/route.ts` - PUT, DELETE endpoints
+- `components/job-posts/education-levels-list.tsx` - Management UI component
+- `app/(dashboard)/job-data/education-levels/page.tsx` - Dashboard page
+
+**Files Modified**:
+- `lib/validation.ts` - Added education_level_id to jobPostSchema and jobPostV1Schema
+- `app/api/job-posts/route.ts` - Added JOIN, filtering, and field handling
+- `app/api/v1/job-posts/route.ts` - Added JOIN, filtering, and field handling
+- `app/api/v1/job-posts/filters/route.ts` - Added education_levels to response
+- `components/job-posts/job-post-editor.tsx` - Added education level dropdown and data handling
+- `API_DOCUMENTATION.md` - Added education_level parameter and examples
+- `project.md` - Updated with implementation timeline
+
+**API Examples**:
+
+```bash
+# Filter jobs by education level
+GET /api/v1/job-posts?education_level=S1&status=published
+
+# Get all education levels with post counts
+GET /api/v1/job-posts/filters
+
+# Manage education levels
+GET /api/job-data/education-levels
+POST /api/job-data/education-levels -d '{"name": "S3"}'
+PUT /api/job-data/education-levels/{id} -d '{"name": "D4"}'
+DELETE /api/job-data/education-levels/{id}
+```
+
+**Technical Implementation**:
+- Followed existing employment_types and experience_levels pattern throughout
+- Used LEFT JOIN to maintain backward compatibility (existing posts without education level)
+- Proper SQL parameterization to prevent injection attacks
+- Consistent naming: job_education_level_id (snake_case in DB/API)
+- TypeScript interfaces for type safety
+- Zod validation schemas for runtime validation
+
+**Impact**:
+- ✅ Job posts can now specify required education level
+- ✅ External API supports education level filtering
+- ✅ Filter endpoint provides education levels with post counts
+- ✅ Dashboard UI for managing education levels (CRUD)
+- ✅ Job post editor includes education level dropdown
+- ✅ Complete API documentation with examples
+- ✅ Consistent with existing employment types and experience levels implementation
+- ✅ Backward compatible (existing job posts without education level still work)
+
+**Database Migration Required**:
+User must manually execute SQL queries from `SQL_EDUCATION_LEVEL_MIGRATION.sql`:
+1. Create job_education_levels table
+2. Add job_education_level_id column to job_posts table
+3. Insert default education level values (optional)
+
+---
+
 ### Job Posts API Enhancement - Display Fix and Comprehensive Filtering (October 27, 2025 - 03:30 UTC)
 
 **Summary**: Fixed job posts listing display issues in CMS dashboard and enhanced external API with comprehensive filtering capabilities including new filters endpoint.
