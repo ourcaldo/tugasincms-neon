@@ -1,17 +1,22 @@
-import { NextRequest } from 'next/server'
-import { sql } from '@/lib/database'
-import { verifyApiToken, extractBearerToken } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
-import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
-import { checkRateLimit } from '@/lib/rate-limit'
-import { getCachedData, setCachedData } from '@/lib/cache'
-import { z } from 'zod'
+import { NextRequest } from "next/server";
+import { sql } from "@/lib/database";
+import { verifyApiToken, extractBearerToken } from "@/lib/auth";
+import {
+  successResponse,
+  errorResponse,
+  unauthorizedResponse,
+  validationErrorResponse,
+} from "@/lib/response";
+import { setCorsHeaders, handleCorsPreflightRequest } from "@/lib/cors";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getCachedData, setCachedData } from "@/lib/cache";
+import { z } from "zod";
 import {
   processJobCategoriesInput,
   processJobTagsInput,
   processJobSkillsInput,
-} from '@/lib/job-utils'
-import { resolveLocationHierarchy } from '@/lib/location-utils'
+} from "@/lib/job-utils";
+import { resolveLocationHierarchy } from "@/lib/location-utils";
 
 const jobPostSchema = z.object({
   title: z.string().min(1).max(500),
@@ -20,11 +25,11 @@ const jobPostSchema = z.object({
   slug: z.string().min(1).max(200),
   featured_image: z.string().optional(),
   publish_date: z.string().optional(),
-  status: z.enum(['draft', 'published', 'scheduled']),
+  status: z.enum(["draft", "published", "scheduled"]),
   seo_title: z.string().max(200).optional(),
   meta_description: z.string().max(500).optional(),
   focus_keyword: z.string().max(100).optional(),
-  
+
   // Job-specific fields
   job_company_name: z.string().max(200).optional(),
   job_company_logo: z.string().max(500).optional(),
@@ -51,66 +56,83 @@ const jobPostSchema = z.object({
   job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
   job_requirements: z.string().optional(),
   job_responsibilities: z.string().optional(),
-  
+
   // Relations - can be UUIDs, names, or comma-separated strings
   job_categories: z.union([z.array(z.string()), z.string()]).optional(),
-  job_tags: z.union([z.array(z.string()), z.string()]).optional()
-})
+  job_tags: z.union([z.array(z.string()), z.string()]).optional(),
+});
 
 export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  return handleCorsPreflightRequest(origin)
+  const origin = request.headers.get("origin");
+  return handleCorsPreflightRequest(origin);
 }
 
 export async function GET(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  
+  const origin = request.headers.get("origin");
+
   try {
-    const token = extractBearerToken(request)
-    
-    const validToken = await verifyApiToken(token || '')
-    
+    const token = extractBearerToken(request);
+
+    const validToken = await verifyApiToken(token || "");
+
     if (!validToken) {
-      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+      return setCorsHeaders(
+        unauthorizedResponse("Invalid or expired API token"),
+        origin,
+      );
     }
-    
-    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`);
     if (!rateLimitResult.success) {
       return setCorsHeaders(
-        errorResponse('Rate limit exceeded. Please try again later.', 429),
-        origin
-      )
+        errorResponse("Rate limit exceeded. Please try again later.", 429),
+        origin,
+      );
     }
-    
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const status = searchParams.get('status') || ''
-    const employment_type = searchParams.get('employment_type') || ''
-    const experience_level = searchParams.get('experience_level') || ''
-    const education_level = searchParams.get('education_level') || ''
-    const job_category = searchParams.get('job_category') || ''
-    const job_tag = searchParams.get('job_tag') || ''
-    const salary_min = searchParams.get('salary_min') ? parseInt(searchParams.get('salary_min')!) : null
-    const salary_max = searchParams.get('salary_max') ? parseInt(searchParams.get('salary_max')!) : null
-    const province_id = searchParams.get('province_id') || ''
-    const regency_id = searchParams.get('regency_id') || ''
-    const is_remote = searchParams.get('is_remote') === 'true' ? true : searchParams.get('is_remote') === 'false' ? false : null
-    const is_hybrid = searchParams.get('is_hybrid') === 'true' ? true : searchParams.get('is_hybrid') === 'false' ? false : null
-    const work_policy = searchParams.get('work_policy') || ''
-    const skill = searchParams.get('skill') || ''
-    
-    const offset = (page - 1) * limit
-    const userId = validToken.user_id
-    
-    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${education_level}:${job_category}:${job_tag}:${salary_min}:${salary_max}:${province_id}:${regency_id}:${is_remote}:${is_hybrid}:${work_policy}:${skill}`
-    
-    const cachedData = await getCachedData(cacheKey)
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const employment_type = searchParams.get("employment_type") || "";
+    const experience_level = searchParams.get("experience_level") || "";
+    const education_level = searchParams.get("education_level") || "";
+    const job_category = searchParams.get("job_category") || "";
+    const job_tag = searchParams.get("job_tag") || "";
+    const salary_min = searchParams.get("salary_min")
+      ? parseInt(searchParams.get("salary_min")!)
+      : null;
+    const salary_max = searchParams.get("salary_max")
+      ? parseInt(searchParams.get("salary_max")!)
+      : null;
+    const province_id = searchParams.get("province_id") || "";
+    const regency_id = searchParams.get("regency_id") || "";
+    const is_remote =
+      searchParams.get("is_remote") === "true"
+        ? true
+        : searchParams.get("is_remote") === "false"
+          ? false
+          : null;
+    const is_hybrid =
+      searchParams.get("is_hybrid") === "true"
+        ? true
+        : searchParams.get("is_hybrid") === "false"
+          ? false
+          : null;
+    const work_policy = searchParams.get("work_policy") || "";
+    const skill = searchParams.get("skill") || "";
+
+    const offset = (page - 1) * limit;
+    const userId = validToken.user_id;
+
+    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${education_level}:${job_category}:${job_tag}:${salary_min}:${salary_max}:${province_id}:${regency_id}:${is_remote}:${is_hybrid}:${work_policy}:${skill}`;
+
+    const cachedData = await getCachedData(cacheKey);
     if (cachedData) {
-      return setCorsHeaders(successResponse(cachedData, true), origin)
+      return setCorsHeaders(successResponse(cachedData, true), origin);
     }
-    
+
     // Count total with filters
     const countResult = await sql`
       SELECT COUNT(DISTINCT jp.id)::int as count
@@ -124,32 +146,40 @@ export async function GET(request: NextRequest) {
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
         ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
-        ${job_category ? sql`AND EXISTS (
+        ${
+          job_category
+            ? sql`AND EXISTS (
           SELECT 1 FROM job_post_categories jpc2 
           LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
           WHERE jpc2.job_post_id = jp.id 
           AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
-        )` : sql``}
-        ${job_tag ? sql`AND EXISTS (
+        )`
+            : sql``
+        }
+        ${
+          job_tag
+            ? sql`AND EXISTS (
           SELECT 1 FROM job_post_tags jpt2 
           LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
           WHERE jpt2.job_post_id = jp.id 
           AND (jt2.id = ${job_tag} OR jt2.slug = ${job_tag})
-        )` : sql``}
+        )`
+            : sql``
+        }
         ${salary_min !== null ? sql`AND jp.job_salary_max >= ${salary_min}` : sql``}
         ${salary_max !== null ? sql`AND jp.job_salary_min <= ${salary_max}` : sql``}
         ${province_id ? sql`AND jp.job_province_id = ${province_id}` : sql``}
         ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
         ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
         ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
-        ${work_policy === 'onsite' ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
-        ${work_policy === 'remote' ? sql`AND jp.job_is_remote = true` : sql``}
-        ${work_policy === 'hybrid' ? sql`AND jp.job_is_hybrid = true` : sql``}
+        ${work_policy === "onsite" ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
+        ${work_policy === "remote" ? sql`AND jp.job_is_remote = true` : sql``}
+        ${work_policy === "hybrid" ? sql`AND jp.job_is_hybrid = true` : sql``}
         ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
-    `
-    
-    const total = countResult[0]?.count || 0
-    
+    `;
+
+    const total = countResult[0]?.count || 0;
+
     // Get posts with all related data and comprehensive filters
     const posts = await sql`
       SELECT 
@@ -189,35 +219,43 @@ export async function GET(request: NextRequest) {
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
         ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
-        ${job_category ? sql`AND EXISTS (
+        ${
+          job_category
+            ? sql`AND EXISTS (
           SELECT 1 FROM job_post_categories jpc2 
           LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
           WHERE jpc2.job_post_id = jp.id 
           AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
-        )` : sql``}
-        ${job_tag ? sql`AND EXISTS (
+        )`
+            : sql``
+        }
+        ${
+          job_tag
+            ? sql`AND EXISTS (
           SELECT 1 FROM job_post_tags jpt2 
           LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
           WHERE jpt2.job_post_id = jp.id 
           AND (jt2.id = ${job_tag} OR jt2.slug = ${job_tag})
-        )` : sql``}
+        )`
+            : sql``
+        }
         ${salary_min !== null ? sql`AND jp.job_salary_max >= ${salary_min}` : sql``}
         ${salary_max !== null ? sql`AND jp.job_salary_min <= ${salary_max}` : sql``}
         ${province_id ? sql`AND jp.job_province_id = ${province_id}` : sql``}
         ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
         ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
         ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
-        ${work_policy === 'onsite' ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
-        ${work_policy === 'remote' ? sql`AND jp.job_is_remote = true` : sql``}
-        ${work_policy === 'hybrid' ? sql`AND jp.job_is_hybrid = true` : sql``}
+        ${work_policy === "onsite" ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
+        ${work_policy === "remote" ? sql`AND jp.job_is_remote = true` : sql``}
+        ${work_policy === "hybrid" ? sql`AND jp.job_is_hybrid = true` : sql``}
         ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
       GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max, jedl.id, jedl.name, jedl.slug
       ORDER BY jp.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
-    `
-    
-    const totalPages = Math.ceil(total / limit)
-    
+    `;
+
+    const totalPages = Math.ceil(total / limit);
+
     const responseData = {
       posts: posts || [],
       pagination: {
@@ -244,88 +282,121 @@ export async function GET(request: NextRequest) {
         is_hybrid: is_hybrid,
         work_policy: work_policy || null,
         skill: skill || null,
-      }
-    }
-    
-    await setCachedData(cacheKey, responseData, 3600)
-    
-    return setCorsHeaders(successResponse(responseData, false), origin)
+      },
+    };
+
+    await setCachedData(cacheKey, responseData, 3600);
+
+    return setCorsHeaders(successResponse(responseData, false), origin);
   } catch (error) {
-    console.error('Error fetching job posts:', error)
-    return setCorsHeaders(errorResponse('Failed to fetch job posts'), origin)
+    console.error("Error fetching job posts:", error);
+    return setCorsHeaders(errorResponse("Failed to fetch job posts"), origin);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  
+  const origin = request.headers.get("origin");
+
   try {
-    const token = extractBearerToken(request)
-    
-    const validToken = await verifyApiToken(token || '')
-    
+    const token = extractBearerToken(request);
+
+    const validToken = await verifyApiToken(token || "");
+
     if (!validToken) {
-      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+      return setCorsHeaders(
+        unauthorizedResponse("Invalid or expired API token"),
+        origin,
+      );
     }
-    
-    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
+
+    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`);
     if (!rateLimitResult.success) {
       return setCorsHeaders(
-        errorResponse('Rate limit exceeded. Please try again later.', 429),
-        origin
-      )
+        errorResponse("Rate limit exceeded. Please try again later.", 429),
+        origin,
+      );
     }
-    
-    const userId = validToken.user_id
-    
-    const body = await request.json()
-    const validation = jobPostSchema.safeParse(body)
-    
+
+    const userId = validToken.user_id;
+
+    const body = await request.json();
+    const validation = jobPostSchema.safeParse(body);
+
     if (!validation.success) {
-      return setCorsHeaders(validationErrorResponse(validation.error.issues[0].message), origin)
+      return setCorsHeaders(
+        validationErrorResponse(validation.error.issues[0].message),
+        origin,
+      );
     }
-    
+
     const {
-      title, content, excerpt, slug, featured_image, publish_date, status,
-      seo_title, meta_description, focus_keyword,
-      job_company_name, job_company_logo, job_company_website,
-      job_employment_type_id, job_experience_level_id, job_education_level_id,
-      job_salary_min, job_salary_max, job_salary_currency, job_salary_period,
-      job_is_salary_negotiable, job_province_id, job_regency_id, job_district_id,
-      job_village_id, job_address_detail, job_is_remote, job_is_hybrid,
-      job_application_email, job_application_url, job_application_deadline,
-      job_skills, job_benefits, job_requirements, job_responsibilities,
-      job_categories, job_tags
-    } = validation.data
-    
+      title,
+      content,
+      excerpt,
+      slug,
+      featured_image,
+      publish_date,
+      status,
+      seo_title,
+      meta_description,
+      focus_keyword,
+      job_company_name,
+      job_company_logo,
+      job_company_website,
+      job_employment_type_id,
+      job_experience_level_id,
+      job_education_level_id,
+      job_salary_min,
+      job_salary_max,
+      job_salary_currency,
+      job_salary_period,
+      job_is_salary_negotiable,
+      job_province_id,
+      job_regency_id,
+      job_district_id,
+      job_village_id,
+      job_address_detail,
+      job_is_remote,
+      job_is_hybrid,
+      job_application_email,
+      job_application_url,
+      job_application_deadline,
+      job_skills,
+      job_benefits,
+      job_requirements,
+      job_responsibilities,
+      job_categories,
+      job_tags,
+    } = validation.data;
+
     // Process categories (accepts UUIDs, names, or comma-separated strings)
-    const categoryIds = await processJobCategoriesInput(job_categories)
-    
+    const categoryIds = await processJobCategoriesInput(job_categories);
+
     // Process tags (accepts UUIDs, names, or comma-separated strings)
-    const tagIds = await processJobTagsInput(job_tags)
-    
+    const tagIds = await processJobTagsInput(job_tags);
+
     // Process skills (accepts array or comma-separated string)
-    const processedSkills = processJobSkillsInput(job_skills)
-    
+    const processedSkills = processJobSkillsInput(job_skills);
+
     // Process benefits (accepts array or comma-separated string)
-    const processedBenefits = processJobSkillsInput(job_benefits)
-    
+    const processedBenefits = processJobSkillsInput(job_benefits);
+
     // Resolve location hierarchy
-    let resolvedLocations
+    let resolvedLocations;
     try {
       resolvedLocations = await resolveLocationHierarchy({
         village_id: job_village_id,
         district_id: job_district_id,
         regency_id: job_regency_id,
         province_id: job_province_id,
-      })
+      });
     } catch (error: any) {
       return setCorsHeaders(
-        validationErrorResponse(error.message || 'Invalid location data'),
-        origin
-      )
+        validationErrorResponse(error.message || "Invalid location data"),
+        origin,
+      );
     }
-    
+
     // Create job post
     const postResult = await sql`
       INSERT INTO job_posts (
@@ -345,31 +416,31 @@ export async function POST(request: NextRequest) {
         ${seo_title || null}, ${meta_description || null}, ${focus_keyword || null},
         ${job_company_name || null}, ${job_company_logo || null}, ${job_company_website || null},
         ${job_employment_type_id || null}, ${job_experience_level_id || null}, ${job_education_level_id || null},
-        ${job_salary_min || null}, ${job_salary_max || null}, ${job_salary_currency || 'IDR'}, ${job_salary_period || 'monthly'},
+        ${job_salary_min || null}, ${job_salary_max || null}, ${job_salary_currency || "IDR"}, ${job_salary_period || "monthly"},
         ${job_is_salary_negotiable || false}, ${resolvedLocations.province_id}, ${resolvedLocations.regency_id}, ${resolvedLocations.district_id},
         ${resolvedLocations.village_id}, ${job_address_detail || null}, ${job_is_remote || false}, ${job_is_hybrid || false},
         ${job_application_email || null}, ${job_application_url || null}, ${job_application_deadline || null},
         ${processedSkills}, ${processedBenefits}, ${job_requirements || null}, ${job_responsibilities || null}
       )
       RETURNING id
-    `
-    
-    const postId = postResult[0].id
-    
+    `;
+
+    const postId = postResult[0].id;
+
     // Add categories
     if (categoryIds.length > 0) {
       for (const catId of categoryIds) {
-        await sql`INSERT INTO job_post_categories (job_post_id, category_id) VALUES (${postId}, ${catId})`
+        await sql`INSERT INTO job_post_categories (job_post_id, category_id) VALUES (${postId}, ${catId})`;
       }
     }
-    
+
     // Add tags
     if (tagIds.length > 0) {
       for (const tagId of tagIds) {
-        await sql`INSERT INTO job_post_tags (job_post_id, tag_id) VALUES (${postId}, ${tagId})`
+        await sql`INSERT INTO job_post_tags (job_post_id, tag_id) VALUES (${postId}, ${tagId})`;
       }
     }
-    
+
     // Fetch the complete job post
     const fullPost = await sql`
       SELECT 
@@ -391,14 +462,17 @@ export async function POST(request: NextRequest) {
       LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
       WHERE jp.id = ${postId}
       GROUP BY jp.id
-    `
-    
-    return setCorsHeaders(successResponse(fullPost[0], false, 201), origin)
+    `;
+
+    return setCorsHeaders(successResponse(fullPost[0], false, 201), origin);
   } catch (error: any) {
-    console.error('Error creating job post:', error)
-    if (error?.code === '23505') {
-      return setCorsHeaders(validationErrorResponse('A job post with this slug already exists'), origin)
+    console.error("Error creating job post:", error);
+    if (error?.code === "23505") {
+      return setCorsHeaders(
+        validationErrorResponse("A job post with this slug already exists"),
+        origin,
+      );
     }
-    return setCorsHeaders(errorResponse('Failed to create job post'), origin)
+    return setCorsHeaders(errorResponse("Failed to create job post"), origin);
   }
 }
