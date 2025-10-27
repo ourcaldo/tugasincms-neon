@@ -16,16 +16,16 @@ import { toast } from 'sonner';
 interface JobPost {
   id: string;
   title: string;
-  company_name?: string;
-  employment_type?: string;
-  experience_level?: string;
-  location_province?: string;
-  location_regency?: string;
-  remote: boolean;
-  hybrid: boolean;
+  job_company_name?: string;
+  employment_type?: { id: string; name: string; slug: string; } | null;
+  experience_level?: { id: string; name: string; slug: string; years_min?: number; years_max?: number; } | null;
+  province?: { id: string; name: string; } | null;
+  regency?: { id: string; name: string; province_id: string; } | null;
+  job_is_remote?: boolean;
+  job_is_hybrid?: boolean;
   status: 'draft' | 'published' | 'scheduled';
   publish_date?: string;
-  application_deadline?: string;
+  job_deadline?: string;
   created_at?: string;
   updated_at?: string;
   job_categories?: Array<{ id: string; name: string; }>;
@@ -366,30 +366,31 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
                     <div className="cursor-pointer hover:text-primary transition-colors" onClick={() => onEditPost(post)}>
                       <p className="font-medium">{post.title}</p>
                       <div className="flex gap-1 mt-1">
-                        {post.remote && <Badge variant="outline" className="text-xs">Remote</Badge>}
-                        {post.hybrid && <Badge variant="outline" className="text-xs">Hybrid</Badge>}
+                        {post.job_is_remote && <Badge variant="outline" className="text-xs">Remote</Badge>}
+                        {post.job_is_hybrid && <Badge variant="outline" className="text-xs">Hybrid</Badge>}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{post.company_name || '-'}</TableCell>
+                  <TableCell className="text-sm">{post.job_company_name || '-'}</TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      {post.employment_type && <div>{post.employment_type}</div>}
-                      {post.experience_level && <div className="text-muted-foreground text-xs">{post.experience_level}</div>}
+                      {post.employment_type && <div>{post.employment_type.name}</div>}
+                      {post.experience_level && <div className="text-muted-foreground text-xs">{post.experience_level.name}</div>}
+                      {!post.employment_type && !post.experience_level && '-'}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">
-                    {post.location_province || '-'}
-                    {post.location_regency && `, ${post.location_regency}`}
+                    {post.province ? post.province.name : '-'}
+                    {post.regency && `, ${post.regency.name}`}
                   </TableCell>
                   <TableCell>
                     {getStatusBadge(post.status)}
                   </TableCell>
                   <TableCell>
-                    {post.application_deadline ? (
+                    {post.job_deadline ? (
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Calendar className="w-4 h-4" />
-                        {format(new Date(post.application_deadline), 'MMM dd, yyyy')}
+                        {format(new Date(post.job_deadline), 'MMM dd, yyyy')}
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">-</span>

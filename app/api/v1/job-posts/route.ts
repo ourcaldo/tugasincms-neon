@@ -88,32 +88,60 @@ export async function GET(request: NextRequest) {
     const employment_type = searchParams.get('employment_type') || ''
     const experience_level = searchParams.get('experience_level') || ''
     const job_category = searchParams.get('job_category') || ''
+    const job_tag = searchParams.get('job_tag') || ''
+    const salary_min = searchParams.get('salary_min') ? parseInt(searchParams.get('salary_min')!) : null
+    const salary_max = searchParams.get('salary_max') ? parseInt(searchParams.get('salary_max')!) : null
+    const province_id = searchParams.get('province_id') || ''
+    const regency_id = searchParams.get('regency_id') || ''
+    const is_remote = searchParams.get('is_remote') === 'true' ? true : searchParams.get('is_remote') === 'false' ? false : null
+    const is_hybrid = searchParams.get('is_hybrid') === 'true' ? true : searchParams.get('is_hybrid') === 'false' ? false : null
+    const skill = searchParams.get('skill') || ''
     
     const offset = (page - 1) * limit
     const userId = validToken.user_id
     
-    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${job_category}`
+    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${job_category}:${job_tag}:${salary_min}:${salary_max}:${province_id}:${regency_id}:${is_remote}:${is_hybrid}:${skill}`
     
     const cachedData = await getCachedData(cacheKey)
     if (cachedData) {
       return setCorsHeaders(successResponse(cachedData, true), origin)
     }
     
-    // Count total
+    // Count total with filters
     const countResult = await sql`
       SELECT COUNT(DISTINCT jp.id)::int as count
       FROM job_posts jp
+      LEFT JOIN job_employment_types jet ON jp.job_employment_type_id = jet.id
+      LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
       WHERE jp.author_id = ${userId}
         ${search ? sql`AND jp.title ILIKE ${`%${search}%`}` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql`AND jp.status = 'published'`}
-        ${employment_type ? sql`AND jp.employment_type = ${employment_type}` : sql``}
-        ${experience_level ? sql`AND jp.experience_level = ${experience_level}` : sql``}
-        ${job_category ? sql`AND EXISTS (SELECT 1 FROM job_post_categories WHERE job_post_id = jp.id AND category_id = ${job_category})` : sql``}
+        ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
+        ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
+        ${job_category ? sql`AND EXISTS (
+          SELECT 1 FROM job_post_categories jpc2 
+          LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
+          WHERE jpc2.job_post_id = jp.id 
+          AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
+        )` : sql``}
+        ${job_tag ? sql`AND EXISTS (
+          SELECT 1 FROM job_post_tags jpt2 
+          LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
+          WHERE jpt2.job_post_id = jp.id 
+          AND (jt2.id = ${job_tag} OR jt2.slug = ${job_tag})
+        )` : sql``}
+        ${salary_min !== null ? sql`AND jp.job_salary_max >= ${salary_min}` : sql``}
+        ${salary_max !== null ? sql`AND jp.job_salary_min <= ${salary_max}` : sql``}
+        ${province_id ? sql`AND jp.job_province_id = ${province_id}` : sql``}
+        ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
+        ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
+        ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
+        ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
     `
     
     const total = countResult[0]?.count || 0
     
-    // Get posts with all related data
+    // Get posts with all related data and comprehensive filters
     const posts = await sql`
       SELECT 
         jp.*,
@@ -126,19 +154,49 @@ export async function GET(request: NextRequest) {
           json_agg(DISTINCT jsonb_build_object('id', jt.id, 'name', jt.name, 'slug', jt.slug))
           FILTER (WHERE jt.id IS NOT NULL),
           '[]'::json
-        ) as job_tags
+        ) as job_tags,
+        CASE WHEN prov.id IS NOT NULL THEN jsonb_build_object('id', prov.id, 'name', prov.name) ELSE NULL END as province,
+        CASE WHEN reg.id IS NOT NULL THEN jsonb_build_object('id', reg.id, 'name', reg.name, 'province_id', reg.province_id) ELSE NULL END as regency,
+        CASE WHEN dist.id IS NOT NULL THEN jsonb_build_object('id', dist.id, 'name', dist.name, 'regency_id', dist.regency_id) ELSE NULL END as district,
+        CASE WHEN vill.id IS NOT NULL THEN jsonb_build_object('id', vill.id, 'name', vill.name, 'district_id', vill.district_id) ELSE NULL END as village,
+        CASE WHEN jet.id IS NOT NULL THEN jsonb_build_object('id', jet.id, 'name', jet.name, 'slug', jet.slug) ELSE NULL END as employment_type,
+        CASE WHEN jel.id IS NOT NULL THEN jsonb_build_object('id', jel.id, 'name', jel.name, 'slug', jel.slug, 'years_min', jel.years_min, 'years_max', jel.years_max) ELSE NULL END as experience_level
       FROM job_posts jp
       LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
       LEFT JOIN job_post_tags jpt ON jp.id = jpt.job_post_id
       LEFT JOIN job_tags jt ON jpt.tag_id = jt.id
+      LEFT JOIN reg_provinces prov ON jp.job_province_id = prov.id
+      LEFT JOIN reg_regencies reg ON jp.job_regency_id = reg.id
+      LEFT JOIN reg_districts dist ON jp.job_district_id = dist.id
+      LEFT JOIN reg_villages vill ON jp.job_village_id = vill.id
+      LEFT JOIN job_employment_types jet ON jp.job_employment_type_id = jet.id
+      LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
       WHERE jp.author_id = ${userId}
         ${search ? sql`AND jp.title ILIKE ${`%${search}%`}` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql`AND jp.status = 'published'`}
-        ${employment_type ? sql`AND jp.employment_type = ${employment_type}` : sql``}
-        ${experience_level ? sql`AND jp.experience_level = ${experience_level}` : sql``}
-        ${job_category ? sql`AND EXISTS (SELECT 1 FROM job_post_categories WHERE job_post_id = jp.id AND category_id = ${job_category})` : sql``}
-      GROUP BY jp.id
+        ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
+        ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
+        ${job_category ? sql`AND EXISTS (
+          SELECT 1 FROM job_post_categories jpc2 
+          LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
+          WHERE jpc2.job_post_id = jp.id 
+          AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
+        )` : sql``}
+        ${job_tag ? sql`AND EXISTS (
+          SELECT 1 FROM job_post_tags jpt2 
+          LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
+          WHERE jpt2.job_post_id = jp.id 
+          AND (jt2.id = ${job_tag} OR jt2.slug = ${job_tag})
+        )` : sql``}
+        ${salary_min !== null ? sql`AND jp.job_salary_max >= ${salary_min}` : sql``}
+        ${salary_max !== null ? sql`AND jp.job_salary_min <= ${salary_max}` : sql``}
+        ${province_id ? sql`AND jp.job_province_id = ${province_id}` : sql``}
+        ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
+        ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
+        ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
+        ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
+      GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max
       ORDER BY jp.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `
@@ -161,6 +219,14 @@ export async function GET(request: NextRequest) {
         employment_type: employment_type || null,
         experience_level: experience_level || null,
         job_category: job_category || null,
+        job_tag: job_tag || null,
+        salary_min: salary_min,
+        salary_max: salary_max,
+        province_id: province_id || null,
+        regency_id: regency_id || null,
+        is_remote: is_remote,
+        is_hybrid: is_hybrid,
+        skill: skill || null,
       }
     }
     

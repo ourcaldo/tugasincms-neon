@@ -235,6 +235,100 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts API Enhancement - Display Fix and Comprehensive Filtering (October 27, 2025 - 03:30 UTC)
+
+**Summary**: Fixed job posts listing display issues in CMS dashboard and enhanced external API with comprehensive filtering capabilities including new filters endpoint.
+
+**Issues Fixed**:
+
+1. **Job Posts Listing Display Issue**:
+   - **Problem**: Job posts list page showed "-" for Company, Type, Location, and Deadline columns even though data existed in database
+   - **Root Cause**: GET /api/job-posts endpoint didn't join with `job_employment_types`, `job_experience_levels`, and location tables
+   - **Solution**: Added proper LEFT JOIN for all related tables including employment types, experience levels, provinces, regencies, districts, and villages
+   - **Impact**: All job post details now display correctly in the CMS dashboard
+
+2. **Component Field Mapping**:
+   - **Problem**: Component expected field names different from database (e.g., `company_name` vs `job_company_name`)
+   - **Solution**: Updated `JobPost` interface and table cell rendering to match actual API response structure
+   - **Changes**: 
+     - `company_name` → `job_company_name`
+     - `employment_type` → object with `{ id, name, slug }`
+     - `experience_level` → object with `{ id, name, slug, years_min, years_max }`
+     - `location_province` → `province` object
+     - `remote/hybrid` → `job_is_remote/job_is_hybrid`
+     - `application_deadline` → `job_deadline`
+
+**New Features**:
+
+1. **Job Posts Filter Data API** (`GET /api/v1/job-posts/filters`):
+   - Returns all available filter options for building dynamic UI
+   - Includes categories, tags, employment types, experience levels with post counts
+   - Provides salary range (min/max) and available currencies
+   - Lists provinces and regencies that have job posts
+   - Aggregates all unique skills with usage frequency
+   - Cached for 1 hour with automatic invalidation
+   - Bearer token authentication with rate limiting
+
+2. **Enhanced Job Posts Filtering** (`GET /api/v1/job-posts`):
+   - **New Filter Parameters**:
+     - `job_tag`: Filter by tag ID or slug
+     - `salary_min`: Minimum salary (jobs with max >= this value)
+     - `salary_max`: Maximum salary (jobs with min <= this value)
+     - `province_id`: Filter by province ID
+     - `regency_id`: Filter by regency/city ID
+     - `is_remote`: Filter remote jobs (true/false)
+     - `is_hybrid`: Filter hybrid jobs (true/false)
+     - `skill`: Filter by specific skill name
+   - **Existing Filters Enhanced**:
+     - `employment_type`: Now properly joins with employment_types table
+     - `experience_level`: Now properly joins with experience_levels table
+     - `job_category`: Now supports both ID and slug
+   - **Combined Filtering**: All filters can be used together for precise results
+   - **Complete Data**: Response now includes employment_type, experience_level, and location objects
+
+**Files Modified**:
+- `app/api/job-posts/route.ts` - Enhanced GET endpoint with proper JOINs and location data
+- `app/api/v1/job-posts/route.ts` - Added comprehensive filtering with 8 new filter parameters
+- `components/job-posts/job-posts-list.tsx` - Fixed interface and field mapping
+- `API_DOCUMENTATION.md` - Added filters endpoint documentation and updated GET parameters with filtering examples
+
+**Files Created**:
+- `app/api/v1/job-posts/filters/route.ts` - New endpoint for filter data
+
+**API Examples**:
+
+```bash
+# Get all filter options
+GET /api/v1/job-posts/filters
+
+# Filter remote senior developer jobs in Jakarta with React skill
+GET /api/v1/job-posts?is_remote=true&experience_level=Senior&province_id=31&skill=React
+
+# Filter by salary range and employment type
+GET /api/v1/job-posts?salary_min=10000000&salary_max=20000000&employment_type=Full Time
+
+# Combined filters
+GET /api/v1/job-posts?job_category=uuid&job_tag=uuid&is_remote=true&status=published
+```
+
+**Technical Highlights**:
+- All filters use proper SQL JOINs with parameterized queries (SQL injection safe)
+- Filter data API includes post counts for better UX
+- Salary filtering uses range overlap logic (jobs with max >= min AND min <= max)
+- Skills filtering uses PostgreSQL array contains operator
+- Response includes complete related data (employment_type, experience_level, location objects)
+- Proper caching with unique keys per filter combination
+
+**Impact**:
+- ✅ Job posts dashboard now displays all fields correctly (Company, Type, Location, Deadline)
+- ✅ External API consumers can build powerful job search interfaces with filters
+- ✅ Filter data endpoint enables dynamic dropdown/autocomplete UIs
+- ✅ Single and combined filtering supported for precise job searches
+- ✅ Complete job data returned including employment types, experience levels, and locations
+- ✅ Comprehensive API documentation with 9 filtering examples
+
+---
+
 ### Production Build Fix & Next.js 15 Compatibility (October 26, 2025 - 18:47 UTC)
 
 **Summary**: Successfully tested all v1 API endpoints, fixed Next.js 15 async params compatibility issues, and resolved production build errors.
