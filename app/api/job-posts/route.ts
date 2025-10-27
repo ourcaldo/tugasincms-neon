@@ -28,6 +28,7 @@ const jobPostSchema = z.object({
   job_company_website: z.string().max(500).optional(),
   job_employment_type_id: z.string().uuid().optional(),
   job_experience_level_id: z.string().uuid().optional(),
+  job_education_level_id: z.string().uuid().optional(),
   job_salary_min: z.number().optional(),
   job_salary_max: z.number().optional(),
   job_salary_currency: z.string().max(10).optional(),
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || ''
     const employment_type = searchParams.get('employment_type') || ''
     const experience_level = searchParams.get('experience_level') || ''
+    const education_level = searchParams.get('education_level') || ''
     const job_category = searchParams.get('job_category') || ''
     
     const offset = (page - 1) * limit
@@ -77,11 +79,13 @@ export async function GET(request: NextRequest) {
       FROM job_posts jp
       LEFT JOIN job_employment_types jet ON jp.job_employment_type_id = jet.id
       LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
+      LEFT JOIN job_education_levels jedl ON jp.job_education_level_id = jedl.id
       WHERE jp.author_id = ${userId}
         ${search ? sql`AND jp.title ILIKE ${`%${search}%`}` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql``}
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
+        ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
         ${job_category ? sql`AND EXISTS (SELECT 1 FROM job_post_categories WHERE job_post_id = jp.id AND category_id = ${job_category})` : sql``}
     `
     
@@ -106,7 +110,8 @@ export async function GET(request: NextRequest) {
         CASE WHEN dist.id IS NOT NULL THEN jsonb_build_object('id', dist.id, 'name', dist.name, 'regency_id', dist.regency_id) ELSE NULL END as district,
         CASE WHEN vill.id IS NOT NULL THEN jsonb_build_object('id', vill.id, 'name', vill.name, 'district_id', vill.district_id) ELSE NULL END as village,
         CASE WHEN jet.id IS NOT NULL THEN jsonb_build_object('id', jet.id, 'name', jet.name, 'slug', jet.slug) ELSE NULL END as employment_type,
-        CASE WHEN jel.id IS NOT NULL THEN jsonb_build_object('id', jel.id, 'name', jel.name, 'slug', jel.slug, 'years_min', jel.years_min, 'years_max', jel.years_max) ELSE NULL END as experience_level
+        CASE WHEN jel.id IS NOT NULL THEN jsonb_build_object('id', jel.id, 'name', jel.name, 'slug', jel.slug, 'years_min', jel.years_min, 'years_max', jel.years_max) ELSE NULL END as experience_level,
+        CASE WHEN jedl.id IS NOT NULL THEN jsonb_build_object('id', jedl.id, 'name', jedl.name, 'slug', jedl.slug) ELSE NULL END as education_level
       FROM job_posts jp
       LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
@@ -118,13 +123,15 @@ export async function GET(request: NextRequest) {
       LEFT JOIN reg_villages vill ON jp.job_village_id = vill.id
       LEFT JOIN job_employment_types jet ON jp.job_employment_type_id = jet.id
       LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
+      LEFT JOIN job_education_levels jedl ON jp.job_education_level_id = jedl.id
       WHERE jp.author_id = ${userId}
         ${search ? sql`AND jp.title ILIKE ${`%${search}%`}` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql``}
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
+        ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
         ${job_category ? sql`AND EXISTS (SELECT 1 FROM job_post_categories WHERE job_post_id = jp.id AND category_id = ${job_category})` : sql``}
-      GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max
+      GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max, jedl.id, jedl.name, jedl.slug
       ORDER BY jp.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `
@@ -160,7 +167,7 @@ export async function POST(request: NextRequest) {
       title, content, excerpt, slug, featured_image, publish_date, status,
       seo_title, meta_description, focus_keyword,
       job_company_name, job_company_logo, job_company_website,
-      job_employment_type_id, job_experience_level_id,
+      job_employment_type_id, job_experience_level_id, job_education_level_id,
       job_salary_min, job_salary_max, job_salary_currency, job_salary_period,
       job_is_salary_negotiable, job_province_id, job_regency_id, job_district_id,
       job_village_id, job_address_detail, job_is_remote, job_is_hybrid,
@@ -187,7 +194,7 @@ export async function POST(request: NextRequest) {
         title, content, excerpt, slug, featured_image, publish_date, status,
         author_id, seo_title, meta_description, focus_keyword,
         job_company_name, job_company_logo, job_company_website,
-        job_employment_type_id, job_experience_level_id,
+        job_employment_type_id, job_experience_level_id, job_education_level_id,
         job_salary_min, job_salary_max, job_salary_currency, job_salary_period,
         job_is_salary_negotiable, job_province_id, job_regency_id, job_district_id,
         job_village_id, job_address_detail, job_is_remote, job_is_hybrid,
@@ -199,7 +206,7 @@ export async function POST(request: NextRequest) {
         ${publish_date || new Date().toISOString()}, ${status}, ${userId},
         ${seo_title || null}, ${meta_description || null}, ${focus_keyword || null},
         ${job_company_name || null}, ${job_company_logo || null}, ${job_company_website || null},
-        ${job_employment_type_id || null}, ${job_experience_level_id || null},
+        ${job_employment_type_id || null}, ${job_experience_level_id || null}, ${job_education_level_id || null},
         ${job_salary_min || null}, ${job_salary_max || null}, ${job_salary_currency || 'IDR'}, ${job_salary_period || 'monthly'},
         ${job_is_salary_negotiable || false}, ${job_province_id || null}, ${job_regency_id || null}, ${job_district_id || null},
         ${job_village_id || null}, ${job_address_detail || null}, ${job_is_remote || false}, ${job_is_hybrid || false},
@@ -244,7 +251,8 @@ export async function POST(request: NextRequest) {
         CASE WHEN dist.id IS NOT NULL THEN jsonb_build_object('id', dist.id, 'name', dist.name, 'regency_id', dist.regency_id) ELSE NULL END as district,
         CASE WHEN vill.id IS NOT NULL THEN jsonb_build_object('id', vill.id, 'name', vill.name, 'district_id', vill.district_id) ELSE NULL END as village,
         CASE WHEN jet.id IS NOT NULL THEN jsonb_build_object('id', jet.id, 'name', jet.name, 'slug', jet.slug) ELSE NULL END as employment_type,
-        CASE WHEN jel.id IS NOT NULL THEN jsonb_build_object('id', jel.id, 'name', jel.name, 'slug', jel.slug, 'years_min', jel.years_min, 'years_max', jel.years_max) ELSE NULL END as experience_level
+        CASE WHEN jel.id IS NOT NULL THEN jsonb_build_object('id', jel.id, 'name', jel.name, 'slug', jel.slug, 'years_min', jel.years_min, 'years_max', jel.years_max) ELSE NULL END as experience_level,
+        CASE WHEN jedl.id IS NOT NULL THEN jsonb_build_object('id', jedl.id, 'name', jedl.name, 'slug', jedl.slug) ELSE NULL END as education_level
       FROM job_posts jp
       LEFT JOIN job_post_categories jpc ON jp.id = jpc.job_post_id
       LEFT JOIN job_categories jc ON jpc.category_id = jc.id
@@ -256,8 +264,9 @@ export async function POST(request: NextRequest) {
       LEFT JOIN reg_villages vill ON jp.job_village_id = vill.id
       LEFT JOIN job_employment_types jet ON jp.job_employment_type_id = jet.id
       LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
+      LEFT JOIN job_education_levels jedl ON jp.job_education_level_id = jedl.id
       WHERE jp.id = ${postId}
-      GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max
+      GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max, jedl.id, jedl.name, jedl.slug
     `
     
     // Invalidate sitemaps if published
