@@ -734,6 +734,7 @@ Retrieve a paginated list of job posts with optional filtering.
 | `status` | string | published | Filter by status (draft, published, scheduled) |
 | `employment_type` | string | - | Filter by employment type name |
 | `experience_level` | string | - | Filter by experience level name |
+| `education_level` | string | - | Filter by education level name |
 | `job_category` | string | - | Filter by category ID or slug |
 | `job_tag` | string | - | Filter by tag ID or slug |
 | `salary_min` | integer | - | Minimum salary (jobs with max >= this value) |
@@ -775,6 +776,7 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?page=1&limit=10&status=pub
         "job_company_name": "Acme Corporation",
         "employment_type": "Full Time",
         "experience_level": "Senior",
+        "education_level": "S1",
         "job_salary_min": 80000000,
         "job_salary_max": 120000000,
         "job_salary_currency": "IDR",
@@ -809,6 +811,7 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?page=1&limit=10&status=pub
       "status": "published",
       "employment_type": null,
       "experience_level": null,
+      "education_level": null,
       "job_category": null,
       "job_tag": null,
       "salary_min": null,
@@ -853,6 +856,7 @@ Create a new job posting via external API.
 | `job_company_website` | string | No | Company website URL |
 | `job_employment_type_id` | string (UUID) | No | Employment type ID |
 | `job_experience_level_id` | string (UUID) | No | Experience level ID |
+| `job_education_level_id` | string (UUID) | No | Education level ID |
 | `job_salary_min` | number | No | Minimum salary |
 | `job_salary_max` | number | No | Maximum salary |
 | `job_salary_currency` | string | No | Currency code (default: IDR) |
@@ -1183,6 +1187,26 @@ curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
         "post_count": 18
       }
     ],
+    "education_levels": [
+      {
+        "id": "uuid",
+        "name": "SMA/SMK/Sederajat",
+        "slug": "sma-smk-sederajat",
+        "post_count": 8
+      },
+      {
+        "id": "uuid",
+        "name": "S1",
+        "slug": "s1",
+        "post_count": 22
+      },
+      {
+        "id": "uuid",
+        "name": "S2",
+        "slug": "s2",
+        "post_count": 10
+      }
+    ],
     "salary_range": {
       "min": 5000000,
       "max": 150000000,
@@ -1223,6 +1247,7 @@ curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
 - `tags`: All job tags with post counts
 - `employment_types`: Employment types (Full Time, Part Time, etc.)
 - `experience_levels`: Experience levels with years range
+- `education_levels`: Education levels (SMA/SMK/Sederajat, D1, D2, D3, D4, S1, S2, S3)
 - `salary_range`: Min/max salary across all job posts and available currencies
 - `provinces`: Provinces that have job posts
 - `regencies`: Regencies/cities that have job posts
@@ -1295,13 +1320,19 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?search=developer&is_remote
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 8. Filter by Category, Tag, and Skill
+### 8. Filter Jobs by Education Level
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?education_level=S1&status=published&page=1" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 9. Filter by Category, Tag, and Skill
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts?job_category=uuid&job_tag=uuid&skill=React" \
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 9. Get Filter Data to Build UI
+### 10. Get Filter Data to Build UI
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
   -H "Authorization: Bearer your-api-token"
