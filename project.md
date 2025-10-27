@@ -235,6 +235,142 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts API Comprehensive Filtering System (October 27, 2025 - 12:30 UTC)
+
+**Summary**: Enhanced the `/api/v1/job-posts` GET endpoint with comprehensive filtering capabilities on ALL job post fields, supporting multiple parameter aliases for maximum flexibility. Fixed critical issue where filters were not working due to parameter name mismatches.
+
+**Problem Statement**:
+- Users were sending filter parameters like `job_salary_min=1000000` but API expected `salary_min=1000000`
+- Not all job post fields were filterable - only a subset of 15 fields were supported
+- Filter parameter names were inconsistent and not intuitive
+- No support for compound searches across multiple fields
+
+**Solution - Comprehensive Filtering System**:
+
+1. **Parameter Alias Support**:
+   - Added helper functions to accept multiple parameter names for the same filter
+   - `getParam()`: Returns first matching parameter from list of aliases
+   - `getIntParam()`: Returns first matching integer parameter
+   - `getBoolParam()`: Returns first matching boolean parameter
+   - Enables both `job_salary_min` and `salary_min` to work interchangeably
+
+2. **New Filter Fields Added** (13 additional filters):
+   - **Company Filters**: `job_company_name` / `company_name` / `company` - ILIKE search
+   - **Salary Filters**:
+     - `job_salary_currency` / `salary_currency` / `currency` - Filter by currency (IDR, USD, etc.)
+     - `job_salary_period` / `salary_period` / `period` - Filter by period (monthly, yearly, etc.)
+     - `job_is_salary_negotiable` / `salary_negotiable` / `negotiable` - Boolean filter
+   - **Location Filters**:
+     - `job_district_id` / `district_id` / `district` - Filter by district
+     - `job_village_id` / `village_id` / `village` - Filter by village (most granular)
+   - **Benefits Filter**: `benefit` / `benefits` / `job_benefit` - Array contains search
+   - **Deadline Filters**:
+     - `job_deadline_before` / `deadline_before` / `deadline_max` - Jobs closing before date
+     - `job_deadline_after` / `deadline_after` / `deadline_min` - Jobs closing after date
+
+3. **Enhanced Existing Filters**:
+   - **Search**: Now searches across title, content, requirements, AND responsibilities (was only title)
+   - **All existing filters**: Now support multiple parameter name aliases
+
+4. **Complete Filter Parameter List** (24 total filter categories):
+   - Pagination: `page`, `limit`
+   - Basic Search: `search` (multi-field), `status`
+   - Company: `job_company_name` (3 aliases)
+   - Types/Levels: `employment_type`, `experience_level`, `education_level`
+   - Categories/Tags: `job_category`, `job_tag` (with aliases)
+   - Salary: `job_salary_min`, `job_salary_max`, `job_salary_currency`, `job_salary_period`, `job_is_salary_negotiable` (all with aliases)
+   - Location: `job_province_id`, `job_regency_id`, `job_district_id`, `job_village_id` (all with aliases)
+   - Work Policy: `job_is_remote`, `job_is_hybrid`, `work_policy` (all with aliases)
+   - Skills/Benefits: `skill`, `benefit` (with aliases)
+   - Deadlines: `job_deadline_before`, `job_deadline_after` (with aliases)
+
+**Technical Implementation**:
+
+```typescript
+// Example of alias support implementation
+const job_salary_min = getIntParam(["job_salary_min", "salary_min", "min_salary"]);
+const job_company_name = getParam(["job_company_name", "company_name", "company"]);
+const job_is_remote = getBoolParam(["job_is_remote", "is_remote", "remote"]);
+```
+
+**SQL Query Enhancements**:
+- Enhanced search to include 4 fields: `title OR content OR job_requirements OR job_responsibilities`
+- Added 13 new WHERE clause conditions for new filters
+- Updated cache key to include all 24 filter parameters
+- All filters use proper SQL parameterization (SQL injection safe)
+- Updated response `filters` object to reflect all applied filters
+
+**Files Modified**:
+- `app/api/v1/job-posts/route.ts` - Complete rewrite of filter parameter extraction and WHERE clauses
+- `API_DOCUMENTATION.md` - Added comprehensive filter parameter reference table with 70+ parameter aliases, 13 new usage examples
+
+**API Documentation Updates**:
+- Created comprehensive parameter table organized by category (Pagination, Company, Salary, Location, etc.)
+- Added 13 new example queries (total 22 examples)
+- Documented all parameter aliases in dedicated section
+- Added complex multi-filter query example using 11+ filters
+
+**Example API Calls**:
+
+```bash
+# Original issue - now BOTH work:
+GET /api/v1/job-posts?job_salary_min=1000000  # User's original attempt
+GET /api/v1/job-posts?salary_min=1000000      # Shorter alias
+
+# Company name filter
+GET /api/v1/job-posts?company=Google
+
+# Salary currency and period
+GET /api/v1/job-posts?currency=USD&period=yearly&salary_min=50000
+
+# Negotiable salary only
+GET /api/v1/job-posts?negotiable=true
+
+# Granular location (district/village level)
+GET /api/v1/job-posts?district_id=317307
+GET /api/v1/job-posts?village_id=3173071005
+
+# Benefits filter
+GET /api/v1/job-posts?benefit=BPJS
+
+# Deadline range
+GET /api/v1/job-posts?deadline_after=2025-10-27&deadline_before=2025-12-31
+
+# Jobs closing in next 7 days
+GET /api/v1/job-posts?deadline_before=2025-11-03
+
+# Complex multi-filter query (11 filters)
+GET /api/v1/job-posts?company=PT%20ABC&employment_type=Full%20Time&experience_level=Senior&education_level=S1&job_salary_min=10000000&currency=IDR&period=monthly&province_id=31&work_policy=hybrid&skill=React&benefit=BPJS&status=published
+```
+
+**Backwards Compatibility**:
+- All existing filter parameters still work (e.g., `salary_min`, `province_id`, `is_remote`)
+- New aliases added without breaking existing API consumers
+- Response format unchanged - only `filters` object enhanced with new fields
+
+**Performance Optimization**:
+- Cache keys include ALL filter parameters for precise cache hit/miss
+- Each unique filter combination gets its own cache entry
+- 1-hour TTL maintained for all cached responses
+
+**Impact**:
+- ✅ **Fixed**: Filter parameters now work with both `job_` prefix and shorter aliases
+- ✅ **Fixed**: User's original issue - `job_salary_min=1000000` now filters correctly
+- ✅ **Enhanced**: ALL job post fields are now filterable (was 15, now 24 categories)
+- ✅ **Improved UX**: 70+ parameter aliases for maximum flexibility
+- ✅ **Better Search**: Search now covers title, content, requirements, AND responsibilities
+- ✅ **Comprehensive Docs**: 22 API examples covering all filter combinations
+- ✅ **Backwards Compatible**: Existing API consumers continue working without changes
+- ✅ **Production Ready**: SQL injection safe, properly cached, rate-limited
+
+**Developer Experience**:
+- Intuitive parameter names: use `company` instead of `job_company_name`
+- Flexible: `salary_min` or `job_salary_min` or `min_salary` all work
+- Discoverable: Comprehensive API documentation with examples
+- Forgiving: Case-insensitive for company names, partial matches supported
+
+---
+
 ### Job Posts Education Level Field Implementation (October 27, 2025 - 09:00 UTC)
 
 **Summary**: Added comprehensive education level field to job posts custom post type with full API support, filtering capabilities, and UI management following the existing employment types and experience levels pattern.

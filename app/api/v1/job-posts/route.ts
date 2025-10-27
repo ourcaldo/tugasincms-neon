@@ -93,40 +93,82 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
-    const search = searchParams.get("search") || "";
-    const status = searchParams.get("status") || "";
-    const employment_type = searchParams.get("employment_type") || "";
-    const experience_level = searchParams.get("experience_level") || "";
-    const education_level = searchParams.get("education_level") || "";
-    const job_category = searchParams.get("job_category") || "";
-    const job_tag = searchParams.get("job_tag") || "";
-    const salary_min = searchParams.get("salary_min")
-      ? parseInt(searchParams.get("salary_min")!)
-      : null;
-    const salary_max = searchParams.get("salary_max")
-      ? parseInt(searchParams.get("salary_max")!)
-      : null;
-    const province_id = searchParams.get("province_id") || "";
-    const regency_id = searchParams.get("regency_id") || "";
-    const is_remote =
-      searchParams.get("is_remote") === "true"
-        ? true
-        : searchParams.get("is_remote") === "false"
-          ? false
-          : null;
-    const is_hybrid =
-      searchParams.get("is_hybrid") === "true"
-        ? true
-        : searchParams.get("is_hybrid") === "false"
-          ? false
-          : null;
-    const work_policy = searchParams.get("work_policy") || "";
-    const skill = searchParams.get("skill") || "";
+    
+    // Helper function to get param with aliases
+    const getParam = (names: string[]) => {
+      for (const name of names) {
+        const value = searchParams.get(name);
+        if (value) return value;
+      }
+      return "";
+    };
+    
+    const getIntParam = (names: string[]) => {
+      for (const name of names) {
+        const value = searchParams.get(name);
+        if (value !== null && value !== "") {
+          const parsed = parseInt(value);
+          if (!isNaN(parsed)) return parsed;
+        }
+      }
+      return null;
+    };
+    
+    const getBoolParam = (names: string[]) => {
+      for (const name of names) {
+        const value = searchParams.get(name);
+        if (value === "true") return true;
+        if (value === "false") return false;
+      }
+      return null;
+    };
+    
+    // Basic filters
+    const search = getParam(["search", "q"]);
+    const status = getParam(["status"]);
+    
+    // Company filters
+    const job_company_name = getParam(["job_company_name", "company_name", "company"]);
+    
+    // Type/Level filters (support both with and without job_ prefix)
+    const employment_type = getParam(["employment_type", "job_employment_type"]);
+    const experience_level = getParam(["experience_level", "job_experience_level"]);
+    const education_level = getParam(["education_level", "job_education_level"]);
+    
+    // Category/Tag filters
+    const job_category = getParam(["job_category", "category"]);
+    const job_tag = getParam(["job_tag", "tag"]);
+    
+    // Salary filters (support both with and without job_ prefix)
+    const job_salary_min = getIntParam(["job_salary_min", "salary_min", "min_salary"]);
+    const job_salary_max = getIntParam(["job_salary_max", "salary_max", "max_salary"]);
+    const job_salary_currency = getParam(["job_salary_currency", "salary_currency", "currency"]);
+    const job_salary_period = getParam(["job_salary_period", "salary_period", "period"]);
+    const job_is_salary_negotiable = getBoolParam(["job_is_salary_negotiable", "salary_negotiable", "negotiable"]);
+    
+    // Location filters (support both with and without job_ prefix)
+    const job_province_id = getParam(["job_province_id", "province_id", "province"]);
+    const job_regency_id = getParam(["job_regency_id", "regency_id", "regency", "city_id", "city"]);
+    const job_district_id = getParam(["job_district_id", "district_id", "district"]);
+    const job_village_id = getParam(["job_village_id", "village_id", "village"]);
+    
+    // Work policy filters
+    const job_is_remote = getBoolParam(["job_is_remote", "is_remote", "remote"]);
+    const job_is_hybrid = getBoolParam(["job_is_hybrid", "is_hybrid", "hybrid"]);
+    const work_policy = getParam(["work_policy", "policy"]);
+    
+    // Skills and benefits filters
+    const skill = getParam(["skill", "skills"]);
+    const benefit = getParam(["benefit", "benefits", "job_benefit"]);
+    
+    // Deadline filters
+    const job_deadline_before = getParam(["job_deadline_before", "deadline_before", "deadline_max"]);
+    const job_deadline_after = getParam(["job_deadline_after", "deadline_after", "deadline_min"]);
 
     const offset = (page - 1) * limit;
     const userId = validToken.user_id;
 
-    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${employment_type}:${experience_level}:${education_level}:${job_category}:${job_tag}:${salary_min}:${salary_max}:${province_id}:${regency_id}:${is_remote}:${is_hybrid}:${work_policy}:${skill}`;
+    const cacheKey = `api:v1:job-posts:user:${userId}:${page}:${limit}:${search}:${status}:${job_company_name}:${employment_type}:${experience_level}:${education_level}:${job_category}:${job_tag}:${job_salary_min}:${job_salary_max}:${job_salary_currency}:${job_salary_period}:${job_is_salary_negotiable}:${job_province_id}:${job_regency_id}:${job_district_id}:${job_village_id}:${job_is_remote}:${job_is_hybrid}:${work_policy}:${skill}:${benefit}:${job_deadline_before}:${job_deadline_after}`;
 
     const cachedData = await getCachedData(cacheKey);
     if (cachedData) {
@@ -141,8 +183,9 @@ export async function GET(request: NextRequest) {
       LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
       LEFT JOIN job_education_levels jedl ON jp.job_education_level_id = jedl.id
       WHERE jp.author_id = ${userId}
-        ${search ? sql`AND jp.title ILIKE ${`%${search}%`}` : sql``}
+        ${search ? sql`AND (jp.title ILIKE ${`%${search}%`} OR jp.content ILIKE ${`%${search}%`} OR jp.job_requirements ILIKE ${`%${search}%`} OR jp.job_responsibilities ILIKE ${`%${search}%`})` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql`AND jp.status = 'published'`}
+        ${job_company_name ? sql`AND jp.job_company_name ILIKE ${`%${job_company_name}%`}` : sql``}
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
         ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
@@ -166,16 +209,24 @@ export async function GET(request: NextRequest) {
         )`
             : sql``
         }
-        ${salary_min !== null ? sql`AND jp.job_salary_max >= ${salary_min}` : sql``}
-        ${salary_max !== null ? sql`AND jp.job_salary_min <= ${salary_max}` : sql``}
-        ${province_id ? sql`AND jp.job_province_id = ${province_id}` : sql``}
-        ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
-        ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
-        ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
+        ${job_salary_min !== null ? sql`AND jp.job_salary_max >= ${job_salary_min}` : sql``}
+        ${job_salary_max !== null ? sql`AND jp.job_salary_min <= ${job_salary_max}` : sql``}
+        ${job_salary_currency ? sql`AND jp.job_salary_currency = ${job_salary_currency}` : sql``}
+        ${job_salary_period ? sql`AND jp.job_salary_period = ${job_salary_period}` : sql``}
+        ${job_is_salary_negotiable !== null ? sql`AND jp.job_is_salary_negotiable = ${job_is_salary_negotiable}` : sql``}
+        ${job_province_id ? sql`AND jp.job_province_id = ${job_province_id}` : sql``}
+        ${job_regency_id ? sql`AND jp.job_regency_id = ${job_regency_id}` : sql``}
+        ${job_district_id ? sql`AND jp.job_district_id = ${job_district_id}` : sql``}
+        ${job_village_id ? sql`AND jp.job_village_id = ${job_village_id}` : sql``}
+        ${job_is_remote !== null ? sql`AND jp.job_is_remote = ${job_is_remote}` : sql``}
+        ${job_is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${job_is_hybrid}` : sql``}
         ${work_policy === "onsite" ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
         ${work_policy === "remote" ? sql`AND jp.job_is_remote = true` : sql``}
         ${work_policy === "hybrid" ? sql`AND jp.job_is_hybrid = true` : sql``}
         ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
+        ${benefit ? sql`AND ${benefit} = ANY(jp.job_benefits)` : sql``}
+        ${job_deadline_before ? sql`AND jp.job_deadline <= ${job_deadline_before}::timestamp` : sql``}
+        ${job_deadline_after ? sql`AND jp.job_deadline >= ${job_deadline_after}::timestamp` : sql``}
     `;
 
     const total = countResult[0]?.count || 0;
@@ -214,8 +265,9 @@ export async function GET(request: NextRequest) {
       LEFT JOIN job_experience_levels jel ON jp.job_experience_level_id = jel.id
       LEFT JOIN job_education_levels jedl ON jp.job_education_level_id = jedl.id
       WHERE jp.author_id = ${userId}
-        ${search ? sql`AND jp.title ILIKE ${`%${search}%`}` : sql``}
+        ${search ? sql`AND (jp.title ILIKE ${`%${search}%`} OR jp.content ILIKE ${`%${search}%`} OR jp.job_requirements ILIKE ${`%${search}%`} OR jp.job_responsibilities ILIKE ${`%${search}%`})` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql`AND jp.status = 'published'`}
+        ${job_company_name ? sql`AND jp.job_company_name ILIKE ${`%${job_company_name}%`}` : sql``}
         ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
         ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
         ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
@@ -239,16 +291,24 @@ export async function GET(request: NextRequest) {
         )`
             : sql``
         }
-        ${salary_min !== null ? sql`AND jp.job_salary_max >= ${salary_min}` : sql``}
-        ${salary_max !== null ? sql`AND jp.job_salary_min <= ${salary_max}` : sql``}
-        ${province_id ? sql`AND jp.job_province_id = ${province_id}` : sql``}
-        ${regency_id ? sql`AND jp.job_regency_id = ${regency_id}` : sql``}
-        ${is_remote !== null ? sql`AND jp.job_is_remote = ${is_remote}` : sql``}
-        ${is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${is_hybrid}` : sql``}
+        ${job_salary_min !== null ? sql`AND jp.job_salary_max >= ${job_salary_min}` : sql``}
+        ${job_salary_max !== null ? sql`AND jp.job_salary_min <= ${job_salary_max}` : sql``}
+        ${job_salary_currency ? sql`AND jp.job_salary_currency = ${job_salary_currency}` : sql``}
+        ${job_salary_period ? sql`AND jp.job_salary_period = ${job_salary_period}` : sql``}
+        ${job_is_salary_negotiable !== null ? sql`AND jp.job_is_salary_negotiable = ${job_is_salary_negotiable}` : sql``}
+        ${job_province_id ? sql`AND jp.job_province_id = ${job_province_id}` : sql``}
+        ${job_regency_id ? sql`AND jp.job_regency_id = ${job_regency_id}` : sql``}
+        ${job_district_id ? sql`AND jp.job_district_id = ${job_district_id}` : sql``}
+        ${job_village_id ? sql`AND jp.job_village_id = ${job_village_id}` : sql``}
+        ${job_is_remote !== null ? sql`AND jp.job_is_remote = ${job_is_remote}` : sql``}
+        ${job_is_hybrid !== null ? sql`AND jp.job_is_hybrid = ${job_is_hybrid}` : sql``}
         ${work_policy === "onsite" ? sql`AND jp.job_is_remote = false AND jp.job_is_hybrid = false` : sql``}
         ${work_policy === "remote" ? sql`AND jp.job_is_remote = true` : sql``}
         ${work_policy === "hybrid" ? sql`AND jp.job_is_hybrid = true` : sql``}
         ${skill ? sql`AND ${skill} = ANY(jp.job_skills)` : sql``}
+        ${benefit ? sql`AND ${benefit} = ANY(jp.job_benefits)` : sql``}
+        ${job_deadline_before ? sql`AND jp.job_deadline <= ${job_deadline_before}::timestamp` : sql``}
+        ${job_deadline_after ? sql`AND jp.job_deadline >= ${job_deadline_after}::timestamp` : sql``}
       GROUP BY jp.id, prov.id, prov.name, reg.id, reg.name, reg.province_id, dist.id, dist.name, dist.regency_id, vill.id, vill.name, vill.district_id, jet.id, jet.name, jet.slug, jel.id, jel.name, jel.slug, jel.years_min, jel.years_max, jedl.id, jedl.name, jedl.slug
       ORDER BY jp.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -269,19 +329,28 @@ export async function GET(request: NextRequest) {
       filters: {
         search: search || null,
         status: status || null,
+        job_company_name: job_company_name || null,
         employment_type: employment_type || null,
         experience_level: experience_level || null,
         education_level: education_level || null,
         job_category: job_category || null,
         job_tag: job_tag || null,
-        salary_min: salary_min,
-        salary_max: salary_max,
-        province_id: province_id || null,
-        regency_id: regency_id || null,
-        is_remote: is_remote,
-        is_hybrid: is_hybrid,
+        job_salary_min: job_salary_min,
+        job_salary_max: job_salary_max,
+        job_salary_currency: job_salary_currency || null,
+        job_salary_period: job_salary_period || null,
+        job_is_salary_negotiable: job_is_salary_negotiable,
+        job_province_id: job_province_id || null,
+        job_regency_id: job_regency_id || null,
+        job_district_id: job_district_id || null,
+        job_village_id: job_village_id || null,
+        job_is_remote: job_is_remote,
+        job_is_hybrid: job_is_hybrid,
         work_policy: work_policy || null,
         skill: skill || null,
+        benefit: benefit || null,
+        job_deadline_before: job_deadline_before || null,
+        job_deadline_after: job_deadline_after || null,
       },
     };
 

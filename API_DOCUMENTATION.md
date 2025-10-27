@@ -728,23 +728,77 @@ Retrieve a paginated list of job posts with optional filtering.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| **Pagination** |
 | `page` | integer | 1 | Page number for pagination |
-| `limit` | integer | 20 | Number of posts per page |
-| `search` | string | - | Search by job title |
-| `status` | string | published | Filter by status (draft, published, scheduled) |
-| `employment_type` | string | - | Filter by employment type name |
-| `experience_level` | string | - | Filter by experience level name |
-| `education_level` | string | - | Filter by education level name |
+| `limit` | integer | 20 | Number of posts per page (max 100) |
+| **Basic Search** |
+| `search` | string | - | Search in title, content, requirements, and responsibilities |
+| `status` | string | published | Filter by status: `draft`, `published`, or `scheduled` |
+| **Company Filters** |
+| `job_company_name` | string | - | Filter by company name (partial match, case-insensitive) |
+| `company_name` | string | - | Alias for `job_company_name` |
+| `company` | string | - | Alias for `job_company_name` |
+| **Type & Level Filters** |
+| `employment_type` | string | - | Filter by employment type name (e.g., "Full Time", "Part Time") |
+| `experience_level` | string | - | Filter by experience level name (e.g., "Senior", "Junior") |
+| `education_level` | string | - | Filter by education level name (e.g., "S1", "S2", "SMA/SMK") |
+| **Category & Tag Filters** |
 | `job_category` | string | - | Filter by category ID or slug |
+| `category` | string | - | Alias for `job_category` |
 | `job_tag` | string | - | Filter by tag ID or slug |
-| `salary_min` | integer | - | Minimum salary (jobs with max >= this value) |
-| `salary_max` | integer | - | Maximum salary (jobs with min <= this value) |
-| `province_id` | string | - | Filter by province ID |
-| `regency_id` | string | - | Filter by regency/city ID |
-| `is_remote` | boolean | - | Filter remote jobs (true/false) |
-| `is_hybrid` | boolean | - | Filter hybrid jobs (true/false) |
+| `tag` | string | - | Alias for `job_tag` |
+| **Salary Filters** |
+| `job_salary_min` | integer | - | Minimum salary (returns jobs with max salary >= this value) |
+| `salary_min` | integer | - | Alias for `job_salary_min` |
+| `min_salary` | integer | - | Alias for `job_salary_min` |
+| `job_salary_max` | integer | - | Maximum salary (returns jobs with min salary <= this value) |
+| `salary_max` | integer | - | Alias for `job_salary_max` |
+| `max_salary` | integer | - | Alias for `job_salary_max` |
+| `job_salary_currency` | string | - | Filter by salary currency (e.g., "IDR", "USD") |
+| `salary_currency` | string | - | Alias for `job_salary_currency` |
+| `currency` | string | - | Alias for `job_salary_currency` |
+| `job_salary_period` | string | - | Filter by salary period (e.g., "monthly", "yearly") |
+| `salary_period` | string | - | Alias for `job_salary_period` |
+| `period` | string | - | Alias for `job_salary_period` |
+| `job_is_salary_negotiable` | boolean | - | Filter by salary negotiability (true/false) |
+| `salary_negotiable` | boolean | - | Alias for `job_is_salary_negotiable` |
+| `negotiable` | boolean | - | Alias for `job_is_salary_negotiable` |
+| **Location Filters** |
+| `job_province_id` | string | - | Filter by province ID |
+| `province_id` | string | - | Alias for `job_province_id` |
+| `province` | string | - | Alias for `job_province_id` |
+| `job_regency_id` | string | - | Filter by regency/city ID |
+| `regency_id` | string | - | Alias for `job_regency_id` |
+| `regency` | string | - | Alias for `job_regency_id` |
+| `city_id` | string | - | Alias for `job_regency_id` |
+| `city` | string | - | Alias for `job_regency_id` |
+| `job_district_id` | string | - | Filter by district ID |
+| `district_id` | string | - | Alias for `job_district_id` |
+| `district` | string | - | Alias for `job_district_id` |
+| `job_village_id` | string | - | Filter by village ID |
+| `village_id` | string | - | Alias for `job_village_id` |
+| `village` | string | - | Alias for `job_village_id` |
+| **Work Policy Filters** |
+| `job_is_remote` | boolean | - | Filter remote jobs (true/false) |
+| `is_remote` | boolean | - | Alias for `job_is_remote` |
+| `remote` | boolean | - | Alias for `job_is_remote` |
+| `job_is_hybrid` | boolean | - | Filter hybrid jobs (true/false) |
+| `is_hybrid` | boolean | - | Alias for `job_is_hybrid` |
+| `hybrid` | boolean | - | Alias for `job_is_hybrid` |
 | `work_policy` | string | - | Filter by work policy: `onsite`, `remote`, or `hybrid` |
-| `skill` | string | - | Filter by specific skill name |
+| `policy` | string | - | Alias for `work_policy` |
+| **Skills & Benefits Filters** |
+| `skill` | string | - | Filter by specific skill name (case-sensitive array match) |
+| `skills` | string | - | Alias for `skill` |
+| `benefit` | string | - | Filter by specific benefit name (case-sensitive array match) |
+| `benefits` | string | - | Alias for `benefit` |
+| **Deadline Filters** |
+| `job_deadline_before` | string | - | Filter jobs with deadline before this date (ISO 8601 format) |
+| `deadline_before` | string | - | Alias for `job_deadline_before` |
+| `deadline_max` | string | - | Alias for `job_deadline_before` |
+| `job_deadline_after` | string | - | Filter jobs with deadline after this date (ISO 8601 format) |
+| `deadline_after` | string | - | Alias for `job_deadline_after` |
+| `deadline_min` | string | - | Alias for `job_deadline_after` |
 
 **Example Request**:
 ```bash
@@ -1410,10 +1464,79 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?job_category=uuid&job_tag=
   -H "Authorization: Bearer your-api-token"
 ```
 
-### 14. Get Filter Data to Build UI
+### 14. Filter by Company Name (Using Alias)
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?company=Google&status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 15. Filter by Salary Currency and Period
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?currency=USD&period=yearly&salary_min=50000" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 16. Filter Negotiable Salary Jobs
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?negotiable=true&status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 17. Filter by District or Village (Granular Location)
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?district_id=317307&status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 18. Filter by Benefits
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?benefit=BPJS&status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 19. Filter by Application Deadline Range
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?deadline_after=2025-10-27&deadline_before=2025-12-31" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 20. Filter Jobs Closing Soon (Next 7 Days)
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?deadline_before=2025-11-03&status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 21. Complex Multi-Filter Query
+```bash
+curl -X GET "https://your-domain.com/api/v1/job-posts?company=PT%20ABC&employment_type=Full%20Time&experience_level=Senior&education_level=S1&job_salary_min=10000000&currency=IDR&period=monthly&province_id=31&work_policy=hybrid&skill=React&benefit=BPJS&status=published" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+### 22. Get Filter Data to Build UI
 ```bash
 curl -X GET "https://your-domain.com/api/v1/job-posts/filters" \
   -H "Authorization: Bearer your-api-token"
+```
+
+### Filter Parameter Aliases
+
+Many filters support multiple parameter names for flexibility. You can use either the full name or any of its aliases:
+
+```bash
+# These are all equivalent:
+?job_salary_min=1000000
+?salary_min=1000000
+?min_salary=1000000
+
+# These are all equivalent:
+?job_company_name=Google
+?company_name=Google
+?company=Google
+
+# These are all equivalent:
+?job_province_id=31
+?province_id=31
+?province=31
 ```
 
 ---
