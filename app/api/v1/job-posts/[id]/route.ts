@@ -11,6 +11,7 @@ import {
   processJobTagsInput,
   processJobSkillsInput,
 } from '@/lib/job-utils'
+import { resolveLocationHierarchy } from '@/lib/location-utils'
 
 const updateJobPostSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -207,6 +208,30 @@ export async function PUT(
       processedBenefits = processJobSkillsInput(job_benefits)
     }
     
+    // Resolve location hierarchy if any location field is provided
+    let resolvedLocations
+    const hasLocationFields = 
+      job_village_id !== undefined || 
+      job_district_id !== undefined || 
+      job_regency_id !== undefined || 
+      job_province_id !== undefined
+    
+    if (hasLocationFields) {
+      try {
+        resolvedLocations = await resolveLocationHierarchy({
+          village_id: job_village_id,
+          district_id: job_district_id,
+          regency_id: job_regency_id,
+          province_id: job_province_id,
+        })
+      } catch (error: any) {
+        return setCorsHeaders(
+          validationErrorResponse(error.message || 'Invalid location data'),
+          origin
+        )
+      }
+    }
+    
     // Update job post
     await sql`
       UPDATE job_posts
@@ -231,10 +256,10 @@ export async function PUT(
         job_salary_currency = COALESCE(${job_salary_currency}, job_salary_currency),
         job_salary_period = COALESCE(${job_salary_period}, job_salary_period),
         job_is_salary_negotiable = COALESCE(${job_is_salary_negotiable}, job_is_salary_negotiable),
-        job_province_id = COALESCE(${job_province_id}, job_province_id),
-        job_regency_id = COALESCE(${job_regency_id}, job_regency_id),
-        job_district_id = COALESCE(${job_district_id}, job_district_id),
-        job_village_id = COALESCE(${job_village_id}, job_village_id),
+        job_province_id = COALESCE(${resolvedLocations?.province_id}, job_province_id),
+        job_regency_id = COALESCE(${resolvedLocations?.regency_id}, job_regency_id),
+        job_district_id = COALESCE(${resolvedLocations?.district_id}, job_district_id),
+        job_village_id = COALESCE(${resolvedLocations?.village_id}, job_village_id),
         job_address_detail = COALESCE(${job_address_detail}, job_address_detail),
         job_is_remote = COALESCE(${job_is_remote}, job_is_remote),
         job_is_hybrid = COALESCE(${job_is_hybrid}, job_is_hybrid),

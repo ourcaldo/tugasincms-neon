@@ -875,6 +875,45 @@ Create a new job posting via external API.
 | `job_categories` | string or array | No | Categories (names, IDs, or comma-separated) |
 | `job_tags` | string or array | No | Tags (names, IDs, or comma-separated) |
 
+#### Location Auto-Mapping
+
+The API automatically resolves location hierarchies. You can provide ONLY the smallest location unit, and the system will automatically fill in the parent locations:
+
+- **Provide only `job_village_id`** → System auto-fills `job_district_id`, `job_regency_id`, `job_province_id`
+- **Provide only `job_district_id`** → System auto-fills `job_regency_id`, `job_province_id`
+- **Provide only `job_regency_id`** → System auto-fills `job_province_id`
+- **Provide all location IDs** → System validates they form a valid hierarchy
+
+This makes it easier to specify job locations without needing to look up all parent location IDs.
+
+**Validation**: If you provide both a smaller unit (e.g., village) and a parent unit (e.g., regency), the API validates that they match the canonical hierarchy. If they don't match (e.g., village belongs to a different regency), the API returns a validation error with a clear message.
+
+**Location Auto-Mapping Example**:
+```json
+{
+  "title": "Backend Developer",
+  "slug": "backend-developer-jakarta",
+  "content": "<p>Job description...</p>",
+  "status": "published",
+  "job_village_id": "3173041001"
+}
+```
+
+The system will automatically look up:
+- Village "3173041001" → belongs to District "317304"
+- District "317304" → belongs to Regency "3173"
+- Regency "3173" → belongs to Province "31"
+
+Final result:
+```json
+{
+  "job_province_id": "31",
+  "job_regency_id": "3173",
+  "job_district_id": "317304",
+  "job_village_id": "3173041001"
+}
+```
+
 **Example Request (with comma-separated values)**:
 ```bash
 curl -X POST "https://your-domain.com/api/v1/job-posts" \

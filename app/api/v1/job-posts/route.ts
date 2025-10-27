@@ -11,6 +11,7 @@ import {
   processJobTagsInput,
   processJobSkillsInput,
 } from '@/lib/job-utils'
+import { resolveLocationHierarchy } from '@/lib/location-utils'
 
 const jobPostSchema = z.object({
   title: z.string().min(1).max(500),
@@ -293,6 +294,22 @@ export async function POST(request: NextRequest) {
     // Process benefits (accepts array or comma-separated string)
     const processedBenefits = processJobSkillsInput(job_benefits)
     
+    // Resolve location hierarchy
+    let resolvedLocations
+    try {
+      resolvedLocations = await resolveLocationHierarchy({
+        village_id: job_village_id,
+        district_id: job_district_id,
+        regency_id: job_regency_id,
+        province_id: job_province_id,
+      })
+    } catch (error: any) {
+      return setCorsHeaders(
+        validationErrorResponse(error.message || 'Invalid location data'),
+        origin
+      )
+    }
+    
     // Create job post
     const postResult = await sql`
       INSERT INTO job_posts (
@@ -313,8 +330,8 @@ export async function POST(request: NextRequest) {
         ${job_company_name || null}, ${job_company_logo || null}, ${job_company_website || null},
         ${job_employment_type_id || null}, ${job_experience_level_id || null},
         ${job_salary_min || null}, ${job_salary_max || null}, ${job_salary_currency || 'IDR'}, ${job_salary_period || 'monthly'},
-        ${job_is_salary_negotiable || false}, ${job_province_id || null}, ${job_regency_id || null}, ${job_district_id || null},
-        ${job_village_id || null}, ${job_address_detail || null}, ${job_is_remote || false}, ${job_is_hybrid || false},
+        ${job_is_salary_negotiable || false}, ${resolvedLocations.province_id}, ${resolvedLocations.regency_id}, ${resolvedLocations.district_id},
+        ${resolvedLocations.village_id}, ${job_address_detail || null}, ${job_is_remote || false}, ${job_is_hybrid || false},
         ${job_application_email || null}, ${job_application_url || null}, ${job_application_deadline || null},
         ${processedSkills}, ${processedBenefits}, ${job_requirements || null}, ${job_responsibilities || null}
       )

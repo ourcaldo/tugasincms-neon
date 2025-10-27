@@ -3,7 +3,24 @@
 ### Overview
 TugasCMS is a professional Content Management System built with Next.js, React, and TypeScript. It offers a modern interface for managing blog posts, categories, tags, and media. The project leverages Supabase for database management, Clerk for authentication, and Appwrite for efficient image storage. This CMS aims to provide a robust, scalable, and user-friendly platform for content creators.
 
-### Recent Changes (October 25, 2025)
+### Recent Changes
+
+#### October 27, 2025
+- **Location Auto-Mapping**: External v1 API now automatically resolves location hierarchy when creating/updating job posts
+  - Provide only village_id → system auto-fills district, regency, and province
+  - Provide only district_id → system auto-fills regency and province
+  - Provide only regency_id → system auto-fills province
+  - Created `lib/location-utils.ts` with `resolveLocationHierarchy()` function
+  - Updated POST and PUT `/api/v1/job-posts` endpoints to use auto-mapping
+  - API_DOCUMENTATION.md updated with location auto-mapping examples
+- **Job Posts Filtering Enhancement**: Added comprehensive filtering to v1 job posts API
+  - New filters: job_category, job_tag, employment_type, experience_level, salary range, location, remote/hybrid, skills
+  - Created `/api/v1/job-posts/filters` endpoint for filter data
+  - Supports both UUID and slug-based filtering for categories and tags
+  - Fixed internal CMS API count queries to use proper JOINs
+- **TypeScript Interface Alignment**: Fixed JobPost interface inconsistency between page and component
+
+#### October 25, 2025
 - **Job Posts External API**: Created `/api/v1/job-posts` endpoints with Bearer token authentication for 3rd party integrations
 - **API Authentication Separation**: Internal dashboard APIs (`/api/job-posts`) use Clerk sessions; external APIs (`/api/v1/job-posts`) use Bearer tokens
 - **Multi-Tenant Security**: All v1 endpoints enforce author_id filtering to prevent cross-user data access
