@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM job_post_categories jpc2 
           LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
           WHERE jpc2.job_post_id = jp.id 
-          AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
+          AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
         )`
             : sql``
         }
@@ -205,12 +205,12 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM job_post_tags jpt2 
           LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
           WHERE jpt2.job_post_id = jp.id 
-          AND (jt2.id = ${job_tag} OR jt2.slug = ${job_tag})
+          AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag})
         )`
             : sql``
         }
-        ${job_salary_min !== null ? sql`AND jp.job_salary_max >= ${job_salary_min}` : sql``}
-        ${job_salary_max !== null ? sql`AND jp.job_salary_min <= ${job_salary_max}` : sql``}
+        ${job_salary_min !== null ? sql`AND jp.job_salary_min >= ${job_salary_min}` : sql``}
+        ${job_salary_max !== null ? sql`AND jp.job_salary_max <= ${job_salary_max}` : sql``}
         ${job_salary_currency ? sql`AND jp.job_salary_currency = ${job_salary_currency}` : sql``}
         ${job_salary_period ? sql`AND jp.job_salary_period = ${job_salary_period}` : sql``}
         ${job_is_salary_negotiable !== null ? sql`AND jp.job_is_salary_negotiable = ${job_is_salary_negotiable}` : sql``}
@@ -277,7 +277,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM job_post_categories jpc2 
           LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
           WHERE jpc2.job_post_id = jp.id 
-          AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
+          AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
         )`
             : sql``
         }
@@ -287,12 +287,12 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM job_post_tags jpt2 
           LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
           WHERE jpt2.job_post_id = jp.id 
-          AND (jt2.id = ${job_tag} OR jt2.slug = ${job_tag})
+          AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag})
         )`
             : sql``
         }
-        ${job_salary_min !== null ? sql`AND jp.job_salary_max >= ${job_salary_min}` : sql``}
-        ${job_salary_max !== null ? sql`AND jp.job_salary_min <= ${job_salary_max}` : sql``}
+        ${job_salary_min !== null ? sql`AND jp.job_salary_min >= ${job_salary_min}` : sql``}
+        ${job_salary_max !== null ? sql`AND jp.job_salary_max <= ${job_salary_max}` : sql``}
         ${job_salary_currency ? sql`AND jp.job_salary_currency = ${job_salary_currency}` : sql``}
         ${job_salary_period ? sql`AND jp.job_salary_period = ${job_salary_period}` : sql``}
         ${job_is_salary_negotiable !== null ? sql`AND jp.job_is_salary_negotiable = ${job_is_salary_negotiable}` : sql``}

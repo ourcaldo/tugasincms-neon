@@ -748,10 +748,10 @@ Retrieve a paginated list of job posts with optional filtering.
 | `job_tag` | string | - | Filter by tag ID or slug |
 | `tag` | string | - | Alias for `job_tag` |
 | **Salary Filters** |
-| `job_salary_min` | integer | - | Minimum salary (returns jobs with max salary >= this value) |
+| `job_salary_min` | integer | - | Minimum salary threshold (returns jobs with min salary >= this value) |
 | `salary_min` | integer | - | Alias for `job_salary_min` |
 | `min_salary` | integer | - | Alias for `job_salary_min` |
-| `job_salary_max` | integer | - | Maximum salary (returns jobs with min salary <= this value) |
+| `job_salary_max` | integer | - | Maximum salary threshold (returns jobs with max salary <= this value) |
 | `salary_max` | integer | - | Alias for `job_salary_max` |
 | `max_salary` | integer | - | Alias for `job_salary_max` |
 | `job_salary_currency` | string | - | Filter by salary currency (e.g., "IDR", "USD") |

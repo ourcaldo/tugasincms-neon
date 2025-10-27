@@ -235,6 +235,177 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts Category & Tag Filter UUID Cast Fix (October 27, 2025 - 14:00 UTC)
+
+**Summary**: Fixed critical bug in `/api/v1/job-posts` category and tag filters where PostgreSQL was attempting to cast slug values to UUID type, causing "invalid input syntax for type uuid" errors when filtering by slug.
+
+**Problem Statement**:
+- Category and tag filters failed when using slugs (e.g., `job_category=category-1`)
+- Error: `invalid input syntax for type uuid: "category-1"`
+- Filters only worked with UUID values, not slugs as intended
+- API documentation promised both UUID and slug support
+
+**Root Cause**:
+PostgreSQL type inference was trying to validate input as UUID before evaluating the OR condition:
+
+**BEFORE (Buggy SQL)**:
+```sql
+AND (jc2.id = ${job_category} OR jc2.slug = ${job_category})
+```
+
+When `job_category = "category-1"` (a slug):
+1. PostgreSQL sees `jc2.id` is UUID type
+2. Attempts to cast `"category-1"` to UUID **immediately**
+3. Fails with "invalid input syntax" error
+4. Never reaches the `OR jc2.slug = ${job_category}` part
+
+**AFTER (Fixed SQL)**:
+```typescript
+AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
+```
+
+By casting UUID to text (`id::text`), PostgreSQL:
+1. Converts the UUID to text format first
+2. Compares text-to-text (no type validation needed)
+3. If no match, falls through to slug comparison
+4. Works for both UUID strings AND slugs
+
+**Files Modified**:
+- `app/api/v1/job-posts/route.ts` - Added `::text` cast to UUID comparisons in category and tag filters (lines 201, 211, 280, 290)
+
+**SQL Changes** (both COUNT and SELECT queries):
+```sql
+-- Category filter
+AND EXISTS (
+  SELECT 1 FROM job_post_categories jpc2 
+  LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
+  WHERE jpc2.job_post_id = jp.id 
+  AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
+)
+
+-- Tag filter  
+AND EXISTS (
+  SELECT 1 FROM job_post_tags jpt2 
+  LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
+  WHERE jpt2.job_post_id = jp.id 
+  AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag})
+)
+```
+
+**Verification Tests**:
+```bash
+# Demo job has category "category-1" and tag "tag-1"
+
+✓ Test: category=category-1 (slug) → Returns 1 job - WORKS!
+✓ Test: tag=tag-1 (slug) → Returns 1 job - WORKS!
+✓ Test: category=ab315273... (UUID) → Returns 1 job - WORKS!
+✓ Test: tag=75252675... (UUID) → Returns 1 job - WORKS!
+✓ Test: category=wrong → Returns 0 jobs - CORRECT!
+✓ Test: tag=invalid → Returns 0 jobs - CORRECT!
+```
+
+**Impact**:
+- ✅ **Fixed**: Category filters now work with both UUID and slug
+- ✅ **Fixed**: Tag filters now work with both UUID and slug
+- ✅ **Fixed**: No more "invalid input syntax" PostgreSQL errors
+- ✅ **Improved**: Dual lookup support as originally designed
+- ✅ **Backwards Compatible**: Existing UUID-based filters still work
+- ✅ **Performance**: Minimal impact (text casting is fast)
+
+**Technical Note**:
+The `::text` cast is a PostgreSQL-specific syntax that converts any data type to its text representation. For UUIDs, this results in the standard UUID string format (e.g., `"ab315273-bc4c-44f6-bba2-c3a60839aa5c"`). This allows safe comparison with user input without triggering type validation errors.
+
+---
+
+### Job Posts Salary Filter Logic Fix (October 27, 2025 - 13:45 UTC)
+
+**Summary**: Fixed critical bug in `/api/v1/job-posts` salary filters where `job_salary_min` and `job_salary_max` parameters were using incorrect comparison logic, causing filters to return incorrect results.
+
+**Problem Statement**:
+- Salary filters were not working correctly - jobs were returned when they shouldn't be
+- Example: Filtering `job_salary_min=6000000` returned a job with salary range 5M-8M (min=5M)
+- The job's minimum salary (5M) was LESS than the filter threshold (6M), so it should have been excluded
+- Issue affected both `job_salary_min` and `job_salary_max` filters
+
+**Root Cause**:
+The API was checking for **salary range overlap** instead of **strict threshold filtering**:
+
+**BEFORE (Buggy Logic)**:
+```typescript
+// Wrong: Checks if job's MAX salary meets the MIN filter threshold
+${job_salary_min !== null ? sql`AND jp.job_salary_max >= ${job_salary_min}` : sql``}
+// Wrong: Checks if job's MIN salary is below the MAX filter threshold
+${job_salary_max !== null ? sql`AND jp.job_salary_min <= ${job_salary_max}` : sql``}
+```
+
+**Example of Bug**:
+- Demo job: min=5M, max=8M
+- User filters: `salary_min=6000000` (wants jobs paying at least 6M)
+- Buggy check: `8000000 >= 6000000` → TRUE → Job returned ✗ WRONG!
+- The job's minimum (5M) doesn't meet the 6M threshold, so it should be excluded
+
+**AFTER (Fixed Logic)**:
+```typescript
+// Correct: Checks if job's MIN salary meets the MIN filter threshold
+${job_salary_min !== null ? sql`AND jp.job_salary_min >= ${job_salary_min}` : sql``}
+// Correct: Checks if job's MAX salary is within the MAX filter threshold
+${job_salary_max !== null ? sql`AND jp.job_salary_max <= ${job_salary_max}` : sql``}
+```
+
+**Example of Fix**:
+- Demo job: min=5M, max=8M
+- User filters: `salary_min=6000000`
+- Fixed check: `5000000 >= 6000000` → FALSE → Job excluded ✓ CORRECT!
+
+**Filter Behavior After Fix**:
+1. **`job_salary_min` filter**: Returns jobs where the job's **minimum** salary >= filter value
+   - `salary_min=4M` on 5M-8M job → `5M >= 4M` → TRUE → Returns job ✓
+   - `salary_min=6M` on 5M-8M job → `5M >= 6M` → FALSE → Excludes job ✓
+
+2. **`job_salary_max` filter**: Returns jobs where the job's **maximum** salary <= filter value
+   - `salary_max=9M` on 5M-8M job → `8M <= 9M` → TRUE → Returns job ✓
+   - `salary_max=7M` on 5M-8M job → `8M <= 7M` → FALSE → Excludes job ✓
+
+**Verification Tests**:
+```bash
+# Demo job has salary range: 5M - 8M IDR
+
+✓ Test: salary_min=6M → Returns 0 jobs (5M < 6M) - CORRECT
+✓ Test: salary_min=5M → Returns 1 job (5M = 5M) - CORRECT
+✓ Test: salary_min=1M → Returns 1 job (5M >= 1M) - CORRECT
+✓ Test: salary_max=9M → Returns 1 job (8M <= 9M) - CORRECT
+✓ Test: salary_max=7M → Returns 0 jobs (8M > 7M) - CORRECT
+```
+
+**Files Modified**:
+- `app/api/v1/job-posts/route.ts` - Fixed salary comparison logic in both COUNT query (line 212-213) and main SELECT query (line 294-295)
+- `API_DOCUMENTATION.md` - Updated salary filter descriptions to accurately reflect the correct behavior
+
+**Documentation Updates**:
+Changed parameter descriptions from:
+- ❌ "`job_salary_min` - returns jobs with max salary >= this value" (WRONG)
+- ❌ "`job_salary_max` - returns jobs with min salary <= this value" (WRONG)
+
+To:
+- ✅ "`job_salary_min` - Minimum salary threshold (returns jobs with min salary >= this value)"
+- ✅ "`job_salary_max` - Maximum salary threshold (returns jobs with max salary <= this value)"
+
+**Impact**:
+- ✅ **Fixed**: Salary filters now work correctly with proper threshold logic
+- ✅ **Fixed**: Jobs are only returned when they actually match the filter criteria
+- ✅ **Fixed**: Empty results returned when no jobs match (as expected)
+- ✅ **Improved**: Filter behavior is now predictable and intuitive
+- ✅ **Backwards Compatible**: Filter parameter names unchanged, only logic corrected
+- ✅ **Fully Tested**: All edge cases verified (equal, greater, lesser thresholds)
+
+**User Experience**:
+- Job seekers filtering for minimum salary now get accurate results
+- No false positives - only jobs meeting the actual threshold are returned
+- Range filtering (`salary_min` + `salary_max`) works correctly for bounded searches
+- Empty responses when no matching jobs (proper filter behavior)
+
+---
+
 ### Job Posts API Comprehensive Filtering System (October 27, 2025 - 12:30 UTC)
 
 **Summary**: Enhanced the `/api/v1/job-posts` GET endpoint with comprehensive filtering capabilities on ALL job post fields, supporting multiple parameter aliases for maximum flexibility. Fixed critical issue where filters were not working due to parameter name mismatches.
