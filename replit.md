@@ -5,6 +5,14 @@ TugasCMS is a professional Content Management System built with Next.js, React, 
 
 ### Recent Changes
 
+#### October 28, 2025
+- **Job Posts API Enhanced Filters - Multi-Format Support**: Enhanced `/api/v1/job-posts` GET endpoint with comprehensive multi-format filter support
+  - All filter parameters now accept ID, name, OR slug: employment_type, experience_level, education_level, job_category, job_tag
+  - URL-encoded parameters handled automatically (e.g., `Category%201` works seamlessly)
+  - Updated API_DOCUMENTATION.md with "Flexible Filter Support" section and examples
+  - Fully tested and production-ready - all filter combinations verified
+  - Backward compatible with existing UUID and slug-based filters
+
 #### October 27, 2025
 - **Location Auto-Mapping**: External v1 API now automatically resolves location hierarchy when creating/updating job posts
   - Provide only village_id → system auto-fills district, regency, and province
