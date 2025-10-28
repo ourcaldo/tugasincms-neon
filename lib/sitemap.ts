@@ -210,7 +210,17 @@ export async function generateJobSitemaps(baseUrl?: string): Promise<{ index: st
   return { index: indexXml, chunks }
 }
 
-export async function generateAllSitemaps(requestHost?: string): Promise<void> {
+export interface GeneratedSitemaps {
+  root: string
+  pages: string
+  blogIndex: string | null
+  blogChunks: string[]
+  jobIndex: string | null
+  jobChunks: string[]
+  info: SitemapInfo[]
+}
+
+export async function generateAllSitemaps(requestHost?: string): Promise<GeneratedSitemaps> {
   try {
     const sitemapHost = getSitemapHost()
     const cmsHost = getCmsHost()
@@ -288,7 +298,17 @@ export async function generateAllSitemaps(requestHost?: string): Promise<void> {
 
     await setCachedData('sitemaps:info', sitemapInfo, TTL)
 
-    console.log(`Sitemaps generated successfully in Redis (TTL: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
+    console.log(`Sitemaps generated successfully (cached: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
+    
+    return {
+      root: rootSitemap,
+      pages: pagesSitemap,
+      blogIndex,
+      blogChunks,
+      jobIndex,
+      jobChunks,
+      info: sitemapInfo
+    }
   } catch (error) {
     console.error('Error generating sitemaps:', error)
     throw error
@@ -301,10 +321,8 @@ export async function getSitemapInfo(): Promise<SitemapInfo[]> {
     return cached as SitemapInfo[]
   }
 
-  await generateAllSitemaps()
-  
-  const info = await getCachedData('sitemaps:info')
-  return (info as SitemapInfo[]) || []
+  const generated = await generateAllSitemaps()
+  return generated.info
 }
 
 export async function invalidateSitemaps(): Promise<void> {
