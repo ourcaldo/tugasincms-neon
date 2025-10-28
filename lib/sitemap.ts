@@ -221,97 +221,92 @@ export interface GeneratedSitemaps {
 }
 
 export async function generateAllSitemaps(requestHost?: string): Promise<GeneratedSitemaps> {
-  try {
-    const sitemapHost = getSitemapHost()
-    const cmsHost = getCmsHost()
-    const TTL = 3600 // 60 minutes
+  const sitemapHost = getSitemapHost()
+  const cmsHost = getCmsHost()
+  const TTL = 3600 // 60 minutes
+  
+  const pagesSitemap = await generatePagesSitemap(sitemapHost)
+  try { await setCachedData('sitemap:pages', pagesSitemap, TTL) } catch (e) { }
+
+  const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost)
+  
+  if (blogIndex) {
+    try { await setCachedData('sitemap:post:index', blogIndex, TTL) } catch (e) { }
     
-    const pagesSitemap = await generatePagesSitemap(sitemapHost)
-    await setCachedData('sitemap:pages', pagesSitemap, TTL)
-
-    const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost)
+    for (let i = 0; i < blogChunks.length; i++) {
+      try { await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], TTL) } catch (e) { }
+    }
     
-    if (blogIndex) {
-      await setCachedData('sitemap:post:index', blogIndex, TTL)
-      
-      for (let i = 0; i < blogChunks.length; i++) {
-        await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], TTL)
-      }
-      
-      await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), TTL)
-    }
+    try { await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), TTL) } catch (e) { }
+  }
 
-    const { index: jobIndex, chunks: jobChunks } = await generateJobSitemaps(sitemapHost)
+  const { index: jobIndex, chunks: jobChunks } = await generateJobSitemaps(sitemapHost)
+  
+  if (jobIndex) {
+    try { await setCachedData('sitemap:job:index', jobIndex, TTL) } catch (e) { }
     
-    if (jobIndex) {
-      await setCachedData('sitemap:job:index', jobIndex, TTL)
-      
-      for (let i = 0; i < jobChunks.length; i++) {
-        await setCachedData(`sitemap:job:chunk:${i + 1}`, jobChunks[i], TTL)
-      }
-      
-      await setCachedData('sitemap:job:chunk:count', jobChunks.length.toString(), TTL)
+    for (let i = 0; i < jobChunks.length; i++) {
+      try { await setCachedData(`sitemap:job:chunk:${i + 1}`, jobChunks[i], TTL) } catch (e) { }
     }
-
-    const rootSitemaps = [
-      `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
-      ...(blogIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-post.xml`] : []),
-      ...(jobIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-job.xml`] : [])
-    ]
-    const rootSitemap = generateSitemapIndexXML(rootSitemaps)
-    await setCachedData('sitemap:root', rootSitemap, TTL)
-
-    const sitemapInfo: SitemapInfo[] = [
-      {
-        type: 'root',
-        url: `${cmsHost}/api/v1/sitemaps/sitemap.xml`
-      },
-      {
-        type: 'pages',
-        url: `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`
-      }
-    ]
-
-    if (blogIndex) {
-      const blogChunkUrls = blogChunks.map((_, i) => 
-        `${cmsHost}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
-      )
-      sitemapInfo.push({
-        type: 'blog',
-        url: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
-        index: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
-        references: blogChunkUrls
-      })
-    }
-
-    if (jobIndex) {
-      const jobChunkUrls = jobChunks.map((_, i) => 
-        `${cmsHost}/api/v1/sitemaps/sitemap-job-${i + 1}.xml`
-      )
-      sitemapInfo.push({
-        type: 'job',
-        url: `${cmsHost}/api/v1/sitemaps/sitemap-job.xml`,
-        index: `${cmsHost}/api/v1/sitemaps/sitemap-job.xml`,
-        references: jobChunkUrls
-      })
-    }
-
-    await setCachedData('sitemaps:info', sitemapInfo, TTL)
-
-    console.log(`Sitemaps generated successfully (cached: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
     
-    return {
-      root: rootSitemap,
-      pages: pagesSitemap,
-      blogIndex,
-      blogChunks,
-      jobIndex,
-      jobChunks,
-      info: sitemapInfo
+    try { await setCachedData('sitemap:job:chunk:count', jobChunks.length.toString(), TTL) } catch (e) { }
+  }
+
+  const rootSitemaps = [
+    `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
+    ...(blogIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-post.xml`] : []),
+    ...(jobIndex ? [`${cmsHost}/api/v1/sitemaps/sitemap-job.xml`] : [])
+  ]
+  const rootSitemap = generateSitemapIndexXML(rootSitemaps)
+  try { await setCachedData('sitemap:root', rootSitemap, TTL) } catch (e) { }
+
+  const sitemapInfo: SitemapInfo[] = [
+    {
+      type: 'root',
+      url: `${cmsHost}/api/v1/sitemaps/sitemap.xml`
+    },
+    {
+      type: 'pages',
+      url: `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`
     }
-  } catch (error) {
-    console.error('Error generating sitemaps:', error)
-    throw error
+  ]
+
+  if (blogIndex) {
+    const blogChunkUrls = blogChunks.map((_, i) => 
+      `${cmsHost}/api/v1/sitemaps/sitemap-post-${i + 1}.xml`
+    )
+    sitemapInfo.push({
+      type: 'blog',
+      url: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
+      index: `${cmsHost}/api/v1/sitemaps/sitemap-post.xml`,
+      references: blogChunkUrls
+    })
+  }
+
+  if (jobIndex) {
+    const jobChunkUrls = jobChunks.map((_, i) => 
+      `${cmsHost}/api/v1/sitemaps/sitemap-job-${i + 1}.xml`
+    )
+    sitemapInfo.push({
+      type: 'job',
+      url: `${cmsHost}/api/v1/sitemaps/sitemap-job.xml`,
+      index: `${cmsHost}/api/v1/sitemaps/sitemap-job.xml`,
+      references: jobChunkUrls
+    })
+  }
+
+  try { await setCachedData('sitemaps:info', sitemapInfo, TTL) } catch (e) { }
+
+  console.log(`Sitemaps generated successfully (cached: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
+  
+  return {
+    root: rootSitemap,
+    pages: pagesSitemap,
+    blogIndex,
+    blogChunks,
+    jobIndex,
+    jobChunks,
+    info: sitemapInfo
   }
 }
 

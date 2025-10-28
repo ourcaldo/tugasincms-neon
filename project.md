@@ -235,6 +235,132 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### API Redis Cache Optional - All v1 Endpoints Work Without Redis (October 28, 2025 - 10:45 UTC)
+
+**Summary**: Fixed critical issue where sitemap API endpoints would return empty results when Redis cache was unavailable. Refactored sitemap generation to work seamlessly with or without Redis, ensuring all v1 API endpoints function properly regardless of cache availability.
+
+**Problem Statement**:
+- User reported that `/api/v1/sitemaps/` endpoint returned empty array `{"sitemaps": []}` when Redis was not available
+- Sitemap generation functions (`generateAllSitemaps()`, `getSitemapInfo()`) only stored data in Redis cache, not in memory
+- When Redis was unavailable:
+  - `generateAllSitemaps()` generated sitemaps but only cached them (no return value)
+  - `getSitemapInfo()` called `generateAllSitemaps()`, then tried to read from cache again
+  - Second cache read returned `null`, resulting in empty array response
+- Sitemap XML routes (`/api/v1/sitemaps/sitemap.xml`, etc.) would return 500 errors when Redis unavailable
+
+**Root Cause**:
+The sitemap system had a design flaw where generated data was only stored in Redis and not returned:
+
+```typescript
+// BEFORE (lib/sitemap.ts)
+export async function generateAllSitemaps(): Promise<void> {
+  // ... generate sitemaps ...
+  await setCachedData('sitemap:root', rootSitemap, TTL)
+  await setCachedData('sitemap:pages', pagesSitemap, TTL)
+  // ... cache all sitemaps but don't return them
+}
+
+export async function getSitemapInfo(): Promise<SitemapInfo[]> {
+  const cached = await getCachedData('sitemaps:info')
+  if (cached) return cached
+  
+  await generateAllSitemaps()  // Generates but doesn't return
+  
+  const info = await getCachedData('sitemaps:info')  // Try to read from cache again
+  return info || []  // Returns empty array if Redis unavailable
+}
+```
+
+**Solution - Return Generated Data**:
+
+1. **Modified `generateAllSitemaps()` to return generated sitemaps**:
+   - Added new `GeneratedSitemaps` interface to define return structure
+   - Function now returns all generated sitemap data in addition to caching it
+   - Returns: root sitemap, pages sitemap, blog index/chunks, job index/chunks, sitemap info
+
+2. **Updated `getSitemapInfo()` to use returned data**:
+   - Now uses the returned sitemap info instead of trying to read from cache again
+   - Works seamlessly whether Redis is available or not
+
+3. **Fixed sitemap XML routes** (`app/api/v1/sitemaps/[...path]/route.ts`):
+   - Added logic to extract specific sitemap from returned `GeneratedSitemaps` object
+   - Maps route filename to corresponding field in returned data
+   - No longer relies solely on cache to serve sitemaps
+
+**Technical Implementation**:
+
+```typescript
+// AFTER (lib/sitemap.ts)
+export interface GeneratedSitemaps {
+  root: string
+  pages: string
+  blogIndex: string | null
+  blogChunks: string[]
+  jobIndex: string | null
+  jobChunks: string[]
+  info: SitemapInfo[]
+}
+
+export async function generateAllSitemaps(): Promise<GeneratedSitemaps> {
+  // ... generate sitemaps and cache them ...
+  
+  // Now also return the generated data
+  return {
+    root: rootSitemap,
+    pages: pagesSitemap,
+    blogIndex,
+    blogChunks,
+    jobIndex,
+    jobChunks,
+    info: sitemapInfo
+  }
+}
+
+export async function getSitemapInfo(): Promise<SitemapInfo[]> {
+  const cached = await getCachedData('sitemaps:info')
+  if (cached) return cached
+  
+  const generated = await generateAllSitemaps()
+  return generated.info  // Use returned data instead of cache
+}
+```
+
+**Files Modified**:
+- `lib/sitemap.ts` - Added `GeneratedSitemaps` interface, modified `generateAllSitemaps()` to return data, updated `getSitemapInfo()` to use returned data
+- `app/api/v1/sitemaps/[...path]/route.ts` - Updated to extract sitemap from returned `GeneratedSitemaps` when cache unavailable
+
+**Verification Tests** (without Redis, using Bearer token `cms_4iL1SEEXB7oQoiYDEfNJBTpeHeFVLP3k`):
+```bash
+✓ GET /api/v1/sitemaps → Returns sitemap info array with "cached": false
+✓ GET /api/v1/posts?limit=1 → Returns posts data with "cached": false
+✓ GET /api/v1/categories?limit=2 → Returns categories data with "cached": false
+✓ GET /api/v1/tags?limit=2 → Returns tags data with "cached": false
+✓ GET /api/v1/job-posts?limit=1 → Returns job posts data with "cached": false
+✓ GET /api/v1/sitemaps/sitemap.xml → Returns valid XML sitemap index
+✓ GET /api/v1/sitemaps/sitemap-pages.xml → Returns valid XML sitemap
+```
+
+**Impact**:
+- ✅ **Redis Optional**: All v1 API endpoints now work with OR without Redis cache
+- ✅ **Sitemap API Fixed**: Returns proper sitemap info instead of empty array when Redis unavailable
+- ✅ **Sitemap XML Fixed**: Serves XML sitemaps even when Redis is down
+- ✅ **No Breaking Changes**: Existing functionality with Redis unchanged - cache still used when available
+- ✅ **Graceful Degradation**: APIs automatically fall back to database queries when cache unavailable
+- ✅ **Performance**: Redis cache still provides speed benefits when available, but not required
+- ✅ **Reliability**: System continues to function during Redis maintenance or connectivity issues
+
+**Cache Strategy (unchanged for other endpoints)**:
+- Most v1 endpoints already handled Redis unavailability correctly:
+  - Try to get cached data with `getCachedData()`
+  - If null (cache miss or Redis unavailable), fetch from database
+  - Try to cache the result with `setCachedData()` (fails silently if Redis unavailable)
+  - Return data regardless of cache success
+- Only sitemap endpoints needed fixing due to different implementation pattern
+
+**Note**: Redis caching is still recommended for production to reduce database load and improve response times, but the application will continue to function correctly without it.
+
+---
+
 ### Job Posts API Enhanced Filters - Multi-Format Support (October 28, 2025 - 04:30 UTC)
 
 **Summary**: Enhanced `/api/v1/job-posts` GET endpoint with comprehensive multi-format filter support, allowing filters to accept ID, name, OR slug for employment_type, experience_level, education_level, job_category, and job_tag. Added automatic URL decoding for all filter parameters to handle encoded values seamlessly.
