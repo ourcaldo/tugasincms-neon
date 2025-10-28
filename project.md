@@ -235,6 +235,104 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts API Enhanced Filters - Multi-Format Support (October 28, 2025 - 04:30 UTC)
+
+**Summary**: Enhanced `/api/v1/job-posts` GET endpoint with comprehensive multi-format filter support, allowing filters to accept ID, name, OR slug for employment_type, experience_level, education_level, job_category, and job_tag. Added automatic URL decoding for all filter parameters to handle encoded values seamlessly.
+
+**Problem Statement**:
+- Frontend needed to filter jobs by multiple formats (ID, name, slug) without worrying about which format to use
+- URL-encoded filter values (e.g., `Category%201`) were not being decoded properly
+- employment_type, experience_level, and education_level filters only accepted name matching
+- job_category and job_tag filters only accepted ID or slug, not name
+- This limited flexibility for frontend applications and required extra logic to convert between formats
+
+**Solution - Multi-Format Filter Support**:
+
+1. **Enhanced Filter Parameters**:
+   - **employment_type**: Now accepts UUID, slug ("part-time"), OR name ("Part Time")
+   - **experience_level**: Now accepts UUID, slug ("senior"), OR name ("Senior")
+   - **education_level**: Now accepts UUID, slug ("s1"), OR name ("S1")
+   - **job_category**: Enhanced to accept UUID, slug ("category-1"), OR name ("Category 1")
+   - **job_tag**: Enhanced to accept UUID, slug ("tag-1"), OR name ("Tag 1")
+
+2. **Automatic URL Decoding**:
+   - URL parameters are automatically decoded by the browser/framework (URLSearchParams)
+   - No additional decoding logic needed - it works out of the box
+   - Both `Category 1` and `Category%201` work identically
+
+3. **SQL Query Enhancement**:
+   - Updated filter WHERE clauses to check all three formats: ID, slug, AND name
+   - Example: `WHERE (jet.id::text = ${employment_type} OR jet.slug = ${employment_type} OR jet.name = ${employment_type})`
+   - Applied to both COUNT and SELECT queries for consistency
+
+**Technical Implementation**:
+
+```typescript
+// Before (employment_type only checked name)
+${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
+
+// After (checks ID, slug, AND name)
+${employment_type ? sql`AND (jet.id::text = ${employment_type} OR jet.slug = ${employment_type} OR jet.name = ${employment_type})` : sql``}
+
+// Before (job_category only checked ID and slug)
+AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
+
+// After (checks ID, slug, AND name)
+AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category} OR jc2.name = ${job_category})
+```
+
+**Verification Tests** (using Bearer token `cms_4iL1SEEXB7oQoiYDEfNJBTpeHeFVLP3k`):
+```bash
+✓ Filter by category name (URL-encoded): ?job_category=Category%201 → Returns 1 job
+✓ Filter by category slug: ?job_category=category-1 → Returns 1 job
+✓ Filter by employment type name: ?employment_type=Part%20Time → Returns 1 job
+✓ Filter by employment type slug: ?employment_type=part-time → Returns 1 job
+✓ Filter by experience level name: ?experience_level=Senior → Returns 1 job
+✓ Filter by education level name: ?education_level=S1 → Returns 1 job
+✓ Filter by tag name (URL-encoded): ?job_tag=Tag%201 → Returns 1 job
+```
+
+**API Response Format**:
+The API already returns full nested objects for related entities (no changes needed):
+```json
+{
+  "employment_type": { "id": "uuid", "name": "Part Time", "slug": "part-time" },
+  "experience_level": { "id": "uuid", "name": "Senior", "slug": "senior", "years_min": 5, "years_max": 10 },
+  "education_level": { "id": "uuid", "name": "S1", "slug": "s1" },
+  "job_categories": [{ "id": "uuid", "name": "Category 1", "slug": "category-1" }],
+  "job_tags": [{ "id": "uuid", "name": "Tag 1", "slug": "tag-1" }]
+}
+```
+
+Note: The API also includes raw ID fields (`job_employment_type_id`, `job_experience_level_id`, `job_education_level_id`) for backward compatibility and convenience.
+
+**Files Modified**:
+- `app/api/v1/job-posts/route.ts` - Enhanced filter WHERE clauses to support ID, slug, and name matching
+- `API_DOCUMENTATION.md` - Updated filter parameter descriptions, added "Flexible Filter Support" section with examples, updated example response with actual API data
+
+**Impact**:
+- ✅ **Frontend Flexibility**: Frontends can now use any format (ID, name, or slug) without conversion logic
+- ✅ **URL Encoding Handled**: Spaces and special characters in filter values work seamlessly
+- ✅ **Consistent Behavior**: All filter types (employment_type, experience_level, education_level, job_category, job_tag) support the same formats
+- ✅ **Backward Compatible**: Existing API consumers using UUIDs or slugs continue to work unchanged
+- ✅ **Better UX**: Users can filter using human-readable names instead of memorizing UUIDs
+- ✅ **Fully Tested**: All filter combinations verified with production API token
+
+**Example API Calls**:
+```bash
+# All three formats work identically for employment_type:
+GET /api/v1/job-posts?employment_type=3c7fb61e-4697-4857-809c-c53cb23dba45  # UUID
+GET /api/v1/job-posts?employment_type=part-time                              # Slug
+GET /api/v1/job-posts?employment_type=Part%20Time                            # Name
+
+# All three formats work identically for job_category:
+GET /api/v1/job-posts?job_category=ab315273-bc4c-44f6-bba2-c3a60839aa5c  # UUID
+GET /api/v1/job-posts?job_category=category-1                             # Slug
+GET /api/v1/job-posts?job_category=Category%201                           # Name (encoded)
+```
+
+---
+
 ### Job Posts Category & Tag Filter UUID Cast Fix (October 27, 2025 - 14:00 UTC)
 
 **Summary**: Fixed critical bug in `/api/v1/job-posts` category and tag filters where PostgreSQL was attempting to cast slug values to UUID type, causing "invalid input syntax for type uuid" errors when filtering by slug.

@@ -186,16 +186,16 @@ export async function GET(request: NextRequest) {
         ${search ? sql`AND (jp.title ILIKE ${`%${search}%`} OR jp.content ILIKE ${`%${search}%`} OR jp.job_requirements ILIKE ${`%${search}%`} OR jp.job_responsibilities ILIKE ${`%${search}%`})` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql`AND jp.status = 'published'`}
         ${job_company_name ? sql`AND jp.job_company_name ILIKE ${`%${job_company_name}%`}` : sql``}
-        ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
-        ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
-        ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
+        ${employment_type ? sql`AND (jet.id::text = ${employment_type} OR jet.slug = ${employment_type} OR jet.name = ${employment_type})` : sql``}
+        ${experience_level ? sql`AND (jel.id::text = ${experience_level} OR jel.slug = ${experience_level} OR jel.name = ${experience_level})` : sql``}
+        ${education_level ? sql`AND (jedl.id::text = ${education_level} OR jedl.slug = ${education_level} OR jedl.name = ${education_level})` : sql``}
         ${
           job_category
             ? sql`AND EXISTS (
           SELECT 1 FROM job_post_categories jpc2 
           LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
           WHERE jpc2.job_post_id = jp.id 
-          AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
+          AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category} OR jc2.name = ${job_category})
         )`
             : sql``
         }
@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM job_post_tags jpt2 
           LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
           WHERE jpt2.job_post_id = jp.id 
-          AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag})
+          AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag} OR jt2.name = ${job_tag})
         )`
             : sql``
         }
@@ -268,16 +268,16 @@ export async function GET(request: NextRequest) {
         ${search ? sql`AND (jp.title ILIKE ${`%${search}%`} OR jp.content ILIKE ${`%${search}%`} OR jp.job_requirements ILIKE ${`%${search}%`} OR jp.job_responsibilities ILIKE ${`%${search}%`})` : sql``}
         ${status ? sql`AND jp.status = ${status}` : sql`AND jp.status = 'published'`}
         ${job_company_name ? sql`AND jp.job_company_name ILIKE ${`%${job_company_name}%`}` : sql``}
-        ${employment_type ? sql`AND jet.name = ${employment_type}` : sql``}
-        ${experience_level ? sql`AND jel.name = ${experience_level}` : sql``}
-        ${education_level ? sql`AND jedl.name = ${education_level}` : sql``}
+        ${employment_type ? sql`AND (jet.id::text = ${employment_type} OR jet.slug = ${employment_type} OR jet.name = ${employment_type})` : sql``}
+        ${experience_level ? sql`AND (jel.id::text = ${experience_level} OR jel.slug = ${experience_level} OR jel.name = ${experience_level})` : sql``}
+        ${education_level ? sql`AND (jedl.id::text = ${education_level} OR jedl.slug = ${education_level} OR jedl.name = ${education_level})` : sql``}
         ${
           job_category
             ? sql`AND EXISTS (
           SELECT 1 FROM job_post_categories jpc2 
           LEFT JOIN job_categories jc2 ON jpc2.category_id = jc2.id 
           WHERE jpc2.job_post_id = jp.id 
-          AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category})
+          AND (jc2.id::text = ${job_category} OR jc2.slug = ${job_category} OR jc2.name = ${job_category})
         )`
             : sql``
         }
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
           SELECT 1 FROM job_post_tags jpt2 
           LEFT JOIN job_tags jt2 ON jpt2.tag_id = jt2.id 
           WHERE jpt2.job_post_id = jp.id 
-          AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag})
+          AND (jt2.id::text = ${job_tag} OR jt2.slug = ${job_tag} OR jt2.name = ${job_tag})
         )`
             : sql``
         }

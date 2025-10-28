@@ -1,0 +1,139 @@
+{
+    "success": true,
+    "data": {
+        "posts": [
+            {
+                "id": "d071b083-1fc7-45f9-9541-8402ec2f2bd1",
+                "title": "Demo Job",
+                "content": "<p>This is Demo Job</p>",
+                "excerpt": "",
+                "slug": "demo-job",
+                "featured_image": null,
+                "publish_date": "2025-10-27T06:30:06.223Z",
+                "status": "published",
+                "author_id": "user_33QTHobngBl4hGcnuEjuKnOhlqr",
+                "seo_title": "D",
+                "meta_description": "",
+                "focus_keyword": "",
+                "job_company_name": "ABC",
+                "job_company_logo": null,
+                "job_location": null,
+                "job_location_type": null,
+                "job_salary_min": "5000000",
+                "job_salary_max": "8000000",
+                "job_salary_currency": "IDR",
+                "job_salary_period": "month",
+                "job_application_url": "https://abc.com",
+                "job_application_email": "karir@abc.com",
+                "job_deadline": null,
+                "job_skills": [
+                    "Skill 1"
+                ],
+                "job_benefits": [
+                    "Bpjs"
+                ],
+                "employment_type": {
+                    "id": "3c7fb61e-4697-4857-809c-c53cb23dba45",
+                    "name": "Part Time",
+                    "slug": "part-time"
+                },
+                "experience_level": {
+                    "id": "bfc661d5-cd27-40ab-b4f4-d3871150182a",
+                    "name": "Senior",
+                    "slug": "senior",
+                    "years_max": 10,
+                    "years_min": 5
+                },
+                "created_at": "2025-10-26T18:05:31.171Z",
+                "updated_at": "2025-10-27T06:30:07.020Z",
+                "job_company_website": "https://abc.com",
+                "job_is_salary_negotiable": false,
+                "job_province_id": "31",
+                "job_regency_id": "3173",
+                "job_district_id": "317307",
+                "job_village_id": "3173071005",
+                "job_address_detail": null,
+                "job_is_remote": false,
+                "job_is_hybrid": false,
+                "job_employment_type_id": "3c7fb61e-4697-4857-809c-c53cb23dba45",
+                "job_experience_level_id": "bfc661d5-cd27-40ab-b4f4-d3871150182a",
+                "job_requirements": "<p>Pintar</p>",
+                "job_responsibilities": "<p>Menggambar</p>",
+                "job_education_level_id": "be29a5f4-19c7-4b34-abd6-dc436ef78199",
+                "job_categories": [
+                    {
+                        "id": "ab315273-bc4c-44f6-bba2-c3a60839aa5c",
+                        "name": "Category 1",
+                        "slug": "category-1"
+                    }
+                ],
+                "job_tags": [
+                    {
+                        "id": "75252675-08ca-4009-894c-bb8bab1b679b",
+                        "name": "Tag 1",
+                        "slug": "tag-1"
+                    }
+                ],
+                "province": {
+                    "id": "31",
+                    "name": "DKI JAKARTA"
+                },
+                "regency": {
+                    "id": "3173",
+                    "name": "KOTA ADM. JAKARTA BARAT",
+                    "province_id": "31"
+                },
+                "district": {
+                    "id": "317307",
+                    "name": "Pal Merah",
+                    "regency_id": "3173"
+                },
+                "village": {
+                    "id": "3173071005",
+                    "name": "Kemanggisan",
+                    "district_id": "317307"
+                },
+                "education_level": {
+                    "id": "be29a5f4-19c7-4b34-abd6-dc436ef78199",
+                    "name": "S1",
+                    "slug": "s1"
+                }
+            }
+        ],
+        "pagination": {
+            "page": 1,
+            "limit": 20,
+            "total": 1,
+            "totalPages": 1,
+            "hasNextPage": false,
+            "hasPrevPage": false
+        },
+        "filters": {
+            "search": null,
+            "status": null,
+            "job_company_name": null,
+            "employment_type": null,
+            "experience_level": null,
+            "education_level": null,
+            "job_category": null,
+            "job_tag": null,
+            "job_salary_min": null,
+            "job_salary_max": null,
+            "job_salary_currency": null,
+            "job_salary_period": null,
+            "job_is_salary_negotiable": null,
+            "job_province_id": null,
+            "job_regency_id": null,
+            "job_district_id": null,
+            "job_village_id": null,
+            "job_is_remote": null,
+            "job_is_hybrid": null,
+            "work_policy": null,
+            "skill": null,
+            "benefit": null,
+            "job_deadline_before": null,
+            "job_deadline_after": null
+        }
+    },
+    "cached": true
+}

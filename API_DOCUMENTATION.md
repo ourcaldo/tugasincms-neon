@@ -739,13 +739,13 @@ Retrieve a paginated list of job posts with optional filtering.
 | `company_name` | string | - | Alias for `job_company_name` |
 | `company` | string | - | Alias for `job_company_name` |
 | **Type & Level Filters** |
-| `employment_type` | string | - | Filter by employment type name (e.g., "Full Time", "Part Time") |
-| `experience_level` | string | - | Filter by experience level name (e.g., "Senior", "Junior") |
-| `education_level` | string | - | Filter by education level name (e.g., "S1", "S2", "SMA/SMK") |
+| `employment_type` | string | - | Filter by employment type ID, slug, or name (e.g., UUID, "part-time", or "Part Time") |
+| `experience_level` | string | - | Filter by experience level ID, slug, or name (e.g., UUID, "senior", or "Senior") |
+| `education_level` | string | - | Filter by education level ID, slug, or name (e.g., UUID, "s1", or "S1") |
 | **Category & Tag Filters** |
-| `job_category` | string | - | Filter by category ID or slug |
+| `job_category` | string | - | Filter by category ID, slug, or name (e.g., UUID, "category-1", or "Category 1") |
 | `category` | string | - | Alias for `job_category` |
-| `job_tag` | string | - | Filter by tag ID or slug |
+| `job_tag` | string | - | Filter by tag ID, slug, or name (e.g., UUID, "tag-1", or "Tag 1") |
 | `tag` | string | - | Alias for `job_tag` |
 | **Salary Filters** |
 | `job_salary_min` | integer | - | Minimum salary threshold (returns jobs with min salary >= this value) |
@@ -813,44 +813,97 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?page=1&limit=10&status=pub
   "data": {
     "posts": [
       {
-        "id": "uuid",
-        "title": "Senior Full Stack Developer",
-        "content": "Job description HTML...",
-        "excerpt": "Exciting opportunity...",
-        "slug": "senior-full-stack-developer",
-        "featured_image": "https://...",
-        "publish_date": "2025-10-25T10:00:00Z",
+        "id": "d071b083-1fc7-45f9-9541-8402ec2f2bd1",
+        "title": "Demo Job",
+        "content": "<p>This is Demo Job</p>",
+        "excerpt": "",
+        "slug": "demo-job",
+        "featured_image": null,
+        "publish_date": "2025-10-27T06:30:06.223Z",
         "status": "published",
-        "author_id": "uuid",
-        "post_type": "job",
-        "seo_title": "Senior Full Stack Developer - Acme Corp",
-        "meta_description": "Join our team...",
-        "focus_keyword": "full stack developer",
-        "created_at": "2025-10-24T10:00:00Z",
-        "updated_at": "2025-10-25T10:00:00Z",
-        "job_company_name": "Acme Corporation",
-        "employment_type": "Full Time",
-        "experience_level": "Senior",
-        "education_level": "S1",
-        "job_salary_min": 80000000,
-        "job_salary_max": 120000000,
+        "author_id": "user_33QTHobngBl4hGcnuEjuKnOhlqr",
+        "seo_title": "D",
+        "meta_description": "",
+        "focus_keyword": "",
+        "job_company_name": "ABC",
+        "job_company_logo": null,
+        "job_company_website": "https://abc.com",
+        "job_location": null,
+        "job_location_type": null,
+        "job_salary_min": "5000000",
+        "job_salary_max": "8000000",
         "job_salary_currency": "IDR",
         "job_salary_period": "month",
-        "job_skills": ["React", "Node.js", "TypeScript", "PostgreSQL"],
+        "job_is_salary_negotiable": false,
+        "job_application_url": "https://abc.com",
+        "job_application_email": "karir@abc.com",
+        "job_deadline": null,
+        "job_skills": ["Skill 1"],
+        "job_benefits": ["Bpjs"],
+        "job_requirements": "<p>Pintar</p>",
+        "job_responsibilities": "<p>Menggambar</p>",
+        "job_province_id": "31",
+        "job_regency_id": "3173",
+        "job_district_id": "317307",
+        "job_village_id": "3173071005",
+        "job_address_detail": null,
+        "job_is_remote": false,
+        "job_is_hybrid": false,
+        "job_employment_type_id": "3c7fb61e-4697-4857-809c-c53cb23dba45",
+        "job_experience_level_id": "bfc661d5-cd27-40ab-b4f4-d3871150182a",
+        "job_education_level_id": "be29a5f4-19c7-4b34-abd6-dc436ef78199",
+        "employment_type": {
+          "id": "3c7fb61e-4697-4857-809c-c53cb23dba45",
+          "name": "Part Time",
+          "slug": "part-time"
+        },
+        "experience_level": {
+          "id": "bfc661d5-cd27-40ab-b4f4-d3871150182a",
+          "name": "Senior",
+          "slug": "senior",
+          "years_min": 5,
+          "years_max": 10
+        },
+        "education_level": {
+          "id": "be29a5f4-19c7-4b34-abd6-dc436ef78199",
+          "name": "S1",
+          "slug": "s1"
+        },
         "job_categories": [
           {
-            "id": "uuid",
-            "name": "Software Development",
-            "slug": "software-development"
+            "id": "ab315273-bc4c-44f6-bba2-c3a60839aa5c",
+            "name": "Category 1",
+            "slug": "category-1"
           }
         ],
         "job_tags": [
           {
-            "id": "uuid",
-            "name": "Full Stack",
-            "slug": "full-stack"
+            "id": "75252675-08ca-4009-894c-bb8bab1b679b",
+            "name": "Tag 1",
+            "slug": "tag-1"
           }
-        ]
+        ],
+        "province": {
+          "id": "31",
+          "name": "DKI JAKARTA"
+        },
+        "regency": {
+          "id": "3173",
+          "name": "KOTA ADM. JAKARTA BARAT",
+          "province_id": "31"
+        },
+        "district": {
+          "id": "317307",
+          "name": "Pal Merah",
+          "regency_id": "3173"
+        },
+        "village": {
+          "id": "3173071005",
+          "name": "Kemanggisan",
+          "district_id": "317307"
+        },
+        "created_at": "2025-10-26T18:05:31.171Z",
+        "updated_at": "2025-10-27T06:30:07.020Z"
       }
     ],
     "pagination": {
@@ -881,6 +934,46 @@ curl -X GET "https://your-domain.com/api/v1/job-posts?page=1&limit=10&status=pub
   },
   "cached": false
 }
+```
+
+**Flexible Filter Support**:
+
+All filter parameters support **multiple input formats** for maximum flexibility:
+
+**Employment Type, Experience Level, and Education Level filters accept:**
+- **ID (UUID)**: `employment_type=3c7fb61e-4697-4857-809c-c53cb23dba45`
+- **Slug**: `employment_type=part-time`
+- **Name**: `employment_type=Part%20Time` (URL-encoded) or `employment_type=Part Time`
+
+**Category and Tag filters accept:**
+- **ID (UUID)**: `job_category=ab315273-bc4c-44f6-bba2-c3a60839aa5c`
+- **Slug**: `job_category=category-1`
+- **Name**: `job_category=Category%201` (URL-encoded) or `job_category=Category 1`
+
+**URL Encoding Support**:
+All filter parameters automatically decode URL-encoded values, so both formats work:
+- `?job_category=Category 1` (space)
+- `?job_category=Category%201` (URL-encoded)
+
+**Filter Examples**:
+```bash
+# Filter by employment type - all three work the same:
+GET /api/v1/job-posts?employment_type=3c7fb61e-4697-4857-809c-c53cb23dba45  # By UUID
+GET /api/v1/job-posts?employment_type=part-time                              # By slug
+GET /api/v1/job-posts?employment_type=Part%20Time                            # By name
+
+# Filter by category - all three work the same:
+GET /api/v1/job-posts?job_category=ab315273-bc4c-44f6-bba2-c3a60839aa5c  # By UUID
+GET /api/v1/job-posts?job_category=category-1                             # By slug
+GET /api/v1/job-posts?job_category=Category%201                           # By name
+
+# Filter by experience level:
+GET /api/v1/job-posts?experience_level=senior      # By slug
+GET /api/v1/job-posts?experience_level=Senior      # By name
+
+# Filter by education level:
+GET /api/v1/job-posts?education_level=s1           # By slug
+GET /api/v1/job-posts?education_level=S1           # By name
 ```
 
 **Work Policy Filter Details**:
