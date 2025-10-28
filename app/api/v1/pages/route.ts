@@ -4,7 +4,6 @@ import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/resp
 import { mapPagesFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData } from '@/lib/cache'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
-import { checkRateLimit } from '@/lib/rate-limit'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
 export async function OPTIONS(request: NextRequest) {
@@ -22,14 +21,6 @@ export async function GET(request: NextRequest) {
     
     if (!validToken) {
       return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
-    }
-    
-    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`)
-    if (!rateLimitResult.success) {
-      return setCorsHeaders(
-        errorResponse('Rate limit exceeded. Please try again later.', 429),
-        origin
-      )
     }
     
     const { searchParams } = new URL(request.url)

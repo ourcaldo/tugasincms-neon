@@ -8,7 +8,6 @@ import {
   validationErrorResponse,
 } from "@/lib/response";
 import { setCorsHeaders, handleCorsPreflightRequest } from "@/lib/cors";
-import { checkRateLimit } from "@/lib/rate-limit";
 import { getCachedData, setCachedData } from "@/lib/cache";
 import { z } from "zod";
 import {
@@ -78,14 +77,6 @@ export async function GET(request: NextRequest) {
     if (!validToken) {
       return setCorsHeaders(
         unauthorizedResponse("Invalid or expired API token"),
-        origin,
-      );
-    }
-
-    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`);
-    if (!rateLimitResult.success) {
-      return setCorsHeaders(
-        errorResponse("Rate limit exceeded. Please try again later.", 429),
         origin,
       );
     }
@@ -374,14 +365,6 @@ export async function POST(request: NextRequest) {
     if (!validToken) {
       return setCorsHeaders(
         unauthorizedResponse("Invalid or expired API token"),
-        origin,
-      );
-    }
-
-    const rateLimitResult = await checkRateLimit(`api_token:${validToken.id}`);
-    if (!rateLimitResult.success) {
-      return setCorsHeaders(
-        errorResponse("Rate limit exceeded. Please try again later.", 429),
         origin,
       );
     }
