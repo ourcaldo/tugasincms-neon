@@ -6,7 +6,6 @@ const CACHE_TTL = 3600
 
 export function getRedisClient(): Redis | null {
   if (!process.env.REDIS_URL) {
-    console.warn('Redis URL not configured, caching disabled')
     return null
   }
 
