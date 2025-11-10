@@ -20,12 +20,6 @@ Authorization: Bearer <your-api-token>
 
 You can generate API tokens from the Settings page in your CMS dashboard.
 
-## Rate Limiting
-
-- **Limit**: 100 requests per 15 minutes per API token
-- **Headers**: Rate limit information is available in response headers
-- **Response**: 429 status code when limit exceeded
-
 ## Response Format
 
 All endpoints return JSON responses in the following format:
@@ -524,7 +518,6 @@ curl -X GET "https://your-domain.com/api/v1/tags/javascript?page=1&limit=10" \
 | 400 | Bad Request - Invalid parameters |
 | 401 | Unauthorized - Invalid or missing API token |
 | 404 | Not Found - Resource not found |
-| 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Internal Server Error |
 
 ---
@@ -646,16 +639,15 @@ async function buildPaginationControls(currentPage, totalPages) {
 
 ### API Usage Best Practices
 1. **Cache Responses**: Leverage built-in caching and store responses client-side
-2. **Handle Rate Limits**: Implement exponential backoff when rate limited (429 status)
-3. **Use Slugs**: Prefer slugs over UUIDs for SEO-friendly and readable URLs
-4. **Search Efficiently**: Use specific search terms to reduce response size
-5. **Filter Wisely**: Combine filters (category + tag + search) for precise results
+2. **Use Slugs**: Prefer slugs over UUIDs for SEO-friendly and readable URLs
+3. **Search Efficiently**: Use specific search terms to reduce response size
+4. **Filter Wisely**: Combine filters (category + tag + search) for precise results
 6. **Handle Errors Gracefully**: Always check `success` field and handle errors appropriately
 
 ### Performance Optimization
 1. **Request only needed data**: Use `limit` parameter to fetch appropriate amounts
 2. **Combine filters**: Use category, tag, and search together instead of multiple requests
-3. **Monitor `cached` flag**: Cached responses are instant and don't count toward rate limits
+3. **Monitor `cached` flag**: Cached responses are instant for frequently accessed data
 4. **Prefetch next page**: Load next page data in background for faster navigation
 5. **Debounce search input**: Wait for user to stop typing before making search requests
 
@@ -710,9 +702,8 @@ Job Posts are a custom post type in TugasCMS designed for managing job listings.
 2. **Auto-Creation**: If a category or tag doesn't exist, it will be automatically created
 3. **Case-Insensitive Matching**: Values are matched case-insensitively and formatted to Title Case (e.g., "software engineer" → "Software Engineer")
 4. **Backward Compatible**: Accepts both UUIDs (existing behavior) and value names (new behavior)
-5. **Rate Limiting**: 1000 requests per minute per API token
-6. **Caching**: 1 hour cache for GET requests
-7. **CORS**: Fully supported for cross-origin requests
+5. **Caching**: 1 hour cache for GET requests
+6. **CORS**: Fully supported for cross-origin requests
 
 ---
 
@@ -2048,5 +2039,4 @@ curl -X GET "https://your-domain.com/api/v1/pages?category=legal" \
 
 For API support or questions:
 - Check the CMS dashboard settings for API token management
-- Review rate limit headers in responses
 - Monitor the `cached` flag to verify cache behavior

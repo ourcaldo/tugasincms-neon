@@ -121,10 +121,11 @@ lib/
 ├── validation.ts          # Zod validation schemas
 ├── response.ts            # Standardized API responses
 ├── post-mapper.ts         # Database to API response mapping
-├── rate-limit.ts          # Rate limiting implementation
 ├── cors.ts                # CORS configuration
 ├── cache.ts               # Redis caching utilities
-└── sitemap.ts             # Sitemap generation utilities
+├── sitemap.ts             # Sitemap generation utilities
+├── job-utils.ts           # Job post type lookups and processing
+└── location-utils.ts      # Location hierarchy and name-to-ID lookups
 
 hooks/                     # Custom React hooks
 styles/                    # Global styles and Tailwind config
@@ -149,7 +150,6 @@ scripts/
 - Clerk authentication with middleware protection
 - Ownership validation (users can only edit their own content)
 - API token authentication for public endpoints
-- Rate limiting (100 req/15min for public API)
 - CORS configuration for external access
 - Zod schema validation on all inputs
 
@@ -234,6 +234,63 @@ SITEMAP_HOST=tugasin.me
 2. **Sitemap Cron** - `npm run sitemap:cron` - Background sitemap regeneration every 60 minutes
 
 ## Recent Changes
+
+### Documentation Correction - Removed Non-Existent Rate Limiting References (November 10, 2025 - 16:00 UTC)
+
+**Summary**: Corrected API_DOCUMENTATION.md and project.md to remove all references to rate limiting, which was documented but never actually implemented in the codebase.
+
+**Problem Statement**:
+- Documentation claimed rate limiting existed: "100 requests per 15 minutes per API token"
+- project.md referenced a `lib/rate-limit.ts` file that doesn't exist
+- API_DOCUMENTATION.md included rate limiting headers, 429 status codes, and best practices
+- Created misleading contract for API consumers who expected rate limiting to be enforced
+
+**Investigation Results**:
+1. **Code Search**: grep search across entire `app/api/v1` directory found ZERO rate limiting imports or function calls
+2. **File Check**: `lib/rate-limit.ts` file does NOT exist (confirmed via glob search)
+3. **Endpoint Analysis**: job-posts GET and POST handlers have no rate limiting middleware
+4. **Codebase Confirmation**: search_codebase confirmed "no explicit rate limiting implemented"
+
+**Changes Made**:
+
+1. **API_DOCUMENTATION.md**:
+   - Removed "Rate Limiting" section (100 req/15min documentation)
+   - Removed 429 status code from HTTP Status Codes table
+   - Removed "Handle Rate Limits" from API Usage Best Practices
+   - Updated Performance Optimization section (removed rate limit references)
+   - Removed rate limiting from Special Features list
+   - Removed rate limit headers from Support section
+
+2. **project.md**:
+   - Removed `lib/rate-limit.ts` from Project Structure
+   - Added actual files: `lib/job-utils.ts` and `lib/location-utils.ts`
+   - Removed "Rate limiting (100 req/15min for public API)" from Authentication & Security
+   - Removed "with rate limiting" from Job Posts Filter Data API description
+   - Removed "Rate limiting enforced (100 req/15min)" from implementation checklist
+   - Removed "Added rate limiting (100 req/15min)" from October 3, 2025 changelog
+
+**Technical Reality**:
+- ✅ API endpoints work without rate limiting
+- ✅ No rate limiting middleware exists
+- ✅ No rate limiting headers in responses
+- ✅ No 429 status codes returned
+- ✅ CORS, caching, and authentication all work independently
+
+**Impact**:
+- ✅ **Accurate Documentation**: Documentation now matches actual implementation
+- ✅ **Clear Expectations**: API consumers know there's no rate limiting
+- ✅ **Reduced Confusion**: No misleading claims about non-existent features
+- ✅ **Honest Contract**: API documentation reflects real behavior
+
+**Future Considerations**:
+- If rate limiting is needed in the future, it should be implemented BEFORE being documented
+- Consider adding to backlog as "Implement rate limiting for API v1 endpoints" if required
+
+**Files Modified**:
+- `API_DOCUMENTATION.md` - Removed 7 rate limiting references
+- `project.md` - Removed 5 rate limiting references, updated lib/ structure
+
+---
 
 ### API Documentation Update - Comprehensive Preprocessing Layer Documentation (November 10, 2025 - 15:30 UTC)
 
@@ -1278,7 +1335,7 @@ User must manually execute SQL queries from `SQL_EDUCATION_LEVEL_MIGRATION.sql`:
    - Lists provinces and regencies that have job posts
    - Aggregates all unique skills with usage frequency
    - Cached for 1 hour with automatic invalidation
-   - Bearer token authentication with rate limiting
+   - Bearer token authentication
 
 2. **Enhanced Job Posts Filtering** (`GET /api/v1/job-posts`):
    - **New Filter Parameters**:
@@ -2000,7 +2057,6 @@ All 16 API endpoints tested successfully with Bearer token `cms_4iL1SEEXB7oQoiYD
 - ✅ Pagination working correctly
 - ✅ Redis caching active (1-hour TTL)
 - ✅ Proper CORS headers for cross-origin requests
-- ✅ Rate limiting enforced (100 req/15min)
 
 ---
 
@@ -2638,7 +2694,7 @@ if (fs.existsSync(envPath)) {
 - Implemented Zod validation for all POST/PUT requests
 - Added ownership checks - users can only modify their own data
 - Implemented Redis caching for internal API endpoints (5min posts, 10min categories/tags)
-- Added rate limiting (100 req/15min) and CORS to public API
+- Added CORS to public API
 - Improved cache invalidation - category/tag updates clear related caches
 - Standardized response format across all endpoints
 - Created shared utility files for auth, validation, and response formatting
