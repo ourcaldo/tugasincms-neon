@@ -1037,21 +1037,21 @@ Create a new job posting via external API.
 | `job_company_name` | string | No | Company name (max 200 chars) |
 | `job_company_logo` | string | No | Company logo URL |
 | `job_company_website` | string | No | Company website URL |
-| `job_employment_type_id` | string (UUID) | No | Employment type ID |
-| `job_experience_level_id` | string (UUID) | No | Experience level ID |
-| `job_education_level_id` | string (UUID) | No | Education level ID |
-| `job_salary_min` | number | No | Minimum salary |
-| `job_salary_max` | number | No | Maximum salary |
+| `job_employment_type_id` | string | No | Employment type: UUID, slug, or name (e.g., "Full Time", "full-time") |
+| `job_experience_level_id` | string | No | Experience level: UUID, slug, or name (e.g., "Senior", "senior") |
+| `job_education_level_id` | string | No | Education level: UUID, slug, or name (e.g., "S1", "s1") |
+| `job_salary_min` | number or string | No | Minimum salary (accepts integers or numeric strings) |
+| `job_salary_max` | number or string | No | Maximum salary (accepts integers or numeric strings) |
 | `job_salary_currency` | string | No | Currency code (default: IDR) |
 | `job_salary_period` | string | No | Salary period (default: monthly) |
-| `job_is_salary_negotiable` | boolean | No | Whether salary is negotiable |
-| `job_province_id` | string | No | Province ID (max 2 chars) |
-| `job_regency_id` | string | No | Regency/city ID (max 4 chars) |
-| `job_district_id` | string | No | District ID (max 6 chars) |
-| `job_village_id` | string | No | Village ID (max 10 chars) |
+| `job_is_salary_negotiable` | boolean or string | No | Salary negotiability (accepts true/false or "true"/"false") |
+| `job_province_id` | string | No | Province: 2-digit ID or name (e.g., "31" or "DKI Jakarta") |
+| `job_regency_id` | string | No | Regency/city: 4-digit ID or name (e.g., "3173" or "Jakarta Selatan") |
+| `job_district_id` | string | No | District: 6-digit ID or name (e.g., "317304" or "Tebet") |
+| `job_village_id` | string | No | Village: 10-digit ID or name (e.g., "3173041001" or "Tebet Barat") |
 | `job_address_detail` | string | No | Detailed address |
-| `job_is_remote` | boolean | No | Whether job is remote |
-| `job_is_hybrid` | boolean | No | Whether job is hybrid |
+| `job_is_remote` | boolean or string | No | Remote work flag (accepts true/false or "true"/"false") |
+| `job_is_hybrid` | boolean or string | No | Hybrid work flag (accepts true/false or "true"/"false") |
 | `job_application_email` | string | No | Application email |
 | `job_application_url` | string | No | Application URL |
 | `job_application_deadline` | string (ISO 8601) | No | Application deadline |
@@ -1061,6 +1061,164 @@ Create a new job posting via external API.
 | `job_responsibilities` | string | No | Job responsibilities (HTML) |
 | `job_categories` | string or array | No | Categories (names, IDs, or comma-separated) |
 | `job_tags` | string or array | No | Tags (names, IDs, or comma-separated) |
+
+---
+
+#### Flexible Input Types & Preprocessing
+
+The API includes an intelligent preprocessing layer that automatically converts and validates your input data before storage. This makes the API more flexible and developer-friendly by accepting multiple input formats.
+
+**1. Salary Fields (`job_salary_min`, `job_salary_max`)**
+
+Accepts both numbers and numeric strings with strict validation:
+
+```json
+// All valid formats:
+{
+  "job_salary_min": 5000000,           // Number (preferred)
+  "job_salary_min": "5000000",         // Numeric string
+  "job_salary_max": 10000000           // Number
+}
+
+// Invalid formats (will return 400 error):
+{
+  "job_salary_min": "5000000.50",      // Decimals not allowed
+  "job_salary_min": "5000 USD",        // Non-numeric characters rejected
+  "job_salary_min": "abc"              // Invalid input
+}
+```
+
+- **Validation**: Only integers allowed using `/^\d+$/` regex
+- **Error Handling**: Returns clear 400 validation errors with specific messages
+- **No Silent Truncation**: Rejects malformed values instead of converting them
+
+**2. Boolean Fields (`job_is_salary_negotiable`, `job_is_remote`, `job_is_hybrid`)**
+
+Accepts both boolean values and string representations:
+
+```json
+// All valid formats:
+{
+  "job_is_remote": true,               // Boolean (preferred)
+  "job_is_remote": "true",             // String (case-insensitive)
+  "job_is_hybrid": false,              // Boolean
+  "job_is_hybrid": "false"             // String
+}
+
+// Invalid formats (will return 400 error):
+{
+  "job_is_remote": "yes",              // Must be "true" or "false"
+  "job_is_remote": "1",                // Numeric strings not accepted
+  "job_is_remote": ""                  // Empty strings not accepted
+}
+```
+
+- **Case-Insensitive**: Accepts "True", "TRUE", "true", "False", "FALSE", "false"
+- **Strict Validation**: Only accepts "true"/"false" strings or boolean values
+- **Clear Errors**: Returns explicit error messages for ambiguous values
+
+**3. Employment Type, Experience Level, Education Level**
+
+These fields accept **UUID**, **slug**, or **name** formats:
+
+```json
+// Employment Type - all valid:
+{
+  "job_employment_type_id": "uuid-here",           // UUID (backward compatible)
+  "job_employment_type_id": "full-time",           // Slug
+  "job_employment_type_id": "Full Time"            // Name (case-insensitive)
+}
+
+// Experience Level - all valid:
+{
+  "job_experience_level_id": "uuid-here",          // UUID
+  "job_experience_level_id": "senior",             // Slug
+  "job_experience_level_id": "Senior"              // Name
+}
+
+// Education Level - all valid:
+{
+  "job_education_level_id": "uuid-here",           // UUID
+  "job_education_level_id": "s1",                  // Slug
+  "job_education_level_id": "S1"                   // Name (case-insensitive)
+}
+```
+
+- **Database Lookup**: API automatically looks up the UUID from name or slug
+- **Case-Insensitive Matching**: "Senior", "SENIOR", "senior" all match the same record
+- **Validation**: Returns 400 error if the value doesn't exist in the database
+- **Error Messages**: Clear feedback like "Employment type 'Invalid' not found. Please use a valid UUID, slug, or name."
+
+**4. Location Fields (Province, Regency, District, Village)**
+
+These fields accept **numeric IDs** or **location names**:
+
+```json
+// Province - all valid:
+{
+  "job_province_id": "31",                 // 2-digit ID
+  "job_province_id": "DKI JAKARTA",        // Full name (case-insensitive)
+  "job_province_id": "Jakarta"             // Common name (case-insensitive)
+}
+
+// Regency - all valid:
+{
+  "job_regency_id": "3173",                // 4-digit ID
+  "job_regency_id": "Jakarta Selatan",     // Name (case-insensitive)
+  "job_regency_id": "Kota Tangerang"       // Name with prefix
+}
+
+// District - all valid:
+{
+  "job_district_id": "317304",             // 6-digit ID
+  "job_district_id": "Tebet"               // Name (case-insensitive)
+}
+
+// Village - all valid:
+{
+  "job_village_id": "3173041001",          // 10-digit ID
+  "job_village_id": "Tebet Barat"          // Name (case-insensitive)
+}
+```
+
+- **Name-to-ID Conversion**: API automatically converts location names to IDs
+- **Case-Insensitive**: "BANTEN", "Banten", "banten" all match the same province
+- **Duplicate Detection**: If multiple locations share the same name, API requests parent context
+  - Example error: "Multiple regencies found with name 'Tangerang'. Please provide job_province_id to disambiguate"
+- **Hierarchy Context**: You can provide parent location to disambiguate duplicates
+  ```json
+  {
+    "job_province_id": "Banten",
+    "job_regency_id": "Kota Tangerang"  // Uses province context to find correct regency
+  }
+  ```
+- **Clear Error Messages**: Shows original user input, not normalized IDs
+  - Example: "Regency 'Kota Tangerang' in province 'Banten' not found"
+
+**5. Publish Date Auto-Default**
+
+If `publish_date` is empty, null, or not provided, it automatically defaults to the current datetime:
+
+```json
+// All these result in current datetime:
+{
+  "publish_date": ""                       // Empty string → now
+}
+// OR
+{
+  "publish_date": null                     // Null → now
+}
+// OR
+{
+  // Field omitted → now
+}
+```
+
+**6. Categories and Tags**
+
+Accepts **UUIDs**, **names**, or **comma-separated strings** (see "Field Format Reference" section below for full details).
+
+---
 
 #### Location Auto-Mapping
 
@@ -1101,7 +1259,7 @@ Final result:
 }
 ```
 
-**Example Request (with comma-separated values)**:
+**Example Request (with flexible input types - recommended)**:
 ```bash
 curl -X POST "https://your-domain.com/api/v1/job-posts" \
   -H "Content-Type: application/json" \
@@ -1112,10 +1270,18 @@ curl -X POST "https://your-domain.com/api/v1/job-posts" \
     "content": "<p>We are looking for an experienced developer...</p>",
     "status": "published",
     "job_company_name": "Acme Corporation",
-    "job_salary_min": 80000000,
-    "job_salary_max": 120000000,
+    "job_employment_type_id": "Full Time",
+    "job_experience_level_id": "senior",
+    "job_education_level_id": "S1",
+    "job_salary_min": "80000000",
+    "job_salary_max": "120000000",
     "job_salary_currency": "IDR",
-    "job_salary_period": "month",
+    "job_salary_period": "monthly",
+    "job_is_salary_negotiable": "false",
+    "job_province_id": "DKI Jakarta",
+    "job_regency_id": "Jakarta Selatan",
+    "job_is_remote": "true",
+    "job_is_hybrid": "false",
     "job_categories": "Software Development, Engineering",
     "job_tags": "Full Stack, Remote Friendly, TypeScript",
     "job_skills": "React, Node.js, TypeScript, PostgreSQL, Docker"

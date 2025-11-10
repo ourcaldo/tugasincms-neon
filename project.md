@@ -235,6 +235,66 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### API Documentation Update - Comprehensive Preprocessing Layer Documentation (November 10, 2025 - 15:30 UTC)
+
+**Summary**: Updated API_DOCUMENTATION.md to comprehensively document the preprocessing layer and flexible input types for the `/api/v1/job-posts` POST endpoint. The documentation now clearly explains all automatic type conversions, name-to-ID lookups, and validation behaviors.
+
+**Problem Statement**:
+- API documentation showed rigid input types (e.g., "UUID only" for employment_type_id)
+- Preprocessing layer features were undocumented, causing confusion about what input formats are accepted
+- No documentation for salary string-to-integer conversion, boolean string handling, or location name lookups
+- Missing examples showing the flexible input capabilities
+
+**Changes Made to API_DOCUMENTATION.md**:
+
+1. **Updated Request Body Table** (lines 1043-1057):
+   - Changed `job_employment_type_id` type from "string (UUID)" to "string" with description: "UUID, slug, or name"
+   - Changed `job_experience_level_id` type from "string (UUID)" to "string" with description: "UUID, slug, or name"
+   - Changed `job_education_level_id` type from "string (UUID)" to "string" with description: "UUID, slug, or name"
+   - Changed `job_salary_min` and `job_salary_max` type from "number" to "number or string"
+   - Changed boolean fields to "boolean or string" with description: accepts true/false or "true"/"false"
+   - Updated location fields to show "ID or name" with examples
+
+2. **Added New Section "Flexible Input Types & Preprocessing"** (lines 1070-1223):
+   - **Salary Fields**: Documents strict integer validation with `/^\d+$/` regex, rejection of decimals/non-numeric
+   - **Boolean Fields**: Documents case-insensitive "true"/"false" string handling, strict validation
+   - **Employment/Experience/Education Types**: Documents UUID/slug/name lookup with case-insensitive matching
+   - **Location Fields**: Documents ID-or-name input with duplicate detection and parent context disambiguation
+   - **Publish Date**: Documents auto-default to current datetime when empty/null
+   - **Categories and Tags**: References existing Field Format Reference section
+
+3. **Updated Examples** (line 1265):
+   - Changed "Example Request (with comma-separated values)" to "Example Request (with flexible input types - recommended)"
+   - Added showcase of all flexible input types:
+     - `"job_employment_type_id": "Full Time"` (name instead of UUID)
+     - `"job_experience_level_id": "senior"` (slug instead of UUID)
+     - `"job_education_level_id": "S1"` (name instead of UUID)
+     - `"job_salary_min": "80000000"` (string instead of number)
+     - `"job_is_salary_negotiable": "false"` (string instead of boolean)
+     - `"job_province_id": "DKI Jakarta"` (name instead of ID)
+     - `"job_regency_id": "Jakarta Selatan"` (name instead of ID)
+     - `"job_is_remote": "true"` (string instead of boolean)
+
+**Technical Details**:
+- All preprocessing happens in `normalizeJobPostPayload()` function before Zod validation
+- Location lookups use functions from `lib/location-utils.ts`
+- Employment/experience/education lookups use functions from `lib/job-utils.ts`
+- Preprocessing errors return 400 validation errors (not 500 server errors)
+- Clear error messages reference original user input, not normalized values
+
+**Impact**:
+- ✅ **Complete Documentation**: All preprocessing behaviors now documented
+- ✅ **Clear Type Information**: Request Body table shows exact accepted types
+- ✅ **Better Developer Experience**: Developers know exactly what formats are accepted
+- ✅ **Reduced Support Requests**: Clear examples prevent common confusion
+- ✅ **Improved API Usability**: Frontend developers can send data in natural formats
+- ✅ **Comprehensive Examples**: Showcase demonstrates all flexible input capabilities
+
+**Files Modified**:
+- `API_DOCUMENTATION.md` - Updated POST /api/v1/job-posts section with preprocessing documentation and examples
+
+---
+
 ### Location Name-to-ID Lookup - Accept Province/Regency Names (November 10, 2025 - 15:00 UTC)
 
 **Summary**: Extended preprocessing layer to accept location names instead of numeric codes for provinces, regencies, districts, and villages. Users can now send "Banten" instead of "36", "DKI JAKARTA" instead of "31", with automatic duplicate detection and hierarchy resolution.
