@@ -235,6 +235,126 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Location Name-to-ID Lookup - Accept Province/Regency Names (November 10, 2025 - 15:00 UTC)
+
+**Summary**: Extended preprocessing layer to accept location names instead of numeric codes for provinces, regencies, districts, and villages. Users can now send "Banten" instead of "36", "DKI JAKARTA" instead of "31", with automatic duplicate detection and hierarchy resolution.
+
+**Problem Statement**:
+- User reported province validation error: "Province ID must not exceed 2 characters"
+- Frontend sending province names like "Banten", "Jakarta" instead of 2-digit codes like "36", "31"
+- Same issue for regencies (4-digit), districts (6-digit), and villages (10-digit)
+- Required complex frontend logic to lookup location codes before API calls
+
+**Solution - Location Name Lookups with Duplicate Detection**:
+
+1. **Added Lookup Functions** in `lib/location-utils.ts`:
+   - `findProvinceByNameOrId`: Accepts 2-digit ID or province name (e.g., "31" or "DKI JAKARTA")
+   - `findRegencyByNameOrId`: Accepts 4-digit ID or regency name, with optional province context
+   - `findDistrictByNameOrId`: Accepts 6-digit ID or district name, with optional regency/province context
+   - `findVillageByNameOrId`: Accepts 10-digit ID or village name, with optional district/regency/province context
+
+2. **Duplicate Detection & Disambiguation**:
+   - Detects when multiple locations share the same name
+   - Requests parent context to disambiguate: `Multiple regencies found with name "Tangerang". Please provide job_province_id to disambiguate`
+   - Uses hierarchical context when provided to constrain searches
+   - Case-insensitive matching with UPPER() for name lookups
+
+3. **Error Messages Show User Input**:
+   - Caches original user inputs before normalization
+   - Error messages reference what user sent: `Regency "Kota Tangerang" in province "Banten" not found`
+   - NOT: `Regency "Kota Tangerang" in province "36" not found`
+
+4. **Hierarchy Auto-Resolution**:
+   - After ID lookups, calls `resolveLocationHierarchy` to auto-fill missing parents
+   - Example: Send only village_id, system auto-fills district, regency, and province
+   - Validates hierarchy consistency
+
+**Technical Implementation**:
+
+```typescript
+// lib/location-utils.ts - Province lookup
+export async function findProvinceByNameOrId(input: string): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  const trimmed = input.trim();
+  
+  // Short-circuit if input is 2-digit ID
+  if (trimmed.length === 2 && /^\d+$/.test(trimmed)) {
+    const result = await sql`SELECT id FROM reg_provinces WHERE id = ${trimmed} LIMIT 1`;
+    if (!result || result.length === 0) {
+      throw new Error(`Province with ID "${input}" not found`);
+    }
+    return result[0].id;
+  }
+  
+  // Name lookup with case-insensitive matching
+  const result = await sql`
+    SELECT id FROM reg_provinces 
+    WHERE UPPER(name) = UPPER(${trimmed})
+    LIMIT 1
+  `;
+  
+  if (!result || result.length === 0) {
+    throw new Error(`Province "${input}" not found. Please use a valid 2-digit ID or province name`);
+  }
+  return result[0].id;
+}
+
+// app/api/v1/job-posts/route.ts - Integration
+const originalProvinceInput = normalized.job_province_id;
+const originalRegencyInput = normalized.job_regency_id;
+
+if (normalized.job_province_id && normalized.job_province_id !== '') {
+  normalized.job_province_id = await findProvinceByNameOrId(normalized.job_province_id);
+}
+
+if (normalized.job_regency_id && normalized.job_regency_id !== '') {
+  // Pass original province input for error messages
+  normalized.job_regency_id = await findRegencyByNameOrId(normalized.job_regency_id, originalProvinceInput);
+}
+
+// Auto-fill hierarchy
+const resolvedLocation = await resolveLocationHierarchy({
+  province_id: normalized.job_province_id || null,
+  regency_id: normalized.job_regency_id || null,
+  district_id: normalized.job_district_id || null,
+  village_id: normalized.job_village_id || null,
+});
+```
+
+**Files Modified**:
+- `lib/location-utils.ts` - Added 4 lookup functions with duplicate detection
+- `app/api/v1/job-posts/route.ts` - Integrated location lookups into preprocessing, caches original inputs for error messages
+
+**Accepted Location Names** (from reg_provinces table):
+- "ACEH" or "11"
+- "DKI JAKARTA" or "31" (also accepts "Jakarta")
+- "JAWA BARAT" or "32" (also accepts "Jawa Barat")
+- "BANTEN" or "36" (also accepts "Banten")
+- And all other province names (case-insensitive)
+
+**Impact**:
+- ✅ **Human-Readable Names**: Send "Banten" instead of "36", "Jakarta" instead of "31"
+- ✅ **Duplicate Detection**: Prevents ambiguous matches, asks for parent context when needed
+- ✅ **Clear Error Messages**: Shows original user input, not normalized IDs
+- ✅ **Hierarchy Auto-Fill**: Automatically populates missing parent location IDs
+- ✅ **Case-Insensitive**: Accepts "BANTEN", "Banten", "banten"
+- ✅ **Backward Compatible**: Still accepts numeric IDs
+- ⚠️ **Known Limitation**: Edge case mismatch errors from `resolveLocationHierarchy` may still show numeric IDs
+
+**Example POST Request**:
+```json
+{
+  "job_province_id": "Banten",
+  "job_regency_id": "Kota Tangerang",
+  "job_employment_type_id": "Full Time",
+  "job_experience_level_id": "senior",
+  "job_salary_min": "5000000",
+  "job_is_remote": "true"
+}
+```
+
+---
+
 ### Job Posts API Preprocessing Layer - Flexible Input Types (November 10, 2025 - 14:25 UTC)
 
 **Summary**: Implemented a preprocessing layer for the `/api/v1/job-posts` POST endpoint that automatically converts string inputs to proper types (numbers, booleans) and resolves employment type, experience level, and education level UUIDs from names or slugs. This allows frontends to submit job posts using human-readable labels instead of UUIDs, with automatic type coercion for salary and boolean fields.

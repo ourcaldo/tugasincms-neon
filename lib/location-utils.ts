@@ -126,3 +126,148 @@ export async function resolveLocationHierarchy(
     throw error
   }
 }
+
+export async function findProvinceByNameOrId(input: string): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  const trimmed = input.trim();
+  
+  if (trimmed.length === 2 && /^\d+$/.test(trimmed)) {
+    const result = await sql`SELECT id FROM reg_provinces WHERE id = ${trimmed} LIMIT 1`;
+    if (!result || result.length === 0) {
+      throw new Error(`Province with ID "${input}" not found`);
+    }
+    return result[0].id;
+  }
+  
+  const result = await sql`
+    SELECT id FROM reg_provinces 
+    WHERE UPPER(name) = UPPER(${trimmed})
+    LIMIT 1
+  `;
+  
+  if (!result || result.length === 0) {
+    throw new Error(`Province "${input}" not found. Please use a valid 2-digit ID or province name`);
+  }
+  return result[0].id;
+}
+
+export async function findRegencyByNameOrId(input: string, provinceIdOrName?: string): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  const trimmed = input.trim();
+  
+  if (trimmed.length === 4 && /^\d+$/.test(trimmed)) {
+    const result = await sql`SELECT id FROM reg_regencies WHERE id = ${trimmed} LIMIT 1`;
+    if (!result || result.length === 0) {
+      throw new Error(`Regency with ID "${input}" not found`);
+    }
+    return result[0].id;
+  }
+  
+  let provinceId: string | null = null;
+  if (provinceIdOrName) {
+    provinceId = await findProvinceByNameOrId(provinceIdOrName);
+  }
+  
+  const result = provinceId
+    ? await sql`
+        SELECT id FROM reg_regencies 
+        WHERE UPPER(name) = UPPER(${trimmed}) AND province_id = ${provinceId}
+      `
+    : await sql`
+        SELECT id FROM reg_regencies 
+        WHERE UPPER(name) = UPPER(${trimmed})
+      `;
+  
+  if (!result || result.length === 0) {
+    const hint = provinceId ? ` in province "${provinceIdOrName}"` : '';
+    throw new Error(`Regency "${input}"${hint} not found. Please use a valid 4-digit ID or regency name`);
+  }
+  
+  if (result.length > 1 && !provinceId) {
+    throw new Error(`Multiple regencies found with name "${input}". Please provide job_province_id to disambiguate`);
+  }
+  
+  return result[0].id;
+}
+
+export async function findDistrictByNameOrId(input: string, regencyIdOrName?: string, provinceIdOrName?: string): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  const trimmed = input.trim();
+  
+  if (trimmed.length === 6 && /^\d+$/.test(trimmed)) {
+    const result = await sql`SELECT id FROM reg_districts WHERE id = ${trimmed} LIMIT 1`;
+    if (!result || result.length === 0) {
+      throw new Error(`District with ID "${input}" not found`);
+    }
+    return result[0].id;
+  }
+  
+  let regencyId: string | null = null;
+  if (regencyIdOrName) {
+    regencyId = await findRegencyByNameOrId(regencyIdOrName, provinceIdOrName);
+  }
+  
+  const result = regencyId
+    ? await sql`
+        SELECT id FROM reg_districts 
+        WHERE UPPER(name) = UPPER(${trimmed}) AND regency_id = ${regencyId}
+      `
+    : await sql`
+        SELECT id FROM reg_districts 
+        WHERE UPPER(name) = UPPER(${trimmed})
+      `;
+  
+  if (!result || result.length === 0) {
+    const hint = regencyId ? ` in regency "${regencyIdOrName}"` : '';
+    throw new Error(`District "${input}"${hint} not found. Please use a valid 6-digit ID or district name`);
+  }
+  
+  if (result.length > 1 && !regencyId) {
+    throw new Error(`Multiple districts found with name "${input}". Please provide job_regency_id to disambiguate`);
+  }
+  
+  return result[0].id;
+}
+
+export async function findVillageByNameOrId(input: string, districtIdOrName?: string, regencyIdOrName?: string, provinceIdOrName?: string): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  const trimmed = input.trim();
+  
+  if (trimmed.length === 10 && /^\d+$/.test(trimmed)) {
+    const result = await sql`SELECT id FROM reg_villages WHERE id = ${trimmed} LIMIT 1`;
+    if (!result || result.length === 0) {
+      throw new Error(`Village with ID "${input}" not found`);
+    }
+    return result[0].id;
+  }
+  
+  let districtId: string | null = null;
+  if (districtIdOrName) {
+    districtId = await findDistrictByNameOrId(districtIdOrName, regencyIdOrName, provinceIdOrName);
+  }
+  
+  const result = districtId
+    ? await sql`
+        SELECT id FROM reg_villages 
+        WHERE UPPER(name) = UPPER(${trimmed}) AND district_id = ${districtId}
+      `
+    : await sql`
+        SELECT id FROM reg_villages 
+        WHERE UPPER(name) = UPPER(${trimmed})
+      `;
+  
+  if (!result || result.length === 0) {
+    const hint = districtId ? ` in district "${districtIdOrName}"` : '';
+    throw new Error(`Village "${input}"${hint} not found. Please use a valid 10-digit ID or village name`);
+  }
+  
+  if (result.length > 1 && !districtId) {
+    throw new Error(`Multiple villages found with name "${input}". Please provide job_district_id to disambiguate`);
+  }
+  
+  return result[0].id;
+}

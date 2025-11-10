@@ -18,7 +18,13 @@ import {
   findExperienceLevelByNameOrSlug,
   findEducationLevelByNameOrSlug,
 } from "@/lib/job-utils";
-import { resolveLocationHierarchy } from "@/lib/location-utils";
+import { 
+  resolveLocationHierarchy,
+  findProvinceByNameOrId,
+  findRegencyByNameOrId,
+  findDistrictByNameOrId,
+  findVillageByNameOrId
+} from "@/lib/location-utils";
 
 const jobPostSchema = z.object({
   title: z.string().min(1, "Title is required").max(500, "Title must not exceed 500 characters"),
@@ -68,6 +74,10 @@ const jobPostSchema = z.object({
 
 async function normalizeJobPostPayload(body: any): Promise<any> {
   const normalized = { ...body };
+
+  const originalProvinceInput = normalized.job_province_id;
+  const originalRegencyInput = normalized.job_regency_id;
+  const originalDistrictInput = normalized.job_district_id;
 
   if (normalized.job_salary_min !== undefined && normalized.job_salary_min !== null && normalized.job_salary_min !== '') {
     if (typeof normalized.job_salary_min === 'string') {
@@ -141,6 +151,36 @@ async function normalizeJobPostPayload(body: any): Promise<any> {
 
   if (normalized.job_education_level_id && normalized.job_education_level_id !== '') {
     normalized.job_education_level_id = await findEducationLevelByNameOrSlug(normalized.job_education_level_id);
+  }
+
+  if (normalized.job_province_id && normalized.job_province_id !== '') {
+    normalized.job_province_id = await findProvinceByNameOrId(normalized.job_province_id);
+  }
+
+  if (normalized.job_regency_id && normalized.job_regency_id !== '') {
+    normalized.job_regency_id = await findRegencyByNameOrId(normalized.job_regency_id, originalProvinceInput);
+  }
+
+  if (normalized.job_district_id && normalized.job_district_id !== '') {
+    normalized.job_district_id = await findDistrictByNameOrId(normalized.job_district_id, originalRegencyInput, originalProvinceInput);
+  }
+
+  if (normalized.job_village_id && normalized.job_village_id !== '') {
+    normalized.job_village_id = await findVillageByNameOrId(normalized.job_village_id, originalDistrictInput, originalRegencyInput, originalProvinceInput);
+  }
+
+  if (normalized.job_province_id || normalized.job_regency_id || normalized.job_district_id || normalized.job_village_id) {
+    const resolvedLocation = await resolveLocationHierarchy({
+      province_id: normalized.job_province_id || null,
+      regency_id: normalized.job_regency_id || null,
+      district_id: normalized.job_district_id || null,
+      village_id: normalized.job_village_id || null,
+    });
+
+    normalized.job_province_id = resolvedLocation.province_id || normalized.job_province_id;
+    normalized.job_regency_id = resolvedLocation.regency_id || normalized.job_regency_id;
+    normalized.job_district_id = resolvedLocation.district_id || normalized.job_district_id;
+    normalized.job_village_id = resolvedLocation.village_id || normalized.job_village_id;
   }
 
   return normalized;
