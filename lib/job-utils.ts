@@ -153,3 +153,84 @@ export function processJobSkillsInput(
   const values = parseCommaSeparated(input);
   return values.map(skill => toTitleCase(skill));
 }
+
+export async function findEmploymentTypeByNameOrSlug(
+  input: string
+): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  if (isUUID(input)) {
+    return input;
+  }
+  
+  const normalizedInput = input.trim();
+  
+  const result = await sql`
+    SELECT id 
+    FROM job_employment_types 
+    WHERE id::text = ${normalizedInput}
+       OR slug = ${normalizedInput}
+       OR LOWER(name) = LOWER(${normalizedInput})
+    LIMIT 1
+  `;
+  
+  if (!result || result.length === 0) {
+    throw new Error(`Employment type "${input}" not found. Please use a valid UUID, slug, or name.`);
+  }
+  
+  return result[0].id;
+}
+
+export async function findExperienceLevelByNameOrSlug(
+  input: string
+): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  if (isUUID(input)) {
+    return input;
+  }
+  
+  const normalizedInput = input.trim();
+  
+  const result = await sql`
+    SELECT id 
+    FROM job_experience_levels 
+    WHERE id::text = ${normalizedInput}
+       OR slug = ${normalizedInput}
+       OR LOWER(name) = LOWER(${normalizedInput})
+    LIMIT 1
+  `;
+  
+  if (!result || result.length === 0) {
+    throw new Error(`Experience level "${input}" not found. Please use a valid UUID, slug, or name.`);
+  }
+  
+  return result[0].id;
+}
+
+export async function findEducationLevelByNameOrSlug(
+  input: string
+): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  
+  if (isUUID(input)) {
+    return input;
+  }
+  
+  const normalizedInput = input.trim();
+  
+  const result = await sql`
+    SELECT id 
+    FROM job_education_levels 
+    WHERE id::text = ${normalizedInput}
+       OR slug = ${normalizedInput}
+       OR LOWER(name) = LOWER(${normalizedInput})
+    LIMIT 1
+  `;
+  
+  if (!result || result.length === 0) {
+    throw new Error(`Education level "${input}" not found. Please use a valid UUID, slug, or name.`);
+  }
+  
+  return result[0].id;
+}

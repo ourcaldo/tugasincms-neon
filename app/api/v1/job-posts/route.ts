@@ -14,6 +14,9 @@ import {
   processJobCategoriesInput,
   processJobTagsInput,
   processJobSkillsInput,
+  findEmploymentTypeByNameOrSlug,
+  findExperienceLevelByNameOrSlug,
+  findEducationLevelByNameOrSlug,
 } from "@/lib/job-utils";
 import { resolveLocationHierarchy } from "@/lib/location-utils";
 
@@ -62,6 +65,86 @@ const jobPostSchema = z.object({
   job_categories: z.union([z.array(z.string()), z.string()]).optional(),
   job_tags: z.union([z.array(z.string()), z.string()]).optional(),
 });
+
+async function normalizeJobPostPayload(body: any): Promise<any> {
+  const normalized = { ...body };
+
+  if (normalized.job_salary_min !== undefined && normalized.job_salary_min !== null && normalized.job_salary_min !== '') {
+    if (typeof normalized.job_salary_min === 'string') {
+      const trimmed = normalized.job_salary_min.trim();
+      if (!/^\d+$/.test(trimmed)) {
+        throw new Error('job_salary_min must be a valid integer (no decimals or non-numeric characters allowed)');
+      }
+      const parsed = Number(trimmed);
+      if (!Number.isInteger(parsed)) {
+        throw new Error('job_salary_min must be an integer');
+      }
+      normalized.job_salary_min = parsed;
+    } else if (typeof normalized.job_salary_min === 'number') {
+      if (!Number.isInteger(normalized.job_salary_min)) {
+        throw new Error('job_salary_min must be an integer');
+      }
+    } else {
+      throw new Error('job_salary_min must be a number or numeric string');
+    }
+  }
+
+  if (normalized.job_salary_max !== undefined && normalized.job_salary_max !== null && normalized.job_salary_max !== '') {
+    if (typeof normalized.job_salary_max === 'string') {
+      const trimmed = normalized.job_salary_max.trim();
+      if (!/^\d+$/.test(trimmed)) {
+        throw new Error('job_salary_max must be a valid integer (no decimals or non-numeric characters allowed)');
+      }
+      const parsed = Number(trimmed);
+      if (!Number.isInteger(parsed)) {
+        throw new Error('job_salary_max must be an integer');
+      }
+      normalized.job_salary_max = parsed;
+    } else if (typeof normalized.job_salary_max === 'number') {
+      if (!Number.isInteger(normalized.job_salary_max)) {
+        throw new Error('job_salary_max must be an integer');
+      }
+    } else {
+      throw new Error('job_salary_max must be a number or numeric string');
+    }
+  }
+
+  const booleanFields = ['job_is_salary_negotiable', 'job_is_remote', 'job_is_hybrid'];
+  for (const field of booleanFields) {
+    if (normalized[field] !== undefined && normalized[field] !== null && normalized[field] !== '') {
+      if (typeof normalized[field] === 'string') {
+        const lowerValue = normalized[field].toLowerCase().trim();
+        if (lowerValue === 'true') {
+          normalized[field] = true;
+        } else if (lowerValue === 'false') {
+          normalized[field] = false;
+        } else {
+          throw new Error(`${field} must be "true" or "false", got "${normalized[field]}"`);
+        }
+      } else if (typeof normalized[field] !== 'boolean') {
+        throw new Error(`${field} must be a boolean or string "true"/"false"`);
+      }
+    }
+  }
+
+  if (!normalized.publish_date || normalized.publish_date === '' || normalized.publish_date === null) {
+    normalized.publish_date = new Date().toISOString();
+  }
+
+  if (normalized.job_employment_type_id && normalized.job_employment_type_id !== '') {
+    normalized.job_employment_type_id = await findEmploymentTypeByNameOrSlug(normalized.job_employment_type_id);
+  }
+
+  if (normalized.job_experience_level_id && normalized.job_experience_level_id !== '') {
+    normalized.job_experience_level_id = await findExperienceLevelByNameOrSlug(normalized.job_experience_level_id);
+  }
+
+  if (normalized.job_education_level_id && normalized.job_education_level_id !== '') {
+    normalized.job_education_level_id = await findEducationLevelByNameOrSlug(normalized.job_education_level_id);
+  }
+
+  return normalized;
+}
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -374,7 +457,18 @@ export async function POST(request: NextRequest) {
     const userId = validToken.user_id;
 
     const body = await request.json();
-    const validation = jobPostSchema.safeParse(body);
+    
+    let normalizedBody;
+    try {
+      normalizedBody = await normalizeJobPostPayload(body);
+    } catch (error: any) {
+      return setCorsHeaders(
+        validationErrorResponse(error.message || "Invalid request data"),
+        origin,
+      );
+    }
+    
+    const validation = jobPostSchema.safeParse(normalizedBody);
 
     if (!validation.success) {
       const errors = validation.error.issues.map(issue => ({

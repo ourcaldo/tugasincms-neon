@@ -235,6 +235,159 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts API Preprocessing Layer - Flexible Input Types (November 10, 2025 - 14:25 UTC)
+
+**Summary**: Implemented a preprocessing layer for the `/api/v1/job-posts` POST endpoint that automatically converts string inputs to proper types (numbers, booleans) and resolves employment type, experience level, and education level UUIDs from names or slugs. This allows frontends to submit job posts using human-readable labels instead of UUIDs, with automatic type coercion for salary and boolean fields.
+
+**Problem Statement**:
+- User reported validation errors when POSTing job data:
+  - Salary fields (`job_salary_min`, `job_salary_max`) were sent as strings but validation expected numbers
+  - Boolean fields (`job_is_salary_negotiable`, `job_is_remote`, `job_is_hybrid`) were sent as strings but validation expected booleans
+  - UUID fields (`job_employment_type_id`, `job_experience_level_id`, `job_education_level_id`) required UUIDs, but frontend wanted to send labels/names
+  - Empty `publish_date` should default to current datetime instead of causing validation errors
+- Frontend developers had to manually look up UUIDs and convert data types before making API calls
+- This created unnecessary complexity and reduced API usability
+
+**Solution - Preprocessing Layer with Type Coercion and UUID Lookup**:
+
+1. **Created Lookup Utility Functions** in `lib/job-utils.ts`:
+   - `findEmploymentTypeByNameOrSlug(input: string)` - Returns UUID for employment type by name, slug, or UUID
+   - `findExperienceLevelByNameOrSlug(input: string)` - Returns UUID for experience level by name, slug, or UUID
+   - `findEducationLevelByNameOrSlug(input: string)` - Returns UUID for education level by name, slug, or UUID
+   - All functions are read-only (no auto-creation) and throw clear errors when lookup fails
+
+2. **Implemented Preprocessing Function** `normalizeJobPostPayload`:
+   - Converts salary strings to integers using `parseInt` with NaN guards
+   - Converts boolean strings ("true"/"false", case-insensitive) to actual booleans
+   - Defaults empty/null `publish_date` to current ISO datetime (`new Date().toISOString()`)
+   - Looks up UUIDs for employment_type, experience_level, and education_level from names/slugs
+   - Maintains strict validation - rejects ambiguous boolean values and invalid numbers
+
+3. **Integrated Preprocessing Before Validation**:
+   - Preprocessing runs before Zod validation in POST handler
+   - Preprocessing errors return 400 validation error responses (not 500 server errors)
+   - Zod validation still enforces strict type checking on preprocessed data
+   - Maintains API security and data integrity
+
+**Technical Implementation**:
+
+```typescript
+// lib/job-utils.ts - Example lookup function
+export async function findEmploymentTypeByNameOrSlug(input: string): Promise<string | null> {
+  if (!input || input.trim() === '') return null;
+  if (isUUID(input)) return input;
+  
+  const normalizedInput = input.trim();
+  const result = await sql`
+    SELECT id FROM job_employment_types 
+    WHERE id::text = ${normalizedInput}
+       OR slug = ${normalizedInput}
+       OR LOWER(name) = LOWER(${normalizedInput})
+    LIMIT 1
+  `;
+  
+  if (!result || result.length === 0) {
+    throw new Error(`Employment type "${input}" not found. Please use a valid UUID, slug, or name.`);
+  }
+  return result[0].id;
+}
+
+// app/api/v1/job-posts/route.ts - Preprocessing function
+async function normalizeJobPostPayload(body: any): Promise<any> {
+  const normalized = { ...body };
+
+  // Convert salary strings to integers
+  if (normalized.job_salary_min !== undefined && normalized.job_salary_min !== null && normalized.job_salary_min !== '') {
+    const parsed = typeof normalized.job_salary_min === 'string' 
+      ? parseInt(normalized.job_salary_min, 10) 
+      : normalized.job_salary_min;
+    if (isNaN(parsed)) {
+      throw new Error('job_salary_min must be a valid integer');
+    }
+    normalized.job_salary_min = parsed;
+  }
+
+  // Convert boolean strings to booleans (case-insensitive)
+  const booleanFields = ['job_is_salary_negotiable', 'job_is_remote', 'job_is_hybrid'];
+  for (const field of booleanFields) {
+    if (normalized[field] !== undefined && normalized[field] !== null && normalized[field] !== '') {
+      if (typeof normalized[field] === 'string') {
+        const lowerValue = normalized[field].toLowerCase().trim();
+        if (lowerValue === 'true') {
+          normalized[field] = true;
+        } else if (lowerValue === 'false') {
+          normalized[field] = false;
+        } else {
+          throw new Error(`${field} must be "true" or "false", got "${normalized[field]}"`);
+        }
+      }
+    }
+  }
+
+  // Default publish_date to current datetime
+  if (!normalized.publish_date || normalized.publish_date === '' || normalized.publish_date === null) {
+    normalized.publish_date = new Date().toISOString();
+  }
+
+  // Lookup UUIDs from names/slugs
+  if (normalized.job_employment_type_id && normalized.job_employment_type_id !== '') {
+    normalized.job_employment_type_id = await findEmploymentTypeByNameOrSlug(normalized.job_employment_type_id);
+  }
+
+  return normalized;
+}
+
+// Wire preprocessing into POST handler
+const body = await request.json();
+
+let normalizedBody;
+try {
+  normalizedBody = await normalizeJobPostPayload(body);
+} catch (error: any) {
+  return setCorsHeaders(validationErrorResponse(error.message || "Invalid request data"), origin);
+}
+
+const validation = jobPostSchema.safeParse(normalizedBody);
+```
+
+**Files Modified**:
+- `lib/job-utils.ts` - Added 3 new lookup functions: `findEmploymentTypeByNameOrSlug`, `findExperienceLevelByNameOrSlug`, `findEducationLevelByNameOrSlug`
+- `app/api/v1/job-posts/route.ts` - Added `normalizeJobPostPayload` preprocessing function and integrated it into POST handler before validation
+
+**Architect Review Feedback**:
+- ✅ Fixed potential schema conflicts by removing unnecessary null conversions
+- ✅ Changed salary parsing from `parseFloat` to `parseInt` to align with integer schema expectations
+- ✅ Added proper error handling to return 400 validation errors instead of 500 server errors
+- ✅ Kept preprocessing separate from Zod validation for consistent error messages
+- ✅ Lookup functions are read-only (no auto-creation) and validate existence
+
+**Impact**:
+- ✅ **Flexible Input Types**: Frontends can now send salary as strings ("1000000") and booleans as strings ("true"/"false")
+- ✅ **Human-Readable Labels**: Employment type, experience level, and education level accept names ("Full Time") or slugs ("full-time") instead of UUIDs
+- ✅ **Auto-Default Dates**: Empty `publish_date` automatically defaults to current datetime
+- ✅ **Better Error Messages**: Clear validation errors for invalid lookups ("Employment type 'Invalid' not found")
+- ✅ **Backward Compatible**: Still accepts UUIDs and proper types - existing API consumers unchanged
+- ✅ **Maintained Type Safety**: Zod validation still enforces strict types after preprocessing
+- ✅ **No Breaking Changes**: API contract remains the same, just more flexible input handling
+- ✅ **Improved DX**: Frontend developers don't need to manually lookup UUIDs or convert types
+
+**Testing Instructions**:
+Run SQL queries in `test-lookup-values.sql` to see available employment types, experience levels, and education levels. Then test POST requests with:
+```json
+{
+  "job_employment_type_id": "Full Time",
+  "job_experience_level_id": "senior",
+  "job_education_level_id": "S1",
+  "job_salary_min": "1000000",
+  "job_salary_max": "5000000",
+  "job_is_remote": "true",
+  "job_is_salary_negotiable": "false",
+  "publish_date": ""
+}
+```
+
+---
+
 ### API Redis Cache Optional - All v1 Endpoints Work Without Redis (October 28, 2025 - 10:45 UTC)
 
 **Summary**: Fixed critical issue where sitemap API endpoints would return empty results when Redis cache was unavailable. Refactored sitemap generation to work seamlessly with or without Redis, ensuring all v1 API endpoints function properly regardless of cache availability.
