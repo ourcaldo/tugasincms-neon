@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/database";
 import { verifyApiToken, extractBearerToken } from "@/lib/auth";
 import {
@@ -18,39 +18,41 @@ import {
 import { resolveLocationHierarchy } from "@/lib/location-utils";
 
 const jobPostSchema = z.object({
-  title: z.string().min(1).max(500),
-  content: z.string().min(1),
-  excerpt: z.string().max(1000).optional(),
-  slug: z.string().min(1).max(200),
-  featured_image: z.string().optional(),
-  publish_date: z.string().optional(),
-  status: z.enum(["draft", "published", "scheduled"]),
-  seo_title: z.string().max(200).optional(),
-  meta_description: z.string().max(500).optional(),
-  focus_keyword: z.string().max(100).optional(),
+  title: z.string().min(1, "Title is required").max(500, "Title must not exceed 500 characters"),
+  content: z.string().min(1, "Content is required"),
+  excerpt: z.string().max(1000, "Excerpt must not exceed 1000 characters").optional(),
+  slug: z.string().min(1, "Slug is required").max(200, "Slug must not exceed 200 characters"),
+  featured_image: z.string().url("Featured image must be a valid URL").optional().or(z.literal("")),
+  publish_date: z.string().datetime("Publish date must be a valid ISO datetime").optional().or(z.literal("")),
+  status: z.enum(["draft", "published", "scheduled"], {
+    message: "Status must be one of: draft, published, scheduled"
+  }),
+  seo_title: z.string().max(200, "SEO title must not exceed 200 characters").optional(),
+  meta_description: z.string().max(500, "Meta description must not exceed 500 characters").optional(),
+  focus_keyword: z.string().max(100, "Focus keyword must not exceed 100 characters").optional(),
 
   // Job-specific fields
-  job_company_name: z.string().max(200).optional(),
-  job_company_logo: z.string().max(500).optional(),
-  job_company_website: z.string().max(500).optional(),
-  job_employment_type_id: z.string().uuid().optional(),
-  job_experience_level_id: z.string().uuid().optional(),
-  job_education_level_id: z.string().uuid().optional(),
-  job_salary_min: z.number().optional(),
-  job_salary_max: z.number().optional(),
-  job_salary_currency: z.string().max(10).optional(),
-  job_salary_period: z.string().max(50).optional(),
+  job_company_name: z.string().max(200, "Company name must not exceed 200 characters").optional(),
+  job_company_logo: z.string().url("Company logo must be a valid URL").optional().or(z.literal("")),
+  job_company_website: z.string().url("Company website must be a valid URL").optional().or(z.literal("")),
+  job_employment_type_id: z.string().uuid("job_employment_type_id must be a valid UUID").optional().or(z.literal("")),
+  job_experience_level_id: z.string().uuid("job_experience_level_id must be a valid UUID").optional().or(z.literal("")),
+  job_education_level_id: z.string().uuid("job_education_level_id must be a valid UUID").optional().or(z.literal("")),
+  job_salary_min: z.number().int("Minimum salary must be an integer").min(0, "Minimum salary must be positive").optional(),
+  job_salary_max: z.number().int("Maximum salary must be an integer").min(0, "Maximum salary must be positive").optional(),
+  job_salary_currency: z.string().max(10, "Currency code must not exceed 10 characters").optional(),
+  job_salary_period: z.string().max(50, "Salary period must not exceed 50 characters").optional(),
   job_is_salary_negotiable: z.boolean().optional(),
-  job_province_id: z.string().max(2).optional(),
-  job_regency_id: z.string().max(4).optional(),
-  job_district_id: z.string().max(6).optional(),
-  job_village_id: z.string().max(10).optional(),
+  job_province_id: z.string().max(2, "Province ID must not exceed 2 characters").optional(),
+  job_regency_id: z.string().max(4, "Regency ID must not exceed 4 characters").optional(),
+  job_district_id: z.string().max(6, "District ID must not exceed 6 characters").optional(),
+  job_village_id: z.string().max(10, "Village ID must not exceed 10 characters").optional(),
   job_address_detail: z.string().optional(),
   job_is_remote: z.boolean().optional(),
   job_is_hybrid: z.boolean().optional(),
-  job_application_email: z.string().max(200).optional(),
-  job_application_url: z.string().max(500).optional(),
-  job_application_deadline: z.string().optional(),
+  job_application_email: z.string().email("Application email must be a valid email address").max(200).optional().or(z.literal("")),
+  job_application_url: z.string().url("Application URL must be a valid URL").max(500).optional().or(z.literal("")),
+  job_application_deadline: z.string().datetime("Application deadline must be a valid ISO datetime").optional().or(z.literal("")),
   job_skills: z.union([z.array(z.string()), z.string()]).optional(),
   job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
   job_requirements: z.string().optional(),
@@ -375,8 +377,20 @@ export async function POST(request: NextRequest) {
     const validation = jobPostSchema.safeParse(body);
 
     if (!validation.success) {
+      const errors = validation.error.issues.map(issue => ({
+        field: issue.path.join('.'),
+        message: issue.message,
+        code: issue.code,
+        received: issue.code === 'invalid_type' ? (issue as any).received : undefined
+      }));
+      
       return setCorsHeaders(
-        validationErrorResponse(validation.error.issues[0].message),
+        NextResponse.json({
+          success: false,
+          error: "Validation failed",
+          message: `Validation failed: ${errors[0].field} - ${errors[0].message}`,
+          errors: errors
+        }, { status: 400 }),
         origin,
       );
     }
