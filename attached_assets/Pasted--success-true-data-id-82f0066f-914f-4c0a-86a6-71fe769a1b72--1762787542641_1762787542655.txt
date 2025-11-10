@@ -1,0 +1,90 @@
+[
+  {
+    "success": true,
+    "data": {
+      "id": "82f0066f-914f-4c0a-86a6-71fe769a1b72",
+      "title": "Teknisi MEP Interior",
+      "content": "<p>PT Mosaic Multi Kreasi bergrak dibidang Construction Interior yang saat ini sedang membutuhkan Teknisi MEP dan paham dengan kelistrikan dan bidang terkait</p>\n<h2>Tanggung Jawab Pekerjaan :</h2>\n<ol><li>Menyusun laporan harian</li><li>Target penyelesaian pekerjaan sesuai dateline</li><li>bertangung jawab atas pekerjaan Teknisi MEP</li><li>Disipline, positive attitude, dan problem solving</li></ol>\n<h2>Keahlian :</h2>\n<ol><li>Kemampuan untuk memahami, menganalisis, dan memelihara sistem mekanikal, elektrikal, dan plumbing dalam bangunan.</li><li>Mampu membaca dan memahami gambar teknik, termasuk gambar MEP.</li><li>Mampu melakukan perbaikan dan pemeliharaan rutin maupun perbaikan mendesak pada sistem MEP.</li><li>Mampu menggunakan alat-alat dan peralatan yang relevan dengan pekerjaan MEP.</li><li>Kemampuan AutoCAD/BIM</li></ol>\n<h2>Kualifikasi :</h2>\n<ol><li>Mmepunyai pengalaman 1 - 3 tahun di bidang yang Teknisi MEP</li><li>Bisa menggunakan kendaraan sepeda motor dan mempunyai sim aktif</li><li>fleksibel waktu</li></ol>\n<h2>Waktu Bekerja :</h2>\n<p>senin - sabtu</p>",
+      "excerpt": "Lowongan Teknisi MEP Interior di PT MOSAIC MULTI KREASI - Banten. Lamar Sekarang!",
+      "slug": "lowongan-teknisi-mep-interior-banten",
+      "featured_image": null,
+      "publish_date": "2025-11-10T14:54:53.303Z",
+      "status": "published",
+      "author_id": "user_33QTHobngBl4hGcnuEjuKnOhlqr",
+      "seo_title": "Lowongan Teknisi MEP Interior di PT MOSAIC MULTI KREASI - Banten",
+      "meta_description": "Lowongan Teknisi MEP Interior di PT MOSAIC MULTI KREASI - Banten. Lamar Sekarang!",
+      "focus_keyword": "Teknisi MEP Interior",
+      "job_company_name": "PT MOSAIC MULTI KREASI",
+      "job_company_logo": null,
+      "job_location": null,
+      "job_location_type": null,
+      "job_salary_min": "1000000",
+      "job_salary_max": "5000000",
+      "job_salary_currency": "IDR",
+      "job_salary_period": "monthly",
+      "job_application_url": "https://www.loker.id/cari-lowongan-kerja?jobid=15730278",
+      "job_application_email": null,
+      "job_deadline": null,
+      "job_skills": [],
+      "job_benefits": [],
+      "employment_type": null,
+      "experience_level": null,
+      "created_at": "2025-11-10T14:54:54.780Z",
+      "updated_at": "2025-11-10T14:54:54.780Z",
+      "job_company_website": "https://www.loker.id/cari-lowongan-kerja?jobid=15730278",
+      "job_is_salary_negotiable": true,
+      "job_province_id": "36",
+      "job_regency_id": null,
+      "job_district_id": null,
+      "job_village_id": null,
+      "job_address_detail": null,
+      "job_is_remote": false,
+      "job_is_hybrid": false,
+      "job_employment_type_id": "ea1df417-3a76-479b-a9f8-21a93338de02",
+      "job_experience_level_id": "efdfce8c-4886-4a69-b127-05dbabe4d931",
+      "job_requirements": null,
+      "job_responsibilities": null,
+      "job_education_level_id": "be29a5f4-19c7-4b34-abd6-dc436ef78199",
+      "job_categories": [
+        {
+          "id": "411b9c5d-4432-458d-afa4-6647ee893a58",
+          "name": "Bangunan",
+          "slug": "bangunan"
+        },
+        {
+          "id": "9f61b8d4-0e3e-43a6-9c24-cc92eecd99d3",
+          "name": "Konstruksi",
+          "slug": "konstruksi"
+        },
+        {
+          "id": "eabdc8ad-679c-4fab-8373-4422a424e654",
+          "name": "& Teknik",
+          "slug": "teknik"
+        }
+      ],
+      "job_tags": [
+        {
+          "id": "061a4805-25e1-40c7-99ef-fbd34b8f196b",
+          "name": "Sma/smk",
+          "slug": "sma-smk"
+        },
+        {
+          "id": "a63ba18f-50e5-4dbb-93bc-b2dcb934f780",
+          "name": "Staff / Officer",
+          "slug": "staff-officer"
+        },
+        {
+          "id": "b2fa1c70-696a-498a-8a0d-acfb38e3e632",
+          "name": "Mep Engineer",
+          "slug": "mep-engineer"
+        },
+        {
+          "id": "dd3e5d11-cc2c-49b7-9730-1502eeaf60cd",
+          "name": "On-site Working",
+          "slug": "on-site-working"
+        }
+      ]
+    },
+    "cached": false
+  }
+]
