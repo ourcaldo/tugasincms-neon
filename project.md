@@ -257,11 +257,11 @@ SITEMAP_HOST=tugasin.me
    - All functions are read-only (no auto-creation) and throw clear errors when lookup fails
 
 2. **Implemented Preprocessing Function** `normalizeJobPostPayload`:
-   - Converts salary strings to integers using `parseInt` with NaN guards
+   - Converts salary strings to integers using strict regex validation (`/^\d+$/`) - rejects decimals and non-numeric characters
    - Converts boolean strings ("true"/"false", case-insensitive) to actual booleans
    - Defaults empty/null `publish_date` to current ISO datetime (`new Date().toISOString()`)
    - Looks up UUIDs for employment_type, experience_level, and education_level from names/slugs
-   - Maintains strict validation - rejects ambiguous boolean values and invalid numbers
+   - Maintains strict validation - rejects ambiguous boolean values, decimals, and malformed numbers
 
 3. **Integrated Preprocessing Before Validation**:
    - Preprocessing runs before Zod validation in POST handler
@@ -296,15 +296,23 @@ export async function findEmploymentTypeByNameOrSlug(input: string): Promise<str
 async function normalizeJobPostPayload(body: any): Promise<any> {
   const normalized = { ...body };
 
-  // Convert salary strings to integers
+  // Convert salary strings to integers with strict validation
   if (normalized.job_salary_min !== undefined && normalized.job_salary_min !== null && normalized.job_salary_min !== '') {
-    const parsed = typeof normalized.job_salary_min === 'string' 
-      ? parseInt(normalized.job_salary_min, 10) 
-      : normalized.job_salary_min;
-    if (isNaN(parsed)) {
-      throw new Error('job_salary_min must be a valid integer');
+    if (typeof normalized.job_salary_min === 'string') {
+      const trimmed = normalized.job_salary_min.trim();
+      if (!/^\d+$/.test(trimmed)) {
+        throw new Error('job_salary_min must be a valid integer (no decimals or non-numeric characters allowed)');
+      }
+      const parsed = Number(trimmed);
+      if (!Number.isInteger(parsed)) {
+        throw new Error('job_salary_min must be an integer');
+      }
+      normalized.job_salary_min = parsed;
+    } else if (typeof normalized.job_salary_min === 'number') {
+      if (!Number.isInteger(normalized.job_salary_min)) {
+        throw new Error('job_salary_min must be an integer');
+      }
     }
-    normalized.job_salary_min = parsed;
   }
 
   // Convert boolean strings to booleans (case-insensitive)
@@ -355,11 +363,12 @@ const validation = jobPostSchema.safeParse(normalizedBody);
 - `app/api/v1/job-posts/route.ts` - Added `normalizeJobPostPayload` preprocessing function and integrated it into POST handler before validation
 
 **Architect Review Feedback**:
-- ✅ Fixed potential schema conflicts by removing unnecessary null conversions
-- ✅ Changed salary parsing from `parseFloat` to `parseInt` to align with integer schema expectations
+- ✅ Implemented strict salary validation using regex `/^\d+$/` and `Number.isInteger()` to prevent silent truncation
+- ✅ Rejected unsafe `parseInt` approach that allowed malformed values like "5000.99" or "5000 USD" to become 5000
 - ✅ Added proper error handling to return 400 validation errors instead of 500 server errors
 - ✅ Kept preprocessing separate from Zod validation for consistent error messages
 - ✅ Lookup functions are read-only (no auto-creation) and validate existence
+- ✅ Error messages explicitly call out decimals/non-numeric characters for client-side clarity
 
 **Impact**:
 - ✅ **Flexible Input Types**: Frontends can now send salary as strings ("1000000") and booleans as strings ("true"/"false")
