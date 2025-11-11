@@ -170,7 +170,7 @@ export async function findRegencyByNameOrId(input: string, provinceIdOrName?: st
     provinceId = await findProvinceByNameOrId(provinceIdOrName);
   }
   
-  const result = provinceId
+  const exactMatch = provinceId
     ? await sql`
         SELECT id FROM reg_regencies 
         WHERE UPPER(name) = UPPER(${trimmed}) AND province_id = ${provinceId}
@@ -180,16 +180,34 @@ export async function findRegencyByNameOrId(input: string, provinceIdOrName?: st
         WHERE UPPER(name) = UPPER(${trimmed})
       `;
   
-  if (!result || result.length === 0) {
-    const hint = provinceId ? ` in province "${provinceIdOrName}"` : '';
-    throw new Error(`Regency "${input}"${hint} not found. Please use a valid 4-digit ID or regency name`);
+  if (exactMatch && exactMatch.length === 1) {
+    return exactMatch[0].id;
   }
   
-  if (result.length > 1 && !provinceId) {
+  if (exactMatch && exactMatch.length > 1 && !provinceId) {
     throw new Error(`Multiple regencies found with name "${input}". Please provide job_province_id to disambiguate`);
   }
   
-  return result[0].id;
+  const partialMatch = provinceId
+    ? await sql`
+        SELECT id, name FROM reg_regencies 
+        WHERE UPPER(name) LIKE UPPER(${`%${trimmed}%`}) AND province_id = ${provinceId}
+      `
+    : await sql`
+        SELECT id, name FROM reg_regencies 
+        WHERE UPPER(name) LIKE UPPER(${`%${trimmed}%`})
+      `;
+  
+  if (!partialMatch || partialMatch.length === 0) {
+    const hint = provinceId ? ` in province "${provinceIdOrName}"` : '';
+    throw new Error(`Regency "${input}"${hint} not found. Please use a valid 4-digit ID or regency name (accepts partial match)`);
+  }
+  
+  if (partialMatch.length > 1 && !provinceId) {
+    throw new Error(`Multiple regencies found matching "${input}". Please provide job_province_id to disambiguate`);
+  }
+  
+  return partialMatch[0].id;
 }
 
 export async function findDistrictByNameOrId(input: string, regencyIdOrName?: string, provinceIdOrName?: string): Promise<string | null> {
@@ -210,7 +228,7 @@ export async function findDistrictByNameOrId(input: string, regencyIdOrName?: st
     regencyId = await findRegencyByNameOrId(regencyIdOrName, provinceIdOrName);
   }
   
-  const result = regencyId
+  const exactMatch = regencyId
     ? await sql`
         SELECT id FROM reg_districts 
         WHERE UPPER(name) = UPPER(${trimmed}) AND regency_id = ${regencyId}
@@ -220,16 +238,34 @@ export async function findDistrictByNameOrId(input: string, regencyIdOrName?: st
         WHERE UPPER(name) = UPPER(${trimmed})
       `;
   
-  if (!result || result.length === 0) {
-    const hint = regencyId ? ` in regency "${regencyIdOrName}"` : '';
-    throw new Error(`District "${input}"${hint} not found. Please use a valid 6-digit ID or district name`);
+  if (exactMatch && exactMatch.length === 1) {
+    return exactMatch[0].id;
   }
   
-  if (result.length > 1 && !regencyId) {
+  if (exactMatch && exactMatch.length > 1 && !regencyId) {
     throw new Error(`Multiple districts found with name "${input}". Please provide job_regency_id to disambiguate`);
   }
   
-  return result[0].id;
+  const partialMatch = regencyId
+    ? await sql`
+        SELECT id, name FROM reg_districts 
+        WHERE UPPER(name) LIKE UPPER(${`%${trimmed}%`}) AND regency_id = ${regencyId}
+      `
+    : await sql`
+        SELECT id, name FROM reg_districts 
+        WHERE UPPER(name) LIKE UPPER(${`%${trimmed}%`})
+      `;
+  
+  if (!partialMatch || partialMatch.length === 0) {
+    const hint = regencyId ? ` in regency "${regencyIdOrName}"` : '';
+    throw new Error(`District "${input}"${hint} not found. Please use a valid 6-digit ID or district name (accepts partial match)`);
+  }
+  
+  if (partialMatch.length > 1 && !regencyId) {
+    throw new Error(`Multiple districts found matching "${input}". Please provide job_regency_id to disambiguate`);
+  }
+  
+  return partialMatch[0].id;
 }
 
 export async function findVillageByNameOrId(input: string, districtIdOrName?: string, regencyIdOrName?: string, provinceIdOrName?: string): Promise<string | null> {
@@ -250,7 +286,7 @@ export async function findVillageByNameOrId(input: string, districtIdOrName?: st
     districtId = await findDistrictByNameOrId(districtIdOrName, regencyIdOrName, provinceIdOrName);
   }
   
-  const result = districtId
+  const exactMatch = districtId
     ? await sql`
         SELECT id FROM reg_villages 
         WHERE UPPER(name) = UPPER(${trimmed}) AND district_id = ${districtId}
@@ -260,14 +296,32 @@ export async function findVillageByNameOrId(input: string, districtIdOrName?: st
         WHERE UPPER(name) = UPPER(${trimmed})
       `;
   
-  if (!result || result.length === 0) {
-    const hint = districtId ? ` in district "${districtIdOrName}"` : '';
-    throw new Error(`Village "${input}"${hint} not found. Please use a valid 10-digit ID or village name`);
+  if (exactMatch && exactMatch.length === 1) {
+    return exactMatch[0].id;
   }
   
-  if (result.length > 1 && !districtId) {
+  if (exactMatch && exactMatch.length > 1 && !districtId) {
     throw new Error(`Multiple villages found with name "${input}". Please provide job_district_id to disambiguate`);
   }
   
-  return result[0].id;
+  const partialMatch = districtId
+    ? await sql`
+        SELECT id, name FROM reg_villages 
+        WHERE UPPER(name) LIKE UPPER(${`%${trimmed}%`}) AND district_id = ${districtId}
+      `
+    : await sql`
+        SELECT id, name FROM reg_villages 
+        WHERE UPPER(name) LIKE UPPER(${`%${trimmed}%`})
+      `;
+  
+  if (!partialMatch || partialMatch.length === 0) {
+    const hint = districtId ? ` in district "${districtIdOrName}"` : '';
+    throw new Error(`Village "${input}"${hint} not found. Please use a valid 10-digit ID or village name (accepts partial match)`);
+  }
+  
+  if (partialMatch.length > 1 && !districtId) {
+    throw new Error(`Multiple villages found matching "${input}". Please provide job_district_id to disambiguate`);
+  }
+  
+  return partialMatch[0].id;
 }

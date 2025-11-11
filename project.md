@@ -235,6 +235,100 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Location Name Lookup Enhancement - Partial Matching for Regency/District/Village (November 11, 2025 - 11:05 UTC)
+
+**Summary**: Enhanced location name-to-ID lookup functions to support partial matching with ILIKE for regencies, districts, and villages. Users can now send "Surabaya" and the system will match "KOTA SURABAYA" automatically, making the API more user-friendly and flexible.
+
+**Problem Statement**:
+- Users reported that regency/city name lookup was not working: sending "Surabaya" returned "not found" error
+- Database stores regency names with prefixes like "KOTA Surabaya", "KAB. Tangerang", etc.
+- Province lookup worked because names were stored without prefixes (e.g., "Banten", "DKI Jakarta")
+- Exact matching with UPPER() only worked if users sent the exact name including prefixes
+- Same issue affected district and village lookups
+
+**Solution - Two-Tier Matching Strategy**:
+
+1. **First Attempt - Exact Match**:
+   - Try to find exact match with `UPPER(name) = UPPER(input)`
+   - If found exactly one match, return immediately
+   - If found multiple exact matches without province context, throw disambiguation error
+
+2. **Second Attempt - Partial Match (Fallback)**:
+   - Use ILIKE with wildcards: `UPPER(name) LIKE UPPER('%input%')`
+   - Matches "Surabaya" against "KOTA SURABAYA", "KAB. SURABAYA", etc.
+   - If found exactly one match, return the ID
+   - If found multiple partial matches without parent context, throw disambiguation error
+   - If no matches found, throw "not found" error
+
+**Updated Functions in `lib/location-utils.ts`**:
+
+1. **`findRegencyByNameOrId`** (lines 158-214):
+   - Added exact match query first
+   - Added fallback partial match with ILIKE
+   - Updated error messages to mention "accepts partial match"
+
+2. **`findDistrictByNameOrId`** (lines 216-272):
+   - Added exact match query first
+   - Added fallback partial match with ILIKE
+   - Updated error messages to mention "accepts partial match"
+
+3. **`findVillageByNameOrId`** (lines 274-330):
+   - Added exact match query first
+   - Added fallback partial match with ILIKE
+   - Updated error messages to mention "accepts partial match"
+
+**Technical Implementation**:
+```typescript
+// Example: findRegencyByNameOrId for "Surabaya"
+
+// Step 1: Try exact match
+const exactMatch = await sql`
+  SELECT id FROM reg_regencies 
+  WHERE UPPER(name) = UPPER('Surabaya')
+`;
+// Returns: [] (no exact match)
+
+// Step 2: Try partial match
+const partialMatch = await sql`
+  SELECT id, name FROM reg_regencies 
+  WHERE UPPER(name) LIKE UPPER('%Surabaya%')
+`;
+// Returns: [{ id: '3578', name: 'KOTA SURABAYA' }]
+// Success! Returns '3578'
+```
+
+**Supported Use Cases**:
+- ✅ "Surabaya" → matches "KOTA SURABAYA"
+- ✅ "Tangerang" → matches "KOTA TANGERANG" or "KAB. TANGERANG" (needs province for disambiguation)
+- ✅ "Jakarta Selatan" → matches exact name
+- ✅ "Selatan" → matches "JAKARTA SELATAN", "BANDUNG SELATAN", etc. (needs province for disambiguation)
+- ✅ "3578" (4-digit ID) → direct ID lookup (short-circuit, no name matching)
+
+**Error Handling**:
+- Clear error messages: `Regency "Surabaya" not found. Please use a valid 4-digit ID or regency name (accepts partial match)`
+- Disambiguation requests: `Multiple regencies found matching "Tangerang". Please provide job_province_id to disambiguate`
+- Original user input preserved in error messages (not normalized IDs)
+
+**Backwards Compatibility**:
+- ✅ Existing exact name matches still work
+- ✅ Numeric ID inputs still work (short-circuit logic)
+- ✅ Province name lookups unchanged (already working correctly)
+- ✅ No breaking changes to API contract
+
+**Files Modified**:
+- `lib/location-utils.ts` - Enhanced `findRegencyByNameOrId`, `findDistrictByNameOrId`, `findVillageByNameOrId` with two-tier matching
+
+**Impact**:
+- ✅ **Fixed**: Regency lookup now accepts partial names like "Surabaya" instead of requiring "KOTA SURABAYA"
+- ✅ **Fixed**: District lookup now accepts partial names
+- ✅ **Fixed**: Village lookup now accepts partial names
+- ✅ **Improved UX**: Users don't need to know exact database name formats
+- ✅ **Better Error Messages**: Clear guidance on partial matching support
+- ✅ **Smart Matching**: Exact matches take priority over partial matches
+- ✅ **Disambiguation**: Requests province context when multiple matches found
+
+---
+
 ### Documentation Correction - Removed Non-Existent Rate Limiting References (November 10, 2025 - 16:00 UTC)
 
 **Summary**: Corrected API_DOCUMENTATION.md and project.md to remove all references to rate limiting, which was documented but never actually implemented in the codebase.
