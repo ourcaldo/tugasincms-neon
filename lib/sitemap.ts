@@ -223,7 +223,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string): Promise<{ i
       const provinceChunkXml = generateSitemapXML(locationUrls)
       const provinceChunkKey = provinceSlug
       locationChunks[provinceChunkKey] = provinceChunkXml
-      provinceUrls.push(`${cmsHost}/api/v1/sitemaps/sitemap-job-location-${provinceSlug}.xml`)
+      provinceUrls.push(`${url}/api/v1/sitemaps/sitemap-job-location-${provinceSlug}.xml`)
     }
   }
 

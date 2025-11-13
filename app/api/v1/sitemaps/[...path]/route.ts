@@ -4,10 +4,10 @@ import { generateAllSitemaps } from '@/lib/sitemap'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: { path: string[] } }
 ) {
   try {
-    const { path } = await params
+    const { path } = params
     const filename = path.join('/')
     
     let sitemapKey: string
