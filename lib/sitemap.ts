@@ -376,10 +376,6 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
   
   if (jobLocationIndex) {
     jobSitemapReferences.push(`${cmsHost}/api/v1/sitemaps/sitemap-job-location.xml`)
-    
-    for (const provinceSlug of Object.keys(jobLocationChunks)) {
-      jobSitemapReferences.push(`${cmsHost}/api/v1/sitemaps/sitemap-job-location-${provinceSlug}.xml`)
-    }
   }
   
   const jobSitemapIndex = generateSitemapIndexXML(jobSitemapReferences)
