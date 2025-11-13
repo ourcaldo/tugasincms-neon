@@ -235,6 +235,120 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Sitemap Enhancement - Province URLs Included in Location Sitemaps (November 13, 2025 - 17:10 UTC)
+
+**Summary**: Enhanced the job location sitemap generation to include province-level URLs at the top of each province sitemap. Each province sitemap now contains the province URL (e.g., `/lowongan-kerja/lokasi/aceh`) followed by all city URLs under that province.
+
+**Problem Statement**:
+- Province URLs (e.g., `/lowongan-kerja/lokasi/aceh`) were NOT included in any sitemap
+- Each province sitemap only contained city URLs like `/lowongan-kerja/lokasi/aceh/kab-aceh-barat`
+- Search engines could not discover province-level job listing pages
+- Incomplete SEO coverage for location-based job search hierarchy
+
+**Solution - Include Province URLs in Province Sitemaps**:
+
+Each province sitemap file (e.g., `sitemap-job-location-aceh.xml`) now contains:
+1. **Province URL at the top**: `https://domain.com/lowongan-kerja/lokasi/aceh` (priority: 0.7)
+2. **Followed by all city URLs**: `https://domain.com/lowongan-kerja/lokasi/aceh/kab-aceh-barat`, etc. (priority: 0.6)
+
+**Technical Implementation**:
+
+Modified `generateJobLocationSitemaps()` function in `lib/sitemap.ts` (lines 189-244):
+
+**Before**:
+```typescript
+const locationUrls: SitemapUrl[] = regencies.map((regency: any) => {
+  const regencySlug = regency.name.toLowerCase().replace(/\s+/g, '-').replace(/\./g, '')
+  return {
+    loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}`,
+    changefreq: 'daily' as const,
+    priority: 0.6
+  }
+})
+```
+
+**After**:
+```typescript
+const locationUrls: SitemapUrl[] = []
+
+// Add province URL first
+locationUrls.push({
+  loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}`,
+  changefreq: 'daily' as const,
+  priority: 0.7
+})
+
+// Then add all city URLs
+regencies.forEach((regency: any) => {
+  const regencySlug = regency.name.toLowerCase().replace(/\s+/g, '-').replace(/\./g, '')
+  locationUrls.push({
+    loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}`,
+    changefreq: 'daily' as const,
+    priority: 0.6
+  })
+})
+```
+
+**Sitemap Structure Example** (sitemap-job-location-aceh.xml):
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Province URL at the top -->
+  <url>
+    <loc>https://nexjob.tech/lowongan-kerja/lokasi/aceh</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Followed by city URLs -->
+  <url>
+    <loc>https://nexjob.tech/lowongan-kerja/lokasi/aceh/kab-aceh-barat</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://nexjob.tech/lowongan-kerja/lokasi/aceh/kab-aceh-selatan</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <!-- ... more cities ... -->
+</urlset>
+```
+
+**Priority Hierarchy**:
+- Province URLs: 0.7 (higher priority as parent pages)
+- City URLs: 0.6 (slightly lower as child pages)
+
+**URL Examples Now Included**:
+- ✅ `https://nexjob.tech/lowongan-kerja/lokasi/aceh` (province)
+- ✅ `https://nexjob.tech/lowongan-kerja/lokasi/aceh/kab-aceh-barat` (city)
+- ✅ `https://nexjob.tech/lowongan-kerja/lokasi/bali` (province)
+- ✅ `https://nexjob.tech/lowongan-kerja/lokasi/bali/badung` (city)
+
+**Files Modified**:
+- `lib/sitemap.ts` - Enhanced `generateJobLocationSitemaps()` to include province URLs (lines 217-232)
+
+**Impact**:
+- ✅ **Complete SEO Coverage**: Province-level job listing pages now discoverable by search engines
+- ✅ **Hierarchical Structure**: Clear parent-child relationship between province and city pages
+- ✅ **Better Priority**: Province pages have higher priority (0.7) than city pages (0.6)
+- ✅ **No Breaking Changes**: Existing city URLs unchanged, only added province URLs
+- ✅ **Scalable**: Works for all provinces automatically
+
+**SEO Benefits**:
+- Search engines can now discover and index province-level job listing pages
+- Improved location hierarchy understanding for search engines
+- Better crawl depth coverage for location-based job searches
+- Enhanced local SEO for broader geographic searches
+
+**Backwards Compatibility**:
+- ✅ Existing city URLs unchanged
+- ✅ No changes to sitemap index structure
+- ✅ Cache keys remain the same
+- ✅ Additive change only - no removals
+
+---
+
 ### Sitemap Enhancement - Job Categories and Location-Based Sitemaps (November 13, 2025)
 
 **Summary**: Enhanced the sitemap generation system to include comprehensive job category and hierarchical location-based sitemaps. The system now generates sitemaps for job category pages (`/lowongan-kerja/{category-slug}`) and location-based job listing pages (`/lowongan-kerja/lokasi/{province-slug}/{city-slug}`).

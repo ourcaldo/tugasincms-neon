@@ -211,13 +211,21 @@ export async function generateJobLocationSitemaps(baseUrl?: string): Promise<{ i
     `
     
     if (regencies.length > 0) {
-      const locationUrls: SitemapUrl[] = regencies.map((regency: any) => {
+      const locationUrls: SitemapUrl[] = []
+      
+      locationUrls.push({
+        loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}`,
+        changefreq: 'daily' as const,
+        priority: 0.7
+      })
+      
+      regencies.forEach((regency: any) => {
         const regencySlug = regency.name.toLowerCase().replace(/\s+/g, '-').replace(/\./g, '')
-        return {
+        locationUrls.push({
           loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}`,
           changefreq: 'daily' as const,
           priority: 0.6
-        }
+        })
       })
       
       const provinceChunkXml = generateSitemapXML(locationUrls)
