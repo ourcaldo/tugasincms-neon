@@ -235,6 +235,234 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Sitemap Enhancement - Job Categories and Location-Based Sitemaps (November 13, 2025)
+
+**Summary**: Enhanced the sitemap generation system to include comprehensive job category and hierarchical location-based sitemaps. The system now generates sitemaps for job category pages (`/lowongan-kerja/{category-slug}`) and location-based job listing pages (`/lowongan-kerja/lokasi/{province-slug}/{city-slug}`).
+
+**Problem Statement**:
+- Original sitemap only included individual job post URLs
+- Missing sitemaps for job category listing pages
+- Missing sitemaps for location-based job listing pages (province and city combinations)
+- SEO coverage was incomplete for taxonomy and location pages
+
+**Solution - Enhanced Job Sitemap Structure**:
+
+The job sitemap system now includes three main components:
+
+1. **Job Posts Sitemap** (existing, unchanged):
+   - Individual job post URLs: `https://domain.com/jobs/{category-slug}/{job-slug}/`
+   - Chunked into 200 URLs per file
+   - Files: `sitemap-job-1.xml`, `sitemap-job-2.xml`, etc.
+
+2. **Job Category Sitemap** (new):
+   - Job category listing page URLs: `https://domain.com/lowongan-kerja/{category-slug}`
+   - Single file: `sitemap-job-category.xml`
+   - Includes all active job categories with slug field
+
+3. **Job Location Sitemaps** (new):
+   - Location-based job listing page URLs: `https://domain.com/lowongan-kerja/lokasi/{province-slug}/{city-slug}`
+   - Hierarchical structure organized by province
+   - Index file: `sitemap-job-location.xml`
+   - Province-specific files: `sitemap-job-location-{province-slug}.xml`
+
+**Implementation Details**:
+
+**1. New Functions in `lib/sitemap.ts`**:
+
+- **`generateJobCategorySitemap(host: string)`** (lines 177-217):
+  - Queries `job_categories` table for categories with slug field
+  - Generates URLs in format: `https://domain.com/lowongan-kerja/{slug}`
+  - Returns single XML sitemap string
+
+- **`generateJobLocationSitemaps(host: string)`** (lines 219-298):
+  - Queries all province-city combinations from location tables
+  - Groups cities by province for hierarchical organization
+  - Generates location index sitemap
+  - Generates individual province location sitemaps
+  - Returns: `{ index, chunks }` where chunks is a `Record<provinceSlug, xmlString>`
+
+**2. Updated `generateJobSitemaps()` Return Type** (lines 157-175):
+```typescript
+interface JobSitemapsResult {
+  jobPostsIndex: string | null
+  jobPostsChunks: string[]
+  jobCategorySitemap: string | null
+  jobLocationIndex: string | null
+  jobLocationChunks: Record<string, string>
+}
+```
+
+**3. Updated `generateAllSitemaps()` Function** (lines 317-447):
+- Caches job category sitemap with key: `sitemap:job:category`
+- Caches job location index with key: `sitemap:job:location:index`
+- Caches individual province location sitemaps with keys: `sitemap:job:location:{province-slug}`
+- Creates comprehensive job sitemap index that references all job-related sitemaps
+- Stores job sitemap index with key: `sitemap:job:main:index`
+
+**4. Updated `GeneratedSitemaps` Interface** (lines 304-315):
+```typescript
+interface GeneratedSitemaps {
+  root: string
+  pages: string
+  blogIndex: string | null
+  blogChunks: string[]
+  jobPostsIndex: string | null        // renamed from jobIndex
+  jobPostsChunks: string[]            // renamed from jobChunks
+  jobCategorySitemap: string | null   // new
+  jobLocationIndex: string | null     // new
+  jobLocationChunks: Record<string, string>  // new
+  info: SitemapInfo[]
+}
+```
+
+**5. Enhanced Route Handler** (`app/api/v1/sitemaps/[...path]/route.ts`):
+
+Added support for new sitemap routes:
+- `sitemap-job.xml` - Now serves job sitemap index (references all job sitemaps)
+- `sitemap-job-category.xml` - Serves job category sitemap
+- `sitemap-job-location.xml` - Serves job location index
+- `sitemap-job-location-{province-slug}.xml` - Serves individual province location sitemap
+
+Updated route matching logic (lines 17-54):
+```typescript
+// New sitemap field types
+let sitemapField: 'root' | 'pages' | 'blogIndex' | 'jobPostsIndex' 
+  | 'jobCategorySitemap' | 'jobLocationIndex' | null = null
+let locationProvince: string | null = null
+
+// New route handlers
+else if (filename === 'sitemap-job-category.xml') {
+  sitemapKey = 'sitemap:job:category'
+  sitemapField = 'jobCategorySitemap'
+} else if (filename === 'sitemap-job-location.xml') {
+  sitemapKey = 'sitemap:job:location:index'
+  sitemapField = 'jobLocationIndex'
+} else if (filename.match(/^sitemap-job-location-(.+)\.xml$/)) {
+  locationProvince = match[1]
+  sitemapKey = `sitemap:job:location:${locationProvince}`
+}
+```
+
+**6. Updated API Documentation** (`API_DOCUMENTATION.md`):
+
+Added comprehensive "Sitemap Endpoints" section (lines 2041-2208):
+- Complete sitemap structure documentation
+- Job category sitemap URLs and examples
+- Job location sitemap hierarchy explanation
+- Sitemap features (caching, chunking, hierarchical structure)
+- Cache invalidation rules
+- Search engine submission instructions
+- robots.txt configuration example
+
+**Database Queries**:
+
+**Job Categories Query**:
+```sql
+SELECT id, slug, name, updated_at 
+FROM job_categories 
+WHERE slug IS NOT NULL 
+ORDER BY name ASC
+```
+
+**Job Locations Query**:
+```sql
+SELECT 
+  p.slug AS province_slug,
+  p.name AS province_name,
+  r.slug AS city_slug,
+  r.name AS city_name
+FROM reg_provinces p
+INNER JOIN reg_regencies r ON r.province_id = p.id
+WHERE p.slug IS NOT NULL 
+  AND r.slug IS NOT NULL
+ORDER BY p.name ASC, r.name ASC
+```
+
+**Sitemap Structure Example**:
+
+```
+sitemap.xml (root)
+├── sitemap-pages.xml
+├── sitemap-post.xml (blog index)
+│   ├── sitemap-post-1.xml
+│   └── sitemap-post-2.xml
+└── sitemap-job.xml (job index) ← NEW: comprehensive job index
+    ├── sitemap-job-1.xml (job posts)
+    ├── sitemap-job-2.xml (job posts)
+    ├── sitemap-job-category.xml ← NEW: job categories
+    ├── sitemap-job-location.xml ← NEW: location index
+    │   ├── sitemap-job-location-dki-jakarta.xml ← NEW: province locations
+    │   ├── sitemap-job-location-jawa-barat.xml
+    │   └── sitemap-job-location-jawa-timur.xml
+```
+
+**Caching Strategy**:
+- TTL: 3600 seconds (1 hour)
+- Redis keys:
+  - `sitemap:job:category` - Job category sitemap
+  - `sitemap:job:location:index` - Job location index
+  - `sitemap:job:location:{province-slug}` - Individual province location sitemaps
+  - `sitemap:job:main:index` - Comprehensive job sitemap index
+
+**URL Examples**:
+
+**Job Category URLs**:
+- `https://domain.com/lowongan-kerja/engineering`
+- `https://domain.com/lowongan-kerja/marketing`
+- `https://domain.com/lowongan-kerja/sales`
+
+**Job Location URLs**:
+- `https://domain.com/lowongan-kerja/lokasi/dki-jakarta/jakarta-selatan`
+- `https://domain.com/lowongan-kerja/lokasi/jawa-barat/bandung`
+- `https://domain.com/lowongan-kerja/lokasi/jawa-timur/surabaya`
+
+**Files Modified**:
+1. `lib/sitemap.ts`:
+   - Added `generateJobCategorySitemap()` function
+   - Added `generateJobLocationSitemaps()` function
+   - Updated `generateJobSitemaps()` to return comprehensive result object
+   - Updated `generateAllSitemaps()` to handle new sitemap types
+   - Updated `JobSitemapsResult` interface
+   - Updated `GeneratedSitemaps` interface
+
+2. `app/api/v1/sitemaps/[...path]/route.ts`:
+   - Added route handlers for `sitemap-job-category.xml`
+   - Added route handler for `sitemap-job-location.xml`
+   - Added route pattern matching for `sitemap-job-location-{province}.xml`
+   - Updated field types to include new sitemap types
+   - Updated cache key lookups
+
+3. `API_DOCUMENTATION.md`:
+   - Added "Sitemap Endpoints" section (175+ lines)
+   - Documented all sitemap URLs and structure
+   - Added job category and location sitemap examples
+   - Added sitemap features and caching details
+   - Added search engine submission instructions
+
+**Impact**:
+- ✅ **Complete SEO Coverage**: All job-related pages now included in sitemaps
+- ✅ **Category Pages Indexed**: Job category listing pages discoverable by search engines
+- ✅ **Location Pages Indexed**: Location-based job listing pages discoverable by search engines
+- ✅ **Hierarchical Organization**: Location sitemaps organized by province for better structure
+- ✅ **Scalable Architecture**: Supports unlimited categories and location combinations
+- ✅ **Optimized Performance**: Hierarchical structure prevents sitemap files from becoming too large
+- ✅ **Cache Efficient**: All sitemaps cached with 1-hour TTL
+
+**SEO Benefits**:
+- Search engines can discover job category pages for better taxonomy crawling
+- Location-based pages improve local SEO for job searches
+- Comprehensive sitemap structure helps search engines understand site architecture
+- Better indexing of all job-related content improves organic search visibility
+
+**Backwards Compatibility**:
+- ✅ Existing job post sitemaps unchanged
+- ✅ Existing blog and pages sitemaps unchanged
+- ✅ Root sitemap structure preserved
+- ✅ No breaking changes to sitemap URLs
+- ✅ getSitemapInfo() API response includes new sitemaps automatically
+
+---
+
 ### Location Name Lookup Enhancement - Partial Matching for Regency/District/Village (November 11, 2025 - 11:05 UTC)
 
 **Summary**: Enhanced location name-to-ID lookup functions to support partial matching with ILIKE for regencies, districts, and villages. Users can now send "Surabaya" and the system will match "KOTA SURABAYA" automatically, making the API more user-friendly and flexible.
