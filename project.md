@@ -235,6 +235,70 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Sitemap Enhancement - Trailing Slashes Added to All URLs (November 13, 2025 - 17:30 UTC)
+
+**Summary**: Added trailing slashes to all job category and location sitemap URLs for consistency and SEO best practices. All sitemap URLs now have consistent trailing slash formatting.
+
+**Problem Statement**:
+- Job category URLs were missing trailing slashes: `/lowongan-kerja/engineering` instead of `/lowongan-kerja/engineering/`
+- Job location province URLs were missing trailing slashes: `/lowongan-kerja/lokasi/aceh` instead of `/lowongan-kerja/lokasi/aceh/`
+- Job location city URLs were missing trailing slashes: `/lowongan-kerja/lokasi/aceh/banda-aceh` instead of `/lowongan-kerja/lokasi/aceh/banda-aceh/`
+- Inconsistent URL formatting across sitemaps (blog and job posts had trailing slashes, but categories/locations didn't)
+
+**Solution - Consistent Trailing Slash Formatting**:
+
+All sitemap URLs now use trailing slashes for consistency:
+
+**Before**:
+```typescript
+// Job category
+loc: `${url}/lowongan-kerja/${category.slug}`
+
+// Job location province
+loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}`
+
+// Job location city
+loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}`
+```
+
+**After**:
+```typescript
+// Job category
+loc: `${url}/lowongan-kerja/${category.slug}/`
+
+// Job location province
+loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/`
+
+// Job location city
+loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}/`
+```
+
+**URL Examples**:
+- ✅ `https://nexjob.tech/lowongan-kerja/engineering/` (with trailing slash)
+- ✅ `https://nexjob.tech/lowongan-kerja/lokasi/aceh/` (with trailing slash)
+- ✅ `https://nexjob.tech/lowongan-kerja/lokasi/aceh/banda-aceh/` (with trailing slash)
+
+**Files Modified**:
+- `lib/sitemap.ts` - Added trailing slashes to job category URLs (line 179) and job location URLs (lines 220, 228)
+
+**Impact**:
+- ✅ **Consistent URL Format**: All sitemap URLs now have trailing slashes
+- ✅ **SEO Best Practice**: Trailing slashes prevent duplicate URL issues
+- ✅ **Better Canonicalization**: Clear canonical URL format across all pages
+- ✅ **No Breaking Changes**: URLs remain functionally identical (most web servers treat with/without trailing slash the same)
+
+**SEO Benefits**:
+- Prevents potential duplicate content issues with/without trailing slash
+- Consistent URL structure improves site architecture understanding
+- Matches Next.js default routing behavior (automatically adds trailing slashes)
+
+**Backwards Compatibility**:
+- ✅ Web servers typically redirect `/path` to `/path/` automatically
+- ✅ No impact on existing sitemap functionality
+- ✅ Search engines handle both formats gracefully
+
+---
+
 ### Sitemap Enhancement - Province URLs Included in Location Sitemaps (November 13, 2025 - 17:10 UTC)
 
 **Summary**: Enhanced the job location sitemap generation to include province-level URLs at the top of each province sitemap. Each province sitemap now contains the province URL (e.g., `/lowongan-kerja/lokasi/aceh`) followed by all city URLs under that province.

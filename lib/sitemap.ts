@@ -173,7 +173,7 @@ export async function generateJobCategorySitemap(baseUrl?: string): Promise<stri
   
   const categoryUrls: SitemapUrl[] = categories.map((category: any) => {
     return {
-      loc: `${url}/lowongan-kerja/${category.slug}`,
+      loc: `${url}/lowongan-kerja/${category.slug}/`,
       lastmod: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
       changefreq: 'daily' as const,
       priority: 0.7
@@ -214,7 +214,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string): Promise<{ i
       const locationUrls: SitemapUrl[] = []
       
       locationUrls.push({
-        loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}`,
+        loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/`,
         changefreq: 'daily' as const,
         priority: 0.7
       })
@@ -222,7 +222,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string): Promise<{ i
       regencies.forEach((regency: any) => {
         const regencySlug = regency.name.toLowerCase().replace(/\s+/g, '-').replace(/\./g, '')
         locationUrls.push({
-          loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}`,
+          loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}/`,
           changefreq: 'daily' as const,
           priority: 0.6
         })
