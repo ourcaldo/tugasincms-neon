@@ -2035,6 +2035,176 @@ curl -X GET "https://your-domain.com/api/v1/pages?category=legal" \
 
 ---
 
+## Sitemap Endpoints
+
+TugasCMS provides comprehensive XML sitemap generation for SEO optimization. The sitemap system includes root sitemaps, blog posts, static pages, job posts, job categories, and job locations.
+
+### Get Sitemap Information
+
+Retrieve metadata about all available sitemaps.
+
+**Endpoint**: `GET /api/v1/sitemaps`
+
+**Authentication**: Required (Bearer token)
+
+**Example Request**:
+```bash
+curl -X GET "https://your-domain.com/api/v1/sitemaps" \
+  -H "Authorization: Bearer your-api-token"
+```
+
+**Example Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "sitemaps": [
+      {
+        "type": "root",
+        "url": "https://cms.domain.com/api/v1/sitemaps/sitemap.xml"
+      },
+      {
+        "type": "pages",
+        "url": "https://cms.domain.com/api/v1/sitemaps/sitemap-pages.xml"
+      },
+      {
+        "type": "blog",
+        "url": "https://cms.domain.com/api/v1/sitemaps/sitemap-post.xml",
+        "index": "https://cms.domain.com/api/v1/sitemaps/sitemap-post.xml",
+        "references": [
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-post-1.xml",
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-post-2.xml"
+        ]
+      },
+      {
+        "type": "job",
+        "url": "https://cms.domain.com/api/v1/sitemaps/sitemap-job.xml",
+        "index": "https://cms.domain.com/api/v1/sitemaps/sitemap-job.xml",
+        "references": [
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-job-1.xml",
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-job-2.xml",
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-job-category.xml",
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-job-location.xml",
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-job-location-dki-jakarta.xml",
+          "https://cms.domain.com/api/v1/sitemaps/sitemap-job-location-jawa-barat.xml"
+        ]
+      }
+    ]
+  },
+  "cached": false
+}
+```
+
+---
+
+### Sitemap Structure
+
+The sitemap system follows a hierarchical structure:
+
+#### Root Sitemap
+- **URL**: `/api/v1/sitemaps/sitemap.xml`
+- **Description**: Main sitemap index pointing to all sub-sitemaps
+- **Contains**: References to pages, blog posts, and job sitemaps
+
+#### Pages Sitemap
+- **URL**: `/api/v1/sitemaps/sitemap-pages.xml`
+- **Description**: Static pages sitemap
+- **Contains**: Home page and other static pages
+
+#### Blog Sitemap
+- **URL**: `/api/v1/sitemaps/sitemap-post.xml`
+- **Description**: Blog posts sitemap index
+- **Format**: Chunked (200 posts per file)
+- **Chunks**: `/api/v1/sitemaps/sitemap-post-{N}.xml`
+
+#### Job Sitemap (Enhanced)
+- **URL**: `/api/v1/sitemaps/sitemap-job.xml`
+- **Description**: Comprehensive job sitemap index including job posts, categories, and locations
+- **Contains**:
+  1. **Job Posts Chunks**: `/api/v1/sitemaps/sitemap-job-{N}.xml` (200 jobs per file)
+  2. **Job Categories**: `/api/v1/sitemaps/sitemap-job-category.xml`
+  3. **Job Locations Index**: `/api/v1/sitemaps/sitemap-job-location.xml`
+  4. **Job Location By Province**: `/api/v1/sitemaps/sitemap-job-location-{province-slug}.xml`
+
+---
+
+### Job Sitemap URLs
+
+The job sitemap includes URLs for:
+
+#### 1. Job Posts
+**Format**: `https://domain.com/jobs/{category-slug}/{job-slug}/`
+
+**Example**:
+- `https://domain.com/jobs/engineering/senior-full-stack-developer/`
+- `https://domain.com/jobs/marketing/digital-marketing-manager/`
+
+#### 2. Job Categories
+**Sitemap**: `/api/v1/sitemaps/sitemap-job-category.xml`
+
+**URL Format**: `https://domain.com/lowongan-kerja/{category-slug}`
+
+**Example**:
+- `https://domain.com/lowongan-kerja/engineering`
+- `https://domain.com/lowongan-kerja/marketing`
+- `https://domain.com/lowongan-kerja/sales`
+
+#### 3. Job Locations
+**Sitemap Index**: `/api/v1/sitemaps/sitemap-job-location.xml`
+
+**Province Sitemaps**: `/api/v1/sitemaps/sitemap-job-location-{province-slug}.xml`
+
+**URL Format**: `https://domain.com/lowongan-kerja/lokasi/{province-slug}/{city-slug}`
+
+**Example**:
+- `https://domain.com/lowongan-kerja/lokasi/dki-jakarta/jakarta-selatan`
+- `https://domain.com/lowongan-kerja/lokasi/jawa-barat/bandung`
+- `https://domain.com/lowongan-kerja/lokasi/jawa-timur/surabaya`
+
+---
+
+### Sitemap Features
+
+1. **Automatic Generation**: Sitemaps are generated automatically every 60 minutes
+2. **Caching**: All sitemaps are cached for 1 hour (3600 seconds)
+3. **Chunking**: Large sitemaps are split into chunks of 200 URLs for optimal performance
+4. **Hierarchical Structure**: Location sitemaps are organized by province for better organization
+5. **SEO Optimized**: Includes lastmod, changefreq, and priority tags
+6. **Dynamic URLs**: All URLs are generated based on actual database content
+
+### Sitemap Cache Invalidation
+
+Sitemaps are automatically invalidated when:
+- Job posts are created, updated, or deleted
+- Job categories are modified
+- Location data is updated
+
+### Using Sitemaps
+
+#### Submit to Search Engines
+
+**Google Search Console**:
+```
+https://your-domain.com/api/v1/sitemaps/sitemap.xml
+```
+
+**Bing Webmaster Tools**:
+```
+https://your-domain.com/api/v1/sitemaps/sitemap.xml
+```
+
+#### robots.txt Configuration
+
+Add this to your `robots.txt`:
+```
+User-agent: *
+Allow: /
+
+Sitemap: https://your-domain.com/api/v1/sitemaps/sitemap.xml
+```
+
+---
+
 ## Support
 
 For API support or questions:
