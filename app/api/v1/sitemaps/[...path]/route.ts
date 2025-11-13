@@ -11,9 +11,10 @@ export async function GET(
     const filename = path.join('/')
     
     let sitemapKey: string
-    let sitemapField: 'root' | 'pages' | 'blogIndex' | 'jobIndex' | null = null
+    let sitemapField: 'root' | 'pages' | 'blogIndex' | 'jobPostsIndex' | 'jobCategorySitemap' | 'jobLocationIndex' | null = null
     let chunkType: 'blog' | 'job' | null = null
     let chunkNum: number | null = null
+    let locationProvince: string | null = null
     
     if (filename === 'sitemap.xml') {
       sitemapKey = 'sitemap:root'
@@ -30,13 +31,22 @@ export async function GET(
       sitemapKey = `sitemap:post:chunk:${chunkNum}`
       chunkType = 'blog'
     } else if (filename === 'sitemap-job.xml') {
-      sitemapKey = 'sitemap:job:index'
-      sitemapField = 'jobIndex'
+      sitemapKey = 'sitemap:job:main:index'
     } else if (filename.match(/^sitemap-job-(\d+)\.xml$/)) {
       const match = filename.match(/^sitemap-job-(\d+)\.xml$/)!
       chunkNum = parseInt(match[1])
       sitemapKey = `sitemap:job:chunk:${chunkNum}`
       chunkType = 'job'
+    } else if (filename === 'sitemap-job-category.xml') {
+      sitemapKey = 'sitemap:job:category'
+      sitemapField = 'jobCategorySitemap'
+    } else if (filename === 'sitemap-job-location.xml') {
+      sitemapKey = 'sitemap:job:location:index'
+      sitemapField = 'jobLocationIndex'
+    } else if (filename.match(/^sitemap-job-location-(.+)\.xml$/)) {
+      const match = filename.match(/^sitemap-job-location-(.+)\.xml$/)!
+      locationProvince = match[1]
+      sitemapKey = `sitemap:job:location:${locationProvince}`
     } else {
       return new NextResponse('Not Found', { status: 404 })
     }
@@ -50,8 +60,10 @@ export async function GET(
       if (sitemapField) {
         sitemapXml = generated[sitemapField]
       } else if (chunkType && chunkNum !== null) {
-        const chunks = chunkType === 'blog' ? generated.blogChunks : generated.jobChunks
+        const chunks = chunkType === 'blog' ? generated.blogChunks : generated.jobPostsChunks
         sitemapXml = chunks[chunkNum - 1] || null
+      } else if (locationProvince) {
+        sitemapXml = generated.jobLocationChunks[locationProvince] || null
       }
       
       if (!sitemapXml) {
