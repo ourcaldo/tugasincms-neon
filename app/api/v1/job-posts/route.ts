@@ -17,6 +17,7 @@ import {
   findEmploymentTypeByNameOrSlug,
   findExperienceLevelByNameOrSlug,
   findEducationLevelByNameOrSlug,
+  ensureSlugWithUUID,
 } from "@/lib/job-utils";
 import { 
   resolveLocationHierarchy,
@@ -30,7 +31,7 @@ const jobPostSchema = z.object({
   title: z.string().min(1, "Title is required").max(500, "Title must not exceed 500 characters"),
   content: z.string().min(1, "Content is required"),
   excerpt: z.string().max(1000, "Excerpt must not exceed 1000 characters").optional(),
-  slug: z.string().min(1, "Slug is required").max(200, "Slug must not exceed 200 characters"),
+  slug: z.string().max(200, "Slug must not exceed 200 characters").optional().or(z.literal("")),
   featured_image: z.string().url("Featured image must be a valid URL").optional().or(z.literal("")),
   publish_date: z.string().datetime("Publish date must be a valid ISO datetime").optional().or(z.literal("")),
   status: z.enum(["draft", "published", "scheduled"], {
@@ -533,7 +534,7 @@ export async function POST(request: NextRequest) {
       title,
       content,
       excerpt,
-      slug,
+      slug: rawSlug,
       featured_image,
       publish_date,
       status,
@@ -569,6 +570,8 @@ export async function POST(request: NextRequest) {
       job_tags,
     } = validation.data;
 
+    const { id: postId, slug } = ensureSlugWithUUID(rawSlug);
+
     // Process categories (accepts UUIDs, names, or comma-separated strings)
     const categoryIds = await processJobCategoriesInput(job_categories);
 
@@ -598,9 +601,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create job post
-    const postResult = await sql`
+    await sql`
       INSERT INTO job_posts (
-        title, content, excerpt, slug, featured_image, publish_date, status,
+        id, title, content, excerpt, slug, featured_image, publish_date, status,
         author_id, seo_title, meta_description, focus_keyword,
         job_company_name, job_company_logo, job_company_website,
         job_employment_type_id, job_experience_level_id, job_education_level_id,
@@ -611,7 +614,7 @@ export async function POST(request: NextRequest) {
         job_skills, job_benefits, job_requirements, job_responsibilities
       )
       VALUES (
-        ${title}, ${content}, ${excerpt || null}, ${slug}, ${featured_image || null},
+        ${postId}, ${title}, ${content}, ${excerpt || null}, ${slug}, ${featured_image || null},
         ${publish_date || new Date().toISOString()}, ${status}, ${userId},
         ${seo_title || null}, ${meta_description || null}, ${focus_keyword || null},
         ${job_company_name || null}, ${job_company_logo || null}, ${job_company_website || null},
@@ -622,10 +625,7 @@ export async function POST(request: NextRequest) {
         ${job_application_email || null}, ${job_application_url || null}, ${job_application_deadline || null},
         ${processedSkills}, ${processedBenefits}, ${job_requirements || null}, ${job_responsibilities || null}
       )
-      RETURNING id
     `;
-
-    const postId = postResult[0].id;
 
     // Add categories
     if (categoryIds.length > 0) {

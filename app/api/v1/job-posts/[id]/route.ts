@@ -16,7 +16,7 @@ const updateJobPostSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   content: z.string().min(1).optional(),
   excerpt: z.string().max(1000).optional(),
-  slug: z.string().min(1).max(200).optional(),
+  slug: z.string().max(200).optional().or(z.literal("")),
   featured_image: z.string().optional(),
   publish_date: z.string().optional(),
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
@@ -156,7 +156,7 @@ export async function PUT(
     }
     
     const {
-      title, content, excerpt, slug, featured_image, publish_date, status,
+      title, content, excerpt, slug: rawSlug, featured_image, publish_date, status,
       seo_title, meta_description, focus_keyword,
       job_company_name, job_company_logo, job_company_website,
       job_employment_type_id, job_experience_level_id, job_education_level_id,
@@ -167,6 +167,11 @@ export async function PUT(
       job_skills, job_benefits, job_requirements, job_responsibilities,
       job_categories, job_tags
     } = validation.data
+    
+    let slug = rawSlug
+    if (rawSlug !== undefined && (!rawSlug || rawSlug.trim() === '')) {
+      slug = id
+    }
     
     // Process categories if provided (accepts UUIDs, names, or comma-separated strings)
     let categoryIds: string[] | undefined

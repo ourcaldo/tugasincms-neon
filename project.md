@@ -235,6 +235,176 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts Slug Enhancement - Automatic UUID Fallback (November 14, 2025 - [Current Time] UTC)
+
+**Summary**: Enhanced job post creation and update endpoints to automatically use the post's UUID as the slug when no slug is provided or when an empty slug is explicitly submitted. This allows flexible slug management while maintaining valid, unique URLs for all job posts. Sitemap generation updated to handle empty slugs by falling back to UUIDs.
+
+**Problem Statement**:
+- Job posts required a non-empty slug during creation via both CMS frontend and external API
+- Empty slug submission would cause validation errors
+- No fallback mechanism for automatically generating slugs
+- Sitemap URLs would break if slugs were somehow empty in the database
+- External API consumers had to manually generate slugs before submission
+
+**Solution - Automatic UUID Slug Fallback**:
+
+1. **Validation Schema Updates**:
+   - Changed slug validation from required to optional in both internal and external APIs
+   - Updated POST schemas: `z.string().max(200).optional().or(z.literal(""))`
+   - Updated PUT schemas: `z.string().max(200).optional().or(z.literal(""))`
+   - Allows empty strings and undefined values for flexible slug management
+
+2. **Helper Function Created** (`lib/job-utils.ts`):
+   ```typescript
+   export function ensureSlugWithUUID(slug: string | undefined | null): { id: string; slug: string } {
+     const postId = crypto.randomUUID();
+     
+     if (!slug || slug.trim() === '') {
+       return { id: postId, slug: postId };
+     }
+     
+     return { id: postId, slug: slug.trim() };
+   }
+   ```
+   - Centralizes slug fallback logic for consistency across endpoints
+   - Generates UUID and uses it as both post ID and slug when slug is empty
+   - Trims whitespace from provided slugs
+
+3. **POST Endpoint Behavior** (both internal and external APIs):
+   - When slug is not provided or is empty/whitespace → uses generated UUID as both `id` and `slug`
+   - When slug is provided with value → uses provided slug value (trimmed)
+   - UUID is always generated beforehand to ensure slug matches the persisted post ID
+   - Explicitly inserts both `id` and `slug` fields in INSERT statement
+
+4. **PUT Endpoint Behavior** (both internal and external APIs):
+   - When slug is **not in payload** (undefined) → preserves existing slug via `COALESCE(${slug}, slug)`
+   - When slug is **explicitly provided but empty** → fallbacks to existing post ID: `if (rawSlug !== undefined && (!rawSlug || rawSlug.trim() === '')) { slug = id }`
+   - When slug is **provided with value** → uses provided slug value
+   - Conditional logic preserves slugs on partial updates while allowing intentional slug clearing
+
+5. **Sitemap Generation Updated** (`lib/sitemap.ts`):
+   ```typescript
+   const postSlug = post.slug && post.slug.trim() !== '' ? post.slug : post.id
+   return {
+     loc: `${url}/jobs/${post.category_slug}/${postSlug}/`,
+     ...
+   }
+   ```
+   - Automatically falls back to `post.id` when stored slug is null/empty
+   - Ensures all job post URLs in sitemaps are valid
+   - Format: `/jobs/{category-slug}/{post-slug-or-uuid}/`
+
+**Technical Implementation**:
+
+**Files Modified**:
+- `lib/job-utils.ts` - Added `ensureSlugWithUUID()` helper function (lines 241-249)
+- `app/api/v1/job-posts/route.ts` (External API POST):
+  - Updated validation schema to allow empty slug (line 36)
+  - Added `ensureSlugWithUUID` import (line 23)
+  - Implemented slug fallback logic using helper (line 576)
+  - Updated INSERT to explicitly include generated `id` (line 612)
+- `app/api/job-posts/route.ts` (Internal API POST):
+  - Updated validation schema to allow empty slug (line 20)
+  - Added `ensureSlugWithUUID` import (line 14)
+  - Implemented slug fallback logic using helper (line 197)
+  - Updated INSERT to explicitly include generated `id` (line 213)
+- `app/api/v1/job-posts/[id]/route.ts` (External API PUT):
+  - Updated validation schema to allow empty slug (line 23)
+  - Added conditional slug fallback logic (lines 175-178)
+  - Preserves existing slug when not provided, uses post ID when explicitly empty
+- `app/api/job-posts/[id]/route.ts` (Internal API PUT):
+  - Updated validation schema to allow empty slug (line 21)
+  - Added conditional slug fallback logic (lines 150-153)
+  - Preserves existing slug when not provided, uses post ID when explicitly empty
+- `lib/sitemap.ts` - Updated `generateJobSitemaps()` function:
+  - Added fallback logic to use `post.id` when `post.slug` is empty (line 278)
+  - Ensures all sitemap URLs remain valid regardless of slug state
+
+**Behavior Examples**:
+
+**POST Requests**:
+```json
+// Example 1: No slug provided
+{
+  "title": "Software Engineer",
+  "content": "...",
+  "slug": ""
+}
+// Result: slug = generated UUID (e.g., "a1b2c3d4-...")
+
+// Example 2: Slug provided
+{
+  "title": "Software Engineer",
+  "content": "...",
+  "slug": "software-engineer-jakarta"
+}
+// Result: slug = "software-engineer-jakarta"
+```
+
+**PUT Requests**:
+```json
+// Example 1: Slug not in payload (partial update)
+{
+  "title": "Senior Software Engineer"
+}
+// Result: slug unchanged (preserved)
+
+// Example 2: Empty slug explicitly provided
+{
+  "slug": ""
+}
+// Result: slug = post's existing UUID/ID
+
+// Example 3: New slug value provided
+{
+  "slug": "new-slug-value"
+}
+// Result: slug = "new-slug-value"
+```
+
+**Sitemap URLs**:
+- Job post with slug: `https://domain.com/jobs/engineering/senior-software-engineer/`
+- Job post without slug: `https://domain.com/jobs/engineering/a1b2c3d4-e5f6-7890-abcd-ef1234567890/`
+
+**Impact**:
+- ✅ **Flexible Slug Management**: Slugs are now optional during creation
+- ✅ **Automatic Fallback**: Empty slugs automatically use UUID for valid URLs
+- ✅ **External API Simplified**: API consumers no longer required to generate slugs
+- ✅ **CMS Frontend Improved**: Users can leave slug empty for auto-generation
+- ✅ **Sitemap Reliability**: All job post URLs guaranteed valid in sitemaps
+- ✅ **UUID Consistency**: Generated UUID used as both post ID and slug when needed
+- ✅ **Partial Update Safety**: PUT requests preserve existing slugs unless explicitly changed
+- ✅ **Backward Compatible**: Existing posts with slugs unchanged
+- ✅ **No Breaking Changes**: API contracts remain compatible with existing consumers
+
+**Database Behavior**:
+- POST: Explicitly inserts UUID for both `id` and `slug` fields (slug = UUID when empty)
+- PUT: Uses `COALESCE` to preserve existing values when not provided
+- No database schema changes required - slug column remains VARCHAR(200)
+- Unique constraint on slug still enforced (UUIDs guarantee uniqueness)
+
+**SEO Benefits**:
+- All job posts have valid, unique URLs regardless of slug state
+- Sitemaps contain complete, crawlable URLs for all published posts
+- UUID-based slugs are still SEO-friendly (unique, permanent identifiers)
+- No broken sitemap URLs from empty/null slugs
+
+**Code Quality**:
+- Consolidated slug fallback logic in single helper function (`ensureSlugWithUUID`)
+- Consistent behavior across internal and external APIs
+- No code duplication between POST and PUT endpoints
+- Clear separation of concerns (validation → preprocessing → insertion)
+
+**Testing Notes**:
+- Test POST with empty slug: should use UUID
+- Test POST with provided slug: should use provided value
+- Test PUT without slug field: should preserve existing
+- Test PUT with empty slug: should fallback to post ID
+- Test PUT with new slug: should update to new value
+- Verify sitemap generation handles both slug and UUID correctly
+
+---
+
 ### Sitemap Enhancement - Trailing Slashes Added to All URLs (November 13, 2025 - 17:30 UTC)
 
 **Summary**: Added trailing slashes to all job category and location sitemap URLs for consistency and SEO best practices. All sitemap URLs now have consistent trailing slash formatting.

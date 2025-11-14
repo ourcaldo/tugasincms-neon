@@ -234,3 +234,13 @@ export async function findEducationLevelByNameOrSlug(
   
   return result[0].id;
 }
+
+export function ensureSlugWithUUID(slug: string | undefined | null): { id: string; slug: string } {
+  const postId = crypto.randomUUID();
+  
+  if (!slug || slug.trim() === '') {
+    return { id: postId, slug: postId };
+  }
+  
+  return { id: postId, slug: slug.trim() };
+}

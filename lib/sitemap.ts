@@ -272,8 +272,9 @@ export async function generateJobSitemaps(baseUrl?: string): Promise<JobSitemaps
   })
   
   const jobUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: any) => {
+    const postSlug = post.slug && post.slug.trim() !== '' ? post.slug : post.id
     return {
-      loc: `${url}/jobs/${post.category_slug}/${post.slug}/`,
+      loc: `${url}/jobs/${post.category_slug}/${postSlug}/`,
       lastmod: new Date(post.updated_at).toISOString(),
       changefreq: 'weekly' as const,
       priority: 0.8
