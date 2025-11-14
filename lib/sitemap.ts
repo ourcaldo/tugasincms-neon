@@ -109,8 +109,9 @@ export async function generatePagesSitemap(baseUrl?: string): Promise<string> {
   return generateSitemapXML(staticPages)
 }
 
-export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: string, chunks: string[] }> {
+export async function generateBlogSitemaps(baseUrl?: string, cmsBaseUrl?: string): Promise<{ index: string, chunks: string[] }> {
   const url = baseUrl || getBaseUrl()
+  const cmsHost = cmsBaseUrl || getCmsHost()
   
   // Fetch all published blog posts (excluding other post types like job posts) with their first category
   const posts = await sql`
@@ -152,7 +153,7 @@ export async function generateBlogSitemaps(baseUrl?: string): Promise<{ index: s
     const chunkPosts = blogUrls.slice(i, i + POSTS_PER_SITEMAP)
     const chunkXml = generateSitemapXML(chunkPosts)
     chunks.push(chunkXml)
-    chunkUrls.push(`${url}/api/v1/sitemaps/sitemap-post-${chunkIndex}.xml`)
+    chunkUrls.push(`${cmsHost}/api/v1/sitemaps/sitemap-post-${chunkIndex}.xml`)
   }
 
   const indexXml = generateSitemapIndexXML(chunkUrls)
@@ -183,9 +184,9 @@ export async function generateJobCategorySitemap(baseUrl?: string): Promise<stri
   return generateSitemapXML(categoryUrls)
 }
 
-export async function generateJobLocationSitemaps(baseUrl?: string): Promise<{ index: string, locationChunks: Record<string, string> }> {
+export async function generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?: string): Promise<{ index: string, locationChunks: Record<string, string> }> {
   const url = baseUrl || getBaseUrl()
-  const cmsHost = getCmsHost()
+  const cmsHost = cmsBaseUrl || getCmsHost()
   
   const provinces = await sql`
     SELECT 
@@ -231,7 +232,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string): Promise<{ i
       const provinceChunkXml = generateSitemapXML(locationUrls)
       const provinceChunkKey = provinceSlug
       locationChunks[provinceChunkKey] = provinceChunkXml
-      provinceUrls.push(`${url}/api/v1/sitemaps/sitemap-job-location-${provinceSlug}.xml`)
+      provinceUrls.push(`${cmsHost}/api/v1/sitemaps/sitemap-job-location-${provinceSlug}.xml`)
     }
   }
 
@@ -248,8 +249,9 @@ export interface JobSitemapsResult {
   jobLocationChunks: Record<string, string>
 }
 
-export async function generateJobSitemaps(baseUrl?: string): Promise<JobSitemapsResult> {
+export async function generateJobSitemaps(baseUrl?: string, cmsBaseUrl?: string): Promise<JobSitemapsResult> {
   const url = baseUrl || getBaseUrl()
+  const cmsHost = cmsBaseUrl || getCmsHost()
   
   const posts = await sql`
     SELECT 
@@ -289,14 +291,14 @@ export async function generateJobSitemaps(baseUrl?: string): Promise<JobSitemaps
     const chunkPosts = jobUrls.slice(i, i + POSTS_PER_SITEMAP)
     const chunkXml = generateSitemapXML(chunkPosts)
     jobPostsChunks.push(chunkXml)
-    chunkUrls.push(`${url}/api/v1/sitemaps/sitemap-job-${chunkIndex}.xml`)
+    chunkUrls.push(`${cmsHost}/api/v1/sitemaps/sitemap-job-${chunkIndex}.xml`)
   }
 
   const jobPostsIndex = generateSitemapIndexXML(chunkUrls)
   
   const jobCategorySitemap = await generateJobCategorySitemap(url)
   
-  const { index: jobLocationIndex, locationChunks: jobLocationChunks } = await generateJobLocationSitemaps(url)
+  const { index: jobLocationIndex, locationChunks: jobLocationChunks } = await generateJobLocationSitemaps(url, cmsHost)
 
   return {
     jobPostsIndex,
@@ -328,7 +330,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
   const pagesSitemap = await generatePagesSitemap(sitemapHost)
   try { await setCachedData('sitemap:pages', pagesSitemap, TTL) } catch (e) { }
 
-  const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost)
+  const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost, cmsHost)
   
   if (blogIndex) {
     try { await setCachedData('sitemap:post:index', blogIndex, TTL) } catch (e) { }
@@ -346,7 +348,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
     jobCategorySitemap,
     jobLocationIndex,
     jobLocationChunks
-  } = await generateJobSitemaps(sitemapHost)
+  } = await generateJobSitemaps(sitemapHost, cmsHost)
   
   if (jobPostsIndex) {
     try { await setCachedData('sitemap:job:index', jobPostsIndex, TTL) } catch (e) { }

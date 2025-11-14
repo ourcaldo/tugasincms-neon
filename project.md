@@ -235,6 +235,78 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Sitemap Host Configuration Fix - Correct CMS_HOST Usage for XML References (November 14, 2025 - 14:06 UTC)
+
+**Summary**: Fixed sitemap generation to correctly use CMS_HOST for sitemap index entries (XML files referencing other XML files) while maintaining SITEMAP_HOST for actual content URLs (job pages, blog posts). This ensures proper sitemap hierarchy and SEO compliance.
+
+**Problem Statement**:
+- Sitemap index files were incorrectly using SITEMAP_HOST for XML file references
+- Example: `sitemap-job-location.xml` contained `<loc>https://nexjob.tech/api/v1/sitemaps/sitemap-job-location-aceh.xml</loc>`
+- Should have been: `<loc>https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-location-aceh.xml</loc>`
+- XML sitemap files are served from CMS domain, not the public site domain
+- This affected job post sitemaps, blog post sitemaps, and location sitemaps
+
+**Root Cause**:
+- Sitemap generator functions were using `baseUrl` (SITEMAP_HOST) for all URLs
+- No distinction between sitemap API endpoints (CMS_HOST) and content URLs (SITEMAP_HOST)
+- Functions `generateBlogSitemaps`, `generateJobSitemaps`, and `generateJobLocationSitemaps` lacked CMS host parameter
+
+**Solution - Dual-Host Configuration**:
+
+1. **Updated Function Signatures**:
+   - `generateBlogSitemaps(baseUrl?: string, cmsBaseUrl?: string)` - Added optional `cmsBaseUrl` parameter
+   - `generateJobSitemaps(baseUrl?: string, cmsBaseUrl?: string)` - Added optional `cmsBaseUrl` parameter
+   - `generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?: string)` - Added optional `cmsBaseUrl` parameter
+
+2. **Host Usage Logic**:
+   - **Content URLs** (actual pages): Use `baseUrl` (SITEMAP_HOST)
+     - Example: `https://nexjob.tech/lowongan-kerja/lokasi/aceh/`
+     - Example: `https://nexjob.tech/jobs/engineering/senior-developer/`
+   - **Sitemap Index URLs** (XML files): Use `cmsBaseUrl` (CMS_HOST)
+     - Example: `https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-location-aceh.xml`
+     - Example: `https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-1.xml`
+
+3. **Implementation Changes**:
+   - `generateBlogSitemaps`: Line 159 changed to use `cmsHost` for chunk URLs
+   - `generateJobSitemaps`: Line 297 changed to use `cmsHost` for chunk URLs
+   - `generateJobLocationSitemaps`: Line 238 changed to use `cmsHost` for province sitemap URLs
+   - `generateAllSitemaps`: Passes both `sitemapHost` and `cmsHost` to all generator functions
+
+**Files Modified**:
+- `lib/sitemap.ts` - Updated 3 generator functions to accept and use dual-host configuration
+
+**Verification Results**:
+```bash
+# Sitemap index files now correctly use CMS_HOST
+✓ GET /api/v1/sitemaps/sitemap-job-location.xml
+  <loc>https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-location-aceh.xml</loc>
+
+✓ GET /api/v1/sitemaps/sitemap-job.xml
+  <loc>https://cms.nexjob.tech/api/v1/sitemaps/sitemap-job-1.xml</loc>
+
+# Nested sitemaps correctly use SITEMAP_HOST for content URLs
+✓ GET /api/v1/sitemaps/sitemap-job-location-aceh.xml
+  <loc>https://nexjob.tech/lowongan-kerja/lokasi/aceh/</loc>
+
+✓ GET /api/v1/sitemaps/sitemap-job-1.xml
+  <loc>https://nexjob.tech/jobs/perdagangan-distribusi/...</loc>
+```
+
+**Impact**:
+- ✅ **Fixed**: Sitemap index URLs now correctly reference CMS domain for XML files
+- ✅ **Maintained**: Content URLs continue using public site domain (SITEMAP_HOST)
+- ✅ **SEO Compliant**: Proper sitemap hierarchy with correct domain references
+- ✅ **No Breaking Changes**: Existing sitemap structure unchanged, only host URLs corrected
+- ✅ **Architect Reviewed**: Implementation follows recommended dual-host pattern
+
+**Technical Benefits**:
+- Clear separation of concerns between CMS API and public site domains
+- Centralized host resolution in `generateAllSitemaps`
+- Consistent host usage across all sitemap types
+- Maintains backwards compatibility with existing sitemap consumers
+
+---
+
 ### Job Posts Sitemap Endpoint - Dedicated API Route (November 14, 2025 - 12:21 UTC)
 
 **Summary**: Created a dedicated sitemap endpoint at `/api/v1/job-posts/sitemaps` to provide job-specific sitemap metadata. This endpoint filters and returns only job-related sitemaps from the centralized sitemap system, providing a convenient subset for API consumers focused on job posts.
