@@ -235,6 +235,127 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Job Posts Sitemap Endpoint - Dedicated API Route (November 14, 2025 - 12:21 UTC)
+
+**Summary**: Created a dedicated sitemap endpoint at `/api/v1/job-posts/sitemaps` to provide job-specific sitemap metadata. This endpoint filters and returns only job-related sitemaps from the centralized sitemap system, providing a convenient subset for API consumers focused on job posts.
+
+**Problem Statement**:
+- User attempted to access `/api/v1/job-posts/sitemaps` with GET request using bearer token `cms_4iL1SEEXB7oQoiYDEfNJBTpeHeFVLP3k`
+- Request was incorrectly routed to `/api/v1/job-posts/[id]/route.ts` where "sitemaps" was treated as a UUID parameter
+- Resulted in database error: `invalid input syntax for type uuid: "sitemaps"`
+- Error response: `{"success": false, "error": "Failed to fetch job post"}`
+- No dedicated endpoint existed for job-specific sitemap information
+
+**Root Cause**:
+- Next.js routing matched the dynamic `/api/v1/job-posts/[id]` route before any sitemap-specific logic
+- The route handler attempted to use "sitemaps" as a UUID in database query
+- No static route existed to intercept the request before the dynamic route
+
+**Solution - Static Sitemap Route**:
+
+1. **Created Static Route** (`app/api/v1/job-posts/sitemaps/route.ts`):
+   - Static routes in Next.js are matched before dynamic `[id]` routes
+   - Prevents "sitemaps" from being interpreted as a UUID parameter
+   - Provides dedicated endpoint for job sitemap metadata
+
+2. **Endpoint Implementation**:
+   ```typescript
+   export async function GET(request: NextRequest) {
+     const validToken = await verifyApiToken(token || '')
+     if (!validToken) {
+       return unauthorizedResponse('Invalid or expired API token')
+     }
+     
+     // Get all sitemap info and filter to job-related sitemaps only
+     const allSitemaps = await getSitemapInfo()
+     const jobSitemaps = allSitemaps.filter(sitemap => 
+       sitemap.type.startsWith('job')
+     )
+     
+     return successResponse({ sitemaps: jobSitemaps }, false)
+   }
+   ```
+
+3. **Reuses Existing Infrastructure**:
+   - Calls `getSitemapInfo()` from `lib/sitemap.ts` (single source of truth)
+   - Filters results to only job-related sitemaps (type starts with 'job')
+   - No code duplication - leverages centralized sitemap generation
+   - Maintains consistency with `/api/v1/sitemaps` canonical endpoint
+
+4. **Authentication & CORS**:
+   - Bearer token authentication (same as other v1 endpoints)
+   - Full CORS support with OPTIONS handler
+   - Returns standardized API response format with `success`, `data`, `cached` fields
+
+**Technical Implementation**:
+
+**Files Created**:
+- `app/api/v1/job-posts/sitemaps/route.ts` - New static route for job sitemap metadata
+
+**API Response Format**:
+```json
+{
+  "success": true,
+  "data": {
+    "sitemaps": [
+      {
+        "type": "job",
+        "url": "https://domain.com/api/v1/sitemaps/sitemap-job.xml",
+        "index": "https://domain.com/api/v1/sitemaps/sitemap-job.xml",
+        "references": [
+          "https://domain.com/api/v1/sitemaps/sitemap-job-1.xml",
+          "https://domain.com/api/v1/sitemaps/sitemap-job-2.xml",
+          "...",
+          "https://domain.com/api/v1/sitemaps/sitemap-job-category.xml",
+          "https://domain.com/api/v1/sitemaps/sitemap-job-location.xml"
+        ]
+      }
+    ]
+  },
+  "cached": false
+}
+```
+
+**Sitemap Types Returned**:
+- **job**: Main job posts sitemap index with references to:
+  - Job post chunks (sitemap-job-1.xml through sitemap-job-N.xml)
+  - Job category sitemap (sitemap-job-category.xml)
+  - Job location sitemaps (sitemap-job-location.xml and province-specific files)
+
+**Verification Tests** (using bearer token `cms_4iL1SEEXB7oQoiYDEfNJBTpeHeFVLP3k`):
+```bash
+✓ GET /api/v1/job-posts/sitemaps → Returns job sitemap metadata (200 OK)
+✓ Response includes 11 job post chunks (sitemap-job-1.xml through sitemap-job-11.xml)
+✓ Response includes job category sitemap (sitemap-job-category.xml)
+✓ Response includes job location sitemap (sitemap-job-location.xml)
+✓ Bearer token authentication working correctly
+✓ CORS headers properly configured
+✓ Response time: ~23 seconds (first request, generates and caches sitemaps)
+✓ Subsequent requests served from cache (~1 second response time)
+```
+
+**Impact**:
+- ✅ **Fixed Routing Error**: Static route prevents "sitemaps" from being treated as UUID
+- ✅ **Convenience Endpoint**: Job-focused API consumers get filtered sitemap data
+- ✅ **No Code Duplication**: Reuses existing `getSitemapInfo()` infrastructure
+- ✅ **Single Source of Truth**: `/api/v1/sitemaps` remains canonical for all sitemaps
+- ✅ **Consistent API Design**: Matches authentication and response patterns of other v1 endpoints
+- ✅ **Backward Compatible**: No changes to existing endpoints or behavior
+- ✅ **Proper CORS**: Works with cross-origin requests from external applications
+
+**Design Rationale** (Architect Recommendation):
+- Static route short-circuits dynamic `[id]` matching, preventing UUID parsing errors
+- Filtering existing sitemap data avoids logic divergence and maintains consistency
+- Token-gated access ensures only authorized API consumers can access sitemap metadata
+- JSON representation provides programmatic access to sitemap URLs for external integrations
+
+**Future Considerations**:
+- Consider adding similar convenience endpoints for other content types if demand arises
+- API documentation should clarify that `/api/v1/sitemaps` is canonical while this is a filtered subset
+- Could extend with query parameters for finer filtering (e.g., `?type=category`, `?type=location`)
+
+---
+
 ### Job Posts Slug Enhancement - Automatic UUID Fallback (November 14, 2025 - [Current Time] UTC)
 
 **Summary**: Enhanced job post creation and update endpoints to automatically use the post's UUID as the slug when no slug is provided or when an empty slug is explicitly submitted. This allows flexible slug management while maintaining valid, unique URLs for all job posts. Sitemap generation updated to handle empty slugs by falling back to UUIDs.
