@@ -204,6 +204,25 @@ export async function findRegencyByNameOrId(input: string, provinceIdOrName?: st
   }
   
   if (partialMatch.length > 1 && !provinceId) {
+    const kotaMatches = partialMatch.filter(match => 
+      match.name.toUpperCase().startsWith('KOTA ')
+    );
+    
+    if (kotaMatches.length === 1) {
+      return kotaMatches[0].id;
+    }
+    
+    if (kotaMatches.length === 0) {
+      const kabMatches = partialMatch.filter(match => 
+        match.name.toUpperCase().startsWith('KAB.') || 
+        match.name.toUpperCase().startsWith('KABUPATEN ')
+      );
+      
+      if (kabMatches.length === 1) {
+        return kabMatches[0].id;
+      }
+    }
+    
     throw new Error(`Multiple regencies found matching "${input}". Please provide job_province_id to disambiguate`);
   }
   
