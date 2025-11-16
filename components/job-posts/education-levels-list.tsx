@@ -190,15 +190,27 @@ export function EducationLevelsList() {
     currentPage * itemsPerPage
   )
 
-  const isAllCurrentPageSelected = selectedTypes.size === paginatedTypes.length && paginatedTypes.length > 0;
+  const isAllCurrentPageSelected = paginatedTypes.length > 0 && paginatedTypes.every(type => selectedTypes.has(type.id));
   const isAllDataSelected = selectedTypes.size === totalTypes && totalTypes > 0;
 
   const handleSelectAll = () => {
-    if (isAllDataSelected) {
-      setSelectedTypes(new Set());
+    if (isAllCurrentPageSelected) {
+      setSelectedTypes(prev => {
+        const newSet = new Set(prev);
+        paginatedTypes.forEach(type => newSet.delete(type.id));
+        return newSet;
+      });
     } else {
-      setSelectedTypes(new Set(types.map(type => type.id)));
+      setSelectedTypes(prev => {
+        const newSet = new Set(prev);
+        paginatedTypes.forEach(type => newSet.add(type.id));
+        return newSet;
+      });
     }
+  };
+
+  const handleSelectAllData = () => {
+    setSelectedTypes(new Set(types.map(type => type.id)));
   };
 
   const handleSelectType = (typeId: string) => {
@@ -286,7 +298,7 @@ export function EducationLevelsList() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={handleSelectAll}
+              onClick={handleSelectAllData}
             >
               Select all {totalTypes} data
             </Button>
