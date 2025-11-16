@@ -235,6 +235,42 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Project Rebranding - Build Professional CMS to Nexjob CMS (November 16, 2025 - 16:45 UTC)
+
+**Summary**: Rebranded the entire CMS from "Build Professional CMS" to "Nexjob CMS" across all project files, page titles, and package metadata. This updates the application's identity to reflect its focus on job posting management.
+
+**Changes Made**:
+
+1. **Package Metadata** (`package.json`):
+   - Changed package name from `"Build Professional CMS"` to `"Nexjob CMS"` (line 2)
+   - Updated automatically in `package-lock.json` via `npm install --package-lock-only`
+
+2. **Application Metadata** (`app/layout.tsx`):
+   - Updated page title metadata from `'Build Professional CMS'` to `'Nexjob CMS'` (line 9)
+   - This affects all CMS pages including dashboard, posts, categories, tags, and settings
+   - Browser tab title now displays "Nexjob CMS" instead of "Build Professional CMS"
+
+3. **Documentation** (`README.md`):
+   - Updated main heading from `# Build Professional CMS` to `# Nexjob CMS` (line 2)
+   - Updated description text to reference "Nexjob CMS" (line 4)
+
+**Files Modified**:
+- `package.json` - Updated package name field
+- `package-lock.json` - Auto-updated via npm to reflect new package name
+- `app/layout.tsx` - Updated metadata title
+- `README.md` - Updated project title and description
+
+**Impact**:
+- ✅ **Consistent Branding**: All CMS pages now display "Nexjob CMS" in browser tabs
+- ✅ **Package Identity**: npm package name matches project branding
+- ✅ **Documentation Alignment**: README reflects correct project name
+- ✅ **No Breaking Changes**: Purely cosmetic change, no functionality affected
+- ✅ **Verified**: Workflow logs confirm package name change (`> Nexjob CMS@0.1.0 dev`)
+
+**Note**: Historical log files in `attached_assets/` folder still reference "Build Professional CMS" but these are archival and do not affect current functionality.
+
+---
+
 ### Regency Lookup Smart Prioritization - Auto-Select KOTA over KAB (November 16, 2025 - 16:30 UTC)
 
 **Summary**: Enhanced `findRegencyByNameOrId` function in location utilities to automatically prioritize "KOTA" (city) matches over "KAB./KABUPATEN" (regency) matches when multiple partial matches are found. Users can now send "Surabaya" and the system will automatically select "KOTA SURABAYA" even if "KAB. SURABAYA" also exists, without requiring province disambiguation.

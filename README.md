@@ -1,7 +1,7 @@
 
-# Build Professional CMS
+# Nexjob CMS
 
-This is a code bundle for Build Professional CMS. The original project is available at https://www.figma.com/design/NABRavxS0g9MwdwbKekL8r/Build-Professional-CMS.
+This is a code bundle for Nexjob CMS. The original project is available at https://www.figma.com/design/NABRavxS0g9MwdwbKekL8r/Build-Professional-CMS.
 
 ## Running the code
 

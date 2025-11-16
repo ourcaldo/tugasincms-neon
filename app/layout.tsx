@@ -6,7 +6,7 @@ import '@/styles/globals.css'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Build Professional CMS',
+  title: 'Nexjob CMS',
   description: 'Content Management System',
 }
 
