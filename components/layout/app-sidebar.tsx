@@ -16,6 +16,7 @@ import {
   Tags,
   Users,
   Award,
+  GraduationCap,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -112,7 +113,8 @@ export function AppSidebar() {
                 { title: 'Job Categories', href: '/job-categories', icon: FolderKanban, tooltip: 'Manage job categories' },
                 { title: 'Job Tags', href: '/job-tags', icon: Tags, tooltip: 'Manage job tags' },
                 { title: 'Employment Types', href: '/employment-types', icon: Users, tooltip: 'Manage employment types' },
-                { title: 'Experience Levels', href: '/experience-levels', icon: Award, tooltip: 'Manage experience levels' }
+                { title: 'Experience Levels', href: '/experience-levels', icon: Award, tooltip: 'Manage experience levels' },
+                { title: 'Education Levels', href: '/education-levels', icon: GraduationCap, tooltip: 'Manage education level requirements' }
               );
             }
             

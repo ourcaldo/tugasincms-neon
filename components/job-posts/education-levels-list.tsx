@@ -60,7 +60,7 @@ export function EducationLevelsList() {
 
   const handleCreateType = async () => {
     if (!formData.name.trim()) {
-      toast.error('Employment type name is required')
+      toast.error('Education level name is required')
       return
     }
 
@@ -75,7 +75,7 @@ export function EducationLevelsList() {
       setTotalTypes(prev => prev + 1)
       setFormData({ name: '', slug: '' })
       setIsCreateDialogOpen(false)
-      toast.success('Employment type created successfully')
+      toast.success('Education level created successfully')
     } catch (error) {
       console.error('Error creating education level:', error)
       toast.error('Failed to create education level')
@@ -86,7 +86,7 @@ export function EducationLevelsList() {
 
   const handleUpdateType = async () => {
     if (!editingType || !formData.name.trim()) {
-      toast.error('Employment type name is required')
+      toast.error('Education level name is required')
       return
     }
 
@@ -101,7 +101,7 @@ export function EducationLevelsList() {
       setFormData({ name: '', slug: '' })
       setEditingType(null)
       setIsEditDialogOpen(false)
-      toast.success('Employment type updated successfully')
+      toast.success('Education level updated successfully')
     } catch (error) {
       console.error('Error updating education level:', error)
       toast.error('Failed to update education level')
@@ -127,7 +127,7 @@ export function EducationLevelsList() {
         setCurrentPage(newTotalPages)
       }
 
-      toast.success('Employment type deleted successfully')
+      toast.success('Education level deleted successfully')
     } catch (error) {
       console.error('Error deleting education level:', error)
       toast.error('Failed to delete education level')
