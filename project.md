@@ -235,6 +235,90 @@ SITEMAP_HOST=tugasin.me
 
 ## Recent Changes
 
+### Regency Lookup Smart Prioritization - Auto-Select KOTA over KAB (November 16, 2025 - 16:30 UTC)
+
+**Summary**: Enhanced `findRegencyByNameOrId` function in location utilities to automatically prioritize "KOTA" (city) matches over "KAB./KABUPATEN" (regency) matches when multiple partial matches are found. Users can now send "Surabaya" and the system will automatically select "KOTA SURABAYA" even if "KAB. SURABAYA" also exists, without requiring province disambiguation.
+
+**Problem Statement**:
+- When users sent partial regency names like "Surabaya", "Bandung", or "Kediri", the system would perform partial matching (ILIKE)
+- Database often contains both KOTA and KABUPATEN versions of the same location name (e.g., "KOTA SURABAYA" and "KAB. SURABAYA")
+- Previous behavior would throw disambiguation error: "Multiple regencies found matching 'Surabaya'. Please provide job_province_id to disambiguate"
+- User requested automatic selection with priority: KOTA first, then KAB., to reduce API friction
+
+**Solution - Hierarchical Prioritization Logic**:
+
+1. **Smart Filtering When Multiple Matches Found**:
+   - After partial matching with ILIKE, if multiple matches exist without province context
+   - First, filter for matches starting with "KOTA " (city type)
+   - If exactly one KOTA match found, return it immediately
+   - If no KOTA matches, filter for matches starting with "KAB." or "KABUPATEN " (regency type)
+   - If exactly one KAB. match found, return it immediately
+   - If still multiple matches or ambiguous, throw disambiguation error
+
+2. **Implementation in `findRegencyByNameOrId`** (lib/location-utils.ts, lines 209-230):
+   ```typescript
+   if (partialMatch.length > 1 && !provinceId) {
+     // Try KOTA prioritization first
+     const kotaMatches = partialMatch.filter(match => 
+       match.name.toUpperCase().startsWith('KOTA ')
+     );
+     
+     if (kotaMatches.length === 1) {
+       return kotaMatches[0].id;
+     }
+     
+     // Fallback to KAB. if no KOTA matches
+     if (kotaMatches.length === 0) {
+       const kabMatches = partialMatch.filter(match => 
+         match.name.toUpperCase().startsWith('KAB.') || 
+         match.name.toUpperCase().startsWith('KABUPATEN ')
+       );
+       
+       if (kabMatches.length === 1) {
+         return kabMatches[0].id;
+       }
+     }
+     
+     throw new Error(`Multiple regencies found matching "${input}". Please provide job_province_id to disambiguate`);
+   }
+   ```
+
+**Files Modified**:
+- `lib/location-utils.ts` - Enhanced `findRegencyByNameOrId` function with KOTA/KAB prioritization logic (lines 209-230)
+
+**Test Results**:
+```bash
+✓ "Surabaya" → KOTA SURABAYA (ID: 3578) - Auto-selected from KOTA SURABAYA
+✓ "Bandung" → KOTA BANDUNG (ID: 3273) - Auto-selected KOTA over KAB. BANDUNG
+✓ "Kediri" → KOTA KEDIRI (ID: 3571) - Auto-selected KOTA over KAB. KEDIRI
+✓ "Purwakarta" → KAB. PURWAKARTA (ID: 3214) - Auto-selected KAB. when no KOTA exists
+✗ "Tangerang" → Still requires disambiguation (correct behavior - multiple KOTA matches: KOTA TANGERANG and KOTA TANGERANG SELATAN)
+```
+
+**Impact**:
+- ✅ **Improved UX**: Users no longer need province context for common city names like "Surabaya", "Bandung", "Kediri"
+- ✅ **Smart Defaults**: Cities (KOTA) prioritized over regencies (KAB.), matching user expectations
+- ✅ **Graceful Fallback**: KAB. matches used when no KOTA version exists
+- ✅ **Maintains Disambiguation**: Still requests province context when genuinely ambiguous (e.g., "Tangerang" with multiple KOTA matches)
+- ✅ **Backward Compatible**: Existing exact match and ID lookup behavior unchanged
+- ✅ **Reduced API Errors**: Fewer 400 validation errors from missing province context
+
+**Use Cases**:
+- ✅ "Surabaya" → automatically selects KOTA SURABAYA (no province needed)
+- ✅ "Bandung" → automatically selects KOTA BANDUNG (no province needed)
+- ✅ "Kediri" → automatically selects KOTA KEDIRI (no province needed)
+- ✅ "Purwakarta" → automatically selects KAB. PURWAKARTA (fallback to KAB.)
+- ⚠️ "Tangerang" → still needs province (multiple KOTA matches exist)
+- ⚠️ "Jakarta Selatan" → exact match works, no prioritization needed
+
+**Technical Benefits**:
+- Reduces cognitive load on API consumers - don't need to know administrative hierarchy
+- Maintains data integrity - only returns results when unambiguous
+- Follows common user expectations - cities are typically more relevant than regencies
+- Clear error messages when disambiguation truly needed
+
+---
+
 ### Sitemap Host Configuration Fix - Correct CMS_HOST Usage for XML References (November 14, 2025 - 14:06 UTC)
 
 **Summary**: Fixed sitemap generation to correctly use CMS_HOST for sitemap index entries (XML files referencing other XML files) while maintaining SITEMAP_HOST for actual content URLs (job pages, blog posts). This ensures proper sitemap hierarchy and SEO compliance.
