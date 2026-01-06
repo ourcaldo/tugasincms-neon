@@ -48,8 +48,8 @@ const jobPostSchema = z.object({
   job_employment_type_id: z.string().uuid("job_employment_type_id must be a valid UUID").optional().or(z.literal("")),
   job_experience_level_id: z.string().uuid("job_experience_level_id must be a valid UUID").optional().or(z.literal("")),
   job_education_level_id: z.string().uuid("job_education_level_id must be a valid UUID").optional().or(z.literal("")),
-  job_salary_min: z.number().int("Minimum salary must be an integer").min(0, "Minimum salary must be positive").optional(),
-  job_salary_max: z.number().int("Maximum salary must be an integer").min(0, "Maximum salary must be positive").optional(),
+  job_salary_min: z.number().int("Minimum salary must be an integer").min(10000, "Minimum salary must be at least 10,000 (5 digits)").optional(),
+  job_salary_max: z.number().int("Maximum salary must be an integer").min(10000, "Maximum salary must be at least 10,000 (5 digits)").optional(),
   job_salary_currency: z.string().max(10, "Currency code must not exceed 10 characters").optional(),
   job_salary_period: z.string().max(50, "Salary period must not exceed 50 characters").optional(),
   job_is_salary_negotiable: z.boolean().optional(),
@@ -71,6 +71,16 @@ const jobPostSchema = z.object({
   // Relations - can be UUIDs, names, or comma-separated strings
   job_categories: z.union([z.array(z.string()), z.string()]).optional(),
   job_tags: z.union([z.array(z.string()), z.string()]).optional(),
+}).refine((data: any) => {
+  // Validate salary range: max must be greater than min when both are provided
+  if (data.job_salary_min !== undefined && data.job_salary_max !== undefined && 
+      data.job_salary_min !== null && data.job_salary_max !== null) {
+    return data.job_salary_max > data.job_salary_min;
+  }
+  return true;
+}, {
+  message: "Maximum salary must be greater than minimum salary",
+  path: ["job_salary_max"]
 });
 
 async function normalizeJobPostPayload(body: any): Promise<any> {
@@ -117,6 +127,15 @@ async function normalizeJobPostPayload(body: any): Promise<any> {
       }
     } else {
       throw new Error('job_salary_max must be a number or numeric string');
+    }
+  }
+
+  // Validate salary range after normalization
+  if (normalized.job_salary_min !== undefined && normalized.job_salary_max !== undefined && 
+      normalized.job_salary_min !== null && normalized.job_salary_max !== null &&
+      normalized.job_salary_min !== '' && normalized.job_salary_max !== '') {
+    if (normalized.job_salary_max <= normalized.job_salary_min) {
+      throw new Error('Maximum salary must be greater than minimum salary');
     }
   }
 
@@ -512,7 +531,7 @@ export async function POST(request: NextRequest) {
     const validation = jobPostSchema.safeParse(normalizedBody);
 
     if (!validation.success) {
-      const errors = validation.error.issues.map(issue => ({
+      const errors = validation.error.issues.map((issue: any) => ({
         field: issue.path.join('.'),
         message: issue.message,
         code: issue.code,

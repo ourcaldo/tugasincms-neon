@@ -21,11 +21,27 @@ export async function POST(request: NextRequest) {
       return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
     }
     
-    await generateAllSitemaps()
+    console.log('Generating sitemaps...')
+    const sitemaps = await generateAllSitemaps()
     
-    return setCorsHeaders(successResponse({ 
-      message: 'Sitemaps generated successfully' 
-    }, false), origin)
+    const responseData = {
+      success: true,
+      message: 'Sitemaps generated successfully',
+      generated_at: new Date().toISOString(),
+      sitemaps: {
+        root: !!sitemaps.root,
+        pages: !!sitemaps.pages,
+        blog_index: !!sitemaps.blogIndex,
+        blog_chunks: sitemaps.blogChunks.length,
+        job_posts_index: !!sitemaps.jobPostsIndex,
+        job_posts_chunks: sitemaps.jobPostsChunks.length,
+        job_category: !!sitemaps.jobCategorySitemap,
+        job_location_index: !!sitemaps.jobLocationIndex,
+        job_location_chunks: Object.keys(sitemaps.jobLocationChunks).length
+      }
+    }
+    
+    return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {
     console.error('Error generating sitemaps:', error)
     return setCorsHeaders(errorResponse('Failed to generate sitemaps'), origin)

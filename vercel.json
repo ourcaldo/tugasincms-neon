@@ -4,5 +4,12 @@
       "source": "/api/:path*",
       "destination": "/api"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/((?!api|_next|.*\\.).*[^/])$",
+      "destination": "/$1/",
+      "permanent": true
+    }
   ]
 }
