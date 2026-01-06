@@ -66,6 +66,7 @@ const baseMenuItems = [
       { title: 'API Tokens', href: '/settings/tokens', tooltip: 'Manage API access tokens' },
       { title: 'Custom Post Types', href: '/settings/custom-post-types', tooltip: 'Manage custom post types' },
       { title: 'Advertisements', href: '/settings/advertisements', tooltip: 'Manage advertisement settings and codes' },
+      { title: 'Robots.txt', href: '/settings/robots', tooltip: 'Configure robots.txt for search engines' },
     ],
   },
 ];

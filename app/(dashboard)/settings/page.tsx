@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ApiTokenSetup } from '@/components/settings/api-token-setup'
-import { Settings, User, Key, FileText, Megaphone } from 'lucide-react'
+import { Settings, User, Key, FileText, Megaphone, Bot } from 'lucide-react'
 import Link from 'next/link'
 
 const settingsPages = [
@@ -30,6 +30,12 @@ const settingsPages = [
     description: 'Manage popup ads and advertisement codes',
     href: '/settings/advertisements',
     icon: Megaphone,
+  },
+  {
+    title: 'Robots.txt',
+    description: 'Configure robots.txt file for search engine crawlers',
+    href: '/settings/robots',
+    icon: Bot,
   },
 ]
 
