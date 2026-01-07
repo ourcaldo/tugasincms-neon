@@ -88,33 +88,3 @@ Crawl-delay: 1`
     })
   }
 }
-        'Cache-Control': 'public, max-age=3600', // 1 hour cache
-      },
-    })
-  } catch (error) {
-    console.error('Error serving robots.txt:', error)
-    
-    // Fallback robots.txt
-    const fallbackRobots = `User-agent: *
-Allow: /
-
-# Allow important pages
-Allow: /lowongan-kerja/
-Allow: /artikel/
-
-# Sitemaps
-Sitemap: https://nexjob.tech/sitemap.xml
-
-# Basic restrictions
-Disallow: /admin/
-Disallow: /dashboard/`
-    
-    return new NextResponse(fallbackRobots, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'public, max-age=300', // 5 minutes cache for fallback
-      },
-    })
-  }
-}

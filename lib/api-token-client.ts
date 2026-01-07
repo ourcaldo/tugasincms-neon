@@ -113,3 +113,10 @@ export const apiTokenClient = new ApiTokenClient()
 export function useApiTokenClient() {
   return apiTokenClient
 }
+
+/**
+ * Get the API token (convenience function)
+ */
+export function getApiToken(): string | null {
+  return apiTokenClient.getToken()
+}
