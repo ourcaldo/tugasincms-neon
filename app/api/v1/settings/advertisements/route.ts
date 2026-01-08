@@ -11,34 +11,39 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const origin = request.headers.get('origin')
-  
+
   try {
     // Check if request is from dashboard (Clerk auth) or external API (Bearer token)
     const token = extractBearerToken(request)
-    
+
     // If token provided, verify it (external API access)
     if (token) {
       const validToken = await verifyApiToken(token)
-      
+
       if (!validToken) {
         return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
       }
     } else {
       // If no token, check Clerk auth (dashboard access)
-      const userId = await getUserIdFromClerk()
-      
-      if (!userId) {
-        return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+      try {
+        const userId = await getUserIdFromClerk()
+
+        if (!userId) {
+          return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+        }
+      } catch (authError) {
+        console.error('Clerk authentication error:', authError)
+        return setCorsHeaders(unauthorizedResponse('Authentication failed'), origin)
       }
     }
-    
+
     // Fetch advertisement settings
     const settings = await sql`
       SELECT * FROM advertisement_settings 
       ORDER BY created_at DESC 
       LIMIT 1
     `
-    
+
     if (settings.length === 0) {
       // Return default settings if none exist
       const defaultSettings = {
@@ -57,12 +62,12 @@ export async function GET(request: NextRequest) {
           single_middle: ''
         }
       }
-      
+
       return setCorsHeaders(successResponse(defaultSettings, false), origin)
     }
-    
+
     const setting = settings[0]
-    
+
     // Transform database format to API format
     const responseData = {
       popup_ad: {
@@ -81,7 +86,7 @@ export async function GET(request: NextRequest) {
       },
       updated_at: setting.updated_at
     }
-    
+
     return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {
     console.error('Error fetching advertisement settings:', error)
@@ -91,56 +96,77 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const origin = request.headers.get('origin')
-  
+
   try {
     // Check if request is from dashboard (Clerk auth) or external API (Bearer token)
     const token = extractBearerToken(request)
-    
+    let isAuthenticated = false
+
     // If token provided, verify it (external API access)
     if (token) {
       const validToken = await verifyApiToken(token)
-      
-      if (!validToken) {
-        return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
-      }
-    } else {
-      // If no token, check Clerk auth (dashboard access)
-      const userId = await getUserIdFromClerk()
-      
-      if (!userId) {
-        return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+
+      if (validToken) {
+        isAuthenticated = true
       }
     }
-    
+
+    // If no token or invalid token, check Clerk auth (dashboard access)
+    if (!isAuthenticated) {
+      try {
+        const userId = await getUserIdFromClerk()
+
+        if (userId) {
+          isAuthenticated = true
+        }
+      } catch (authError) {
+        console.error('Clerk authentication error:', authError)
+      }
+    }
+
+    // If still not authenticated, return error
+    if (!isAuthenticated) {
+      return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+    }
+
     const body = await request.json()
-    
+
     // Validate request body
     if (!body.popup_ad || !body.ad_codes) {
       return setCorsHeaders(errorResponse('Invalid request body. Expected popup_ad and ad_codes objects.'), origin)
     }
-    
+
     const { popup_ad, ad_codes } = body
-    
+
     // Validate popup_ad fields
     if (typeof popup_ad.enabled !== 'boolean') {
       return setCorsHeaders(errorResponse('popup_ad.enabled must be a boolean'), origin)
     }
-    
+
     if (popup_ad.max_executions < 0 || popup_ad.max_executions > 10) {
       return setCorsHeaders(errorResponse('popup_ad.max_executions must be between 0 and 10'), origin)
     }
-    
+
     if (!['all', 'mobile', 'desktop'].includes(popup_ad.device)) {
       return setCorsHeaders(errorResponse('popup_ad.device must be one of: all, mobile, desktop'), origin)
     }
-    
+
+    // Validate URL format if provided
+    if (popup_ad.url && popup_ad.url.trim() !== '') {
+      try {
+        new URL(popup_ad.url)
+      } catch (e) {
+        return setCorsHeaders(errorResponse('popup_ad.url must be a valid URL'), origin)
+      }
+    }
+
     // Check if settings exist
     const existingSettings = await sql`
       SELECT id FROM advertisement_settings 
       ORDER BY created_at DESC 
       LIMIT 1
     `
-    
+
     if (existingSettings.length === 0) {
       // Insert new settings
       await sql`
@@ -156,7 +182,7 @@ export async function PUT(request: NextRequest) {
           single_bottom_ad_code,
           single_middle_ad_code
         ) VALUES (
-          ${popup_ad.enabled},
+          ${popup_ad.enabled ?? false},
           ${popup_ad.url || ''},
           ${JSON.stringify(popup_ad.load_settings || [])},
           ${popup_ad.max_executions || 0},
@@ -173,7 +199,7 @@ export async function PUT(request: NextRequest) {
       const settingId = existingSettings[0].id
       await sql`
         UPDATE advertisement_settings SET
-          popup_ad_enabled = ${popup_ad.enabled},
+          popup_ad_enabled = ${popup_ad.enabled ?? false},
           popup_ad_url = ${popup_ad.url || ''},
           popup_ad_load_settings = ${JSON.stringify(popup_ad.load_settings || [])},
           popup_ad_max_executions = ${popup_ad.max_executions || 0},
@@ -187,12 +213,12 @@ export async function PUT(request: NextRequest) {
         WHERE id = ${settingId}
       `
     }
-    
+
     const responseData = {
       message: 'Advertisement settings updated successfully',
       updated_at: new Date().toISOString()
     }
-    
+
     return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {
     console.error('Error updating advertisement settings:', error)
