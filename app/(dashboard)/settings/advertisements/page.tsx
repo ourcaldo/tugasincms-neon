@@ -10,7 +10,6 @@ import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useToast } from '@/hooks/use-toast'
-import { useApiTokenClient } from '@/lib/api-token-client'
 import { Loader2, Save, RotateCcw, Eye, Trash2, AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
@@ -58,26 +57,21 @@ export default function AdvertisementSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
-  const apiClient = useApiTokenClient()
 
   useEffect(() => {
     fetchSettings()
   }, [])
 
   const fetchSettings = async () => {
-    if (!apiClient.hasToken()) {
-      toast({
-        title: 'API Token Required',
-        description: 'Please configure an API token in the API Tokens settings first.',
-        variant: 'destructive'
-      })
-      setLoading(false)
-      return
-    }
-
     try {
-      const response = await apiClient.get<{data: AdvertisementSettings}>('/settings/advertisements')
-      setSettings(response.data || defaultSettings)
+      const response = await fetch('/api/v1/settings/advertisements')
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch settings')
+      }
+      
+      const result = await response.json()
+      setSettings(result.data || defaultSettings)
     } catch (error) {
       console.error('Failed to fetch settings:', error)
       toast({
@@ -91,18 +85,20 @@ export default function AdvertisementSettingsPage() {
   }
 
   const saveSettings = async () => {
-    if (!apiClient.hasToken()) {
-      toast({
-        title: 'API Token Required',
-        description: 'Please configure an API token in the API Tokens settings first.',
-        variant: 'destructive'
-      })
-      return
-    }
-
     setSaving(true)
     try {
-      await apiClient.put('/settings/advertisements', settings)
+      const response = await fetch('/api/v1/settings/advertisements', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save settings')
+      }
+      
       toast({
         title: 'Success',
         description: 'Advertisement settings saved successfully'
@@ -159,27 +155,6 @@ export default function AdvertisementSettingsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!apiClient.hasToken()) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Advertisement Settings</h1>
-          <p className="text-muted-foreground">
-            Manage popup advertisements and ad codes for your website
-          </p>
-        </div>
-        
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            API token required. Please go to <strong>Settings → API Tokens</strong> to generate an API token first, 
-            then refresh this page.
-          </AlertDescription>
-        </Alert>
       </div>
     )
   }
