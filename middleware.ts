@@ -1,7 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
+import { rateLimitMiddleware } from '@/lib/rate-limit'
 
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
@@ -9,30 +8,6 @@ const isPublicRoute = createRouteMatcher([
   '/api/public(.*)',
   '/api/v1(.*)',
 ])
-
-// Initialize rate limiter if Upstash is configured
-let ratelimit: Ratelimit | null = null
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  })
-  ratelimit = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(100, '1 m'), // 100 requests per minute
-    analytics: true,
-    prefix: 'nexjob-cms-api',
-  })
-}
-
-// Get client IP from request
-function getClientIP(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  if (forwarded) return forwarded.split(',')[0].trim()
-  if (realIp) return realIp
-  return 'anonymous'
-}
 
 // Helper function to normalize URLs with trailing slash
 function normalizeUrl(url: string): string {
@@ -60,28 +35,9 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
   const url = request.nextUrl.clone()
 
   // Apply rate limiting to all /api/v1 routes
-  if (url.pathname.startsWith('/api/v1') && ratelimit) {
-    const ip = getClientIP(request)
-    const { success, limit, remaining, reset } = await ratelimit.limit(ip)
-
-    if (!success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Too many requests. Please try again later.',
-          retryAfter: Math.ceil((reset - Date.now()) / 1000)
-        },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': limit.toString(),
-            'X-RateLimit-Remaining': remaining.toString(),
-            'X-RateLimit-Reset': reset.toString(),
-            'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
-          }
-        }
-      )
-    }
+  if (url.pathname.startsWith('/api/v1')) {
+    const rateLimitResponse = await rateLimitMiddleware(request)
+    if (rateLimitResponse) return rateLimitResponse
   }
 
   // Handle trailing slash normalization for non-API routes
