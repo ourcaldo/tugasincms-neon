@@ -1,35 +1,12 @@
-import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
 import { NextRequest, NextResponse } from 'next/server'
+import { getRedisClient } from './cache'
 
-// Rate limit configuration
-const RATE_LIMIT_REQUESTS = 1000  // requests per window
-const RATE_LIMIT_WINDOW = '1 m'  // window duration
+// Rate limit configuration from environment variables (with defaults)
+const RATE_LIMIT_REQUESTS = parseInt(process.env.RATE_LIMIT_REQUESTS || '1000', 10)
+const RATE_LIMIT_WINDOW_SECONDS = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS || '60', 10)
 
-// Initialize rate limiter (singleton)
-let ratelimit: Ratelimit | null = null
-
-function getRateLimiter(): Ratelimit | null {
-    if (ratelimit) return ratelimit
-
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-        return null
-    }
-
-    const redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-
-    ratelimit = new Ratelimit({
-        redis,
-        limiter: Ratelimit.slidingWindow(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW),
-        analytics: true,
-        prefix: 'nexjob-cms-api',
-    })
-
-    return ratelimit
-}
+// In-memory fallback when Redis is not available
+const inMemoryStore = new Map<string, { count: number; resetTime: number }>()
 
 /**
  * Get client IP from request headers
@@ -45,18 +22,98 @@ export function getClientIP(request: NextRequest): string {
 }
 
 /**
+ * Check rate limit using Redis
+ */
+async function checkRateLimitRedis(ip: string): Promise<{ success: boolean; remaining: number; reset: number }> {
+    const redis = getRedisClient()
+    if (!redis) {
+        return checkRateLimitMemory(ip)
+    }
+
+    const key = `ratelimit:${ip}`
+    const now = Date.now()
+    const windowStart = now - (RATE_LIMIT_WINDOW_SECONDS * 1000)
+
+    try {
+        // Use Redis sorted set for sliding window
+        const pipeline = redis.pipeline()
+
+        // Remove old entries outside the window
+        pipeline.zremrangebyscore(key, 0, windowStart)
+
+        // Count current requests in window
+        pipeline.zcard(key)
+
+        // Add current request
+        pipeline.zadd(key, now, `${now}-${Math.random()}`)
+
+        // Set expiry on the key
+        pipeline.expire(key, RATE_LIMIT_WINDOW_SECONDS)
+
+        const results = await pipeline.exec()
+
+        // Get count from zcard result (index 1)
+        const count = (results?.[1]?.[1] as number) || 0
+
+        const remaining = Math.max(0, RATE_LIMIT_REQUESTS - count - 1)
+        const reset = now + (RATE_LIMIT_WINDOW_SECONDS * 1000)
+
+        return {
+            success: count < RATE_LIMIT_REQUESTS,
+            remaining,
+            reset
+        }
+    } catch (error) {
+        console.error('Rate limit Redis error:', error)
+        // Fallback to in-memory on Redis error
+        return checkRateLimitMemory(ip)
+    }
+}
+
+/**
+ * Check rate limit using in-memory store (fallback)
+ */
+function checkRateLimitMemory(ip: string): { success: boolean; remaining: number; reset: number } {
+    const now = Date.now()
+    const record = inMemoryStore.get(ip)
+
+    // Clean up expired entries periodically
+    if (Math.random() < 0.01) {
+        for (const [key, value] of inMemoryStore.entries()) {
+            if (value.resetTime < now) {
+                inMemoryStore.delete(key)
+            }
+        }
+    }
+
+    if (!record || record.resetTime < now) {
+        // New window
+        const resetTime = now + (RATE_LIMIT_WINDOW_SECONDS * 1000)
+        inMemoryStore.set(ip, { count: 1, resetTime })
+        return {
+            success: true,
+            remaining: RATE_LIMIT_REQUESTS - 1,
+            reset: resetTime
+        }
+    }
+
+    // Existing window
+    record.count++
+    const remaining = Math.max(0, RATE_LIMIT_REQUESTS - record.count)
+
+    return {
+        success: record.count <= RATE_LIMIT_REQUESTS,
+        remaining,
+        reset: record.resetTime
+    }
+}
+
+/**
  * Rate limit middleware - returns 429 response if rate limited, null otherwise
  */
 export async function rateLimitMiddleware(request: NextRequest): Promise<NextResponse | null> {
-    const limiter = getRateLimiter()
-
-    if (!limiter) {
-        // Rate limiting disabled - no Redis configured
-        return null
-    }
-
     const ip = getClientIP(request)
-    const { success, limit, remaining, reset } = await limiter.limit(ip)
+    const { success, remaining, reset } = await checkRateLimitRedis(ip)
 
     if (!success) {
         const retryAfter = Math.ceil((reset - Date.now()) / 1000)
@@ -70,7 +127,7 @@ export async function rateLimitMiddleware(request: NextRequest): Promise<NextRes
             {
                 status: 429,
                 headers: {
-                    'X-RateLimit-Limit': limit.toString(),
+                    'X-RateLimit-Limit': RATE_LIMIT_REQUESTS.toString(),
                     'X-RateLimit-Remaining': remaining.toString(),
                     'X-RateLimit-Reset': reset.toString(),
                     'Retry-After': retryAfter.toString(),
