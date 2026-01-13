@@ -2,6 +2,9 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimitMiddleware } from '@/lib/rate-limit'
 
+// Force Node.js runtime because ioredis doesn't work in Edge Runtime
+export const runtime = 'nodejs'
+
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
