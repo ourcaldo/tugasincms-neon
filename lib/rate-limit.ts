@@ -3,7 +3,7 @@ import { Redis } from '@upstash/redis'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Rate limit configuration
-const RATE_LIMIT_REQUESTS = 100  // requests per window
+const RATE_LIMIT_REQUESTS = 1000  // requests per window
 const RATE_LIMIT_WINDOW = '1 m'  // window duration
 
 // Initialize rate limiter (singleton)
