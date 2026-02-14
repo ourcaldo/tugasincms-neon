@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Loader2, FileText, RotateCcw, ExternalLink, Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { getApiToken } from '@/lib/api-token-client'
 
 interface RobotsSettings {
   robots_txt: string
@@ -53,18 +52,7 @@ export default function RobotsSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const token = getApiToken()
-      if (!token) {
-        toast.error('API token not found. Please set up your API token first.')
-        return
-      }
-
-      const response = await fetch('/api/v1/settings/seo', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const response = await fetch('/api/v1/settings/seo')
 
       if (!response.ok) {
         throw new Error('Failed to fetch robots.txt settings')
@@ -90,16 +78,10 @@ export default function RobotsSettingsPage() {
   const handleSave = async () => {
     try {
       setSaving(true)
-      const token = getApiToken()
-      if (!token) {
-        toast.error('API token not found. Please set up your API token first.')
-        return
-      }
 
       const response = await fetch('/api/v1/settings/seo', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

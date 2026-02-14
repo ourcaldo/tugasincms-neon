@@ -2,8 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ApiTokenSetup } from '@/components/settings/api-token-setup'
-import { Settings, User, Key, FileText, Megaphone, Bot } from 'lucide-react'
+import { Settings, User, FileText, Megaphone, Bot } from 'lucide-react'
 import Link from 'next/link'
 
 const settingsPages = [
@@ -12,12 +11,6 @@ const settingsPages = [
     description: 'Update your profile information and preferences',
     href: '/settings/profile',
     icon: User,
-  },
-  {
-    title: 'API Tokens',
-    description: 'Manage API access tokens for external integrations',
-    href: '/settings/tokens',
-    icon: Key,
   },
   {
     title: 'Custom Post Types',
@@ -48,9 +41,6 @@ export default function SettingsPage() {
           Manage your CMS configuration and preferences
         </p>
       </div>
-
-      {/* API Token Setup */}
-      <ApiTokenSetup />
 
       {/* Settings Navigation */}
       <Card>

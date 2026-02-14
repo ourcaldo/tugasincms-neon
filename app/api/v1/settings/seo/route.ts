@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { verifyApiToken, extractBearerToken } from '@/lib/auth'
+import { verifyApiToken, extractBearerToken, getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 import { z } from 'zod'
@@ -18,12 +18,28 @@ export async function GET(request: NextRequest) {
   const origin = request.headers.get('origin')
   
   try {
+    // Check if request is from dashboard (Clerk auth) or external API (Bearer token)
     const token = extractBearerToken(request)
-    
-    const validToken = await verifyApiToken(token || '')
-    
-    if (!validToken) {
-      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+
+    // If token provided, verify it (external API access)
+    if (token) {
+      const validToken = await verifyApiToken(token)
+
+      if (!validToken) {
+        return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+      }
+    } else {
+      // If no token, check Clerk auth (dashboard access)
+      try {
+        const userId = await getUserIdFromClerk()
+
+        if (!userId) {
+          return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+        }
+      } catch (authError) {
+        console.error('Clerk authentication error:', authError)
+        return setCorsHeaders(unauthorizedResponse('Authentication failed'), origin)
+      }
     }
     
     // Fetch robots.txt settings
@@ -84,12 +100,28 @@ export async function PUT(request: NextRequest) {
   const origin = request.headers.get('origin')
   
   try {
+    // Check if request is from dashboard (Clerk auth) or external API (Bearer token)
     const token = extractBearerToken(request)
-    
-    const validToken = await verifyApiToken(token || '')
-    
-    if (!validToken) {
-      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+
+    // If token provided, verify it (external API access)
+    if (token) {
+      const validToken = await verifyApiToken(token)
+
+      if (!validToken) {
+        return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+      }
+    } else {
+      // If no token, check Clerk auth (dashboard access)
+      try {
+        const userId = await getUserIdFromClerk()
+
+        if (!userId) {
+          return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+        }
+      } catch (authError) {
+        console.error('Clerk authentication error:', authError)
+        return setCorsHeaders(unauthorizedResponse('Authentication failed'), origin)
+      }
     }
     
     const body = await request.json()

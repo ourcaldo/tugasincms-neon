@@ -11,7 +11,6 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Search, FileText, BarChart3, Globe, RefreshCw } from 'lucide-react'
-import { getApiToken } from '@/lib/api-token-client'
 
 interface SeoSettings {
   robots_txt: string
@@ -74,22 +73,7 @@ export default function SeoSettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const token = getApiToken()
-      if (!token) {
-        toast({
-          title: 'Authentication Required',
-          description: 'Please set up your API token first.',
-          variant: 'destructive'
-        })
-        return
-      }
-
-      const response = await fetch('/api/v1/settings/seo', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await fetch('/api/v1/settings/seo')
 
       if (!response.ok) {
         throw new Error('Failed to fetch SEO settings')
@@ -114,20 +98,10 @@ export default function SeoSettingsPage() {
   const handleSave = async () => {
     try {
       setSaving(true)
-      const token = getApiToken()
-      if (!token) {
-        toast({
-          title: 'Authentication Required',
-          description: 'Please set up your API token first.',
-          variant: 'destructive'
-        })
-        return
-      }
 
       const response = await fetch('/api/v1/settings/seo', {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(settings)

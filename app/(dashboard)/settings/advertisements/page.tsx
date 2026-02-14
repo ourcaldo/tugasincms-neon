@@ -145,12 +145,6 @@ export default function AdvertisementSettingsPage() {
     updateAdCode(field, '')
   }
 
-  const getApiToken = () => {
-    // In a real implementation, this would come from your auth system
-    // For now, return a placeholder - you'll need to implement proper token management
-    return 'your-api-token-here'
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
