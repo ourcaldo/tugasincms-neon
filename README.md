@@ -116,3 +116,38 @@ SQL migration files are in `database/`:
        ├──▶ Redis (Cache)
        └──▶ Appwrite (Storage)
 ```
+
+## Deployment (VPS + Nginx)
+
+### Docker
+
+```bash
+docker compose up -d --build
+```
+
+### Nginx Reverse Proxy
+
+Add this to your Nginx server block for the CMS domain:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name cms.nexjob.tech;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+
+        # Required for rate limiting — ensures real client IP
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+> **Important:** Use `$remote_addr` (not `$proxy_add_x_forwarded_for`) to prevent clients from spoofing their IP and bypassing rate limits.
