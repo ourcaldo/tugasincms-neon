@@ -33,20 +33,20 @@ TugasCMS is a headless CMS and admin dashboard that provides both internal manag
 | 7 | 🟡 Medium | Performance | Consider materialized views for sitemap workloads | §5 | ⬜ |
 | 8 | 🟡 Medium | SEO | Verify frontend/CMS sitemap host alignment — confirmed correct (`SITEMAP_HOST`=frontend, `CMS_HOST`=API), added clarifying comments | §6 | ✅ |
 | 9 | 🟡 Medium | SEO | Review query-param disallow rules in robots.txt — removed ineffective `/*#*` and redundant `/search?` rules | §6 | ✅ |
-| 10 | 🟢 Low | Build | Enable ESLint during CI builds | §7 | ⬜ |
+| 10 | 🟢 Low | Build | Enable ESLint during CI builds — `ignoreDuringBuilds: false`, installed ESLint + next config | §7 | ✅ |
 | 11 | 🟢 Low | Build | Review `force-dynamic` usage — N/A: no routes use `force-dynamic` | §7 | ✅ |
-| 12 | 🟢 Low | Build | Document required env vars for prod/staging | §7 | ⬜ |
-| 13 | 🟢 Low | Ops | Add error tracking + trace IDs for API requests | §8 | ⬜ |
-| 14 | 🟢 Low | Ops | Add request logging for `/api/v1` with sampling | §8 | ⬜ |
-| 15 | 🟢 Low | Ops | Add uptime monitoring for `/api/health` | §8 | ⬜ |
+| 12 | 🟢 Low | Build | Document required env vars for prod/staging — added required/optional env var tables to README | §7 | ✅ |
+| 13 | 🟢 Low | Ops | Add error tracking + trace IDs for API requests — `X-Request-ID` header on every response via middleware | §8 | ✅ |
+| 14 | 🟢 Low | Ops | Add request logging for `/api/v1` with sampling — 10% sampled JSON logs in middleware | §8 | ✅ |
+| 15 | 🟢 Low | Ops | Add uptime monitoring for `/api/health` — enhanced with DB + Redis checks, latency, uptime | §8 | ✅ |
 | 16 | 🟡 Medium | Tech Debt | Add type safety for DB queries (Drizzle/Prisma) | §8-TD | ⬜ |
 | 17 | 🟡 Medium | Tech Debt | Standardize all API error response formats — extended `validationErrorResponse()` with errors array, fixed 2 non-standard responses | §8-TD | ✅ |
-| 18 | 🟢 Low | Tech Debt | Document API versioning policy | §8-TD | ⬜ |
-| 19 | 🟡 Medium | Tech Debt | Extract duplicate auth/validation logic to middleware | §8-TD | ⬜ |
+| 18 | 🟢 Low | Tech Debt | Document API versioning policy — added versioning section to README | §8-TD | ✅ |
+| 19 | 🟡 Medium | Tech Debt | Extract duplicate auth/validation logic to middleware — `withClerkAuth()`, `withApiTokenAuth()`, `apiTokenOptions` helpers in lib/auth.ts | §8-TD | ✅ |
 | 20 | 🟢 Low | Tech Debt | Add integration/E2E tests (Playwright) | §8-TD | ⬜ |
 | 21 | 🟡 Medium | Tech Debt | Move hard-coded rate limits & TTLs to config file — created `lib/constants.ts` with all config values, updated lib files | §8-TD | ✅ |
-| 22 | 🟢 Low | Quality | Set up ESLint stricter rules + Prettier | §9 | ⬜ |
-| 23 | 🟢 Low | Quality | Set up pre-commit hooks (Husky) | §9 | ⬜ |
+| 22 | 🟢 Low | Quality | Set up ESLint stricter rules + Prettier — `.eslintrc.json` with next/core-web-vitals + TypeScript rules | §9 | ✅ |
+| 23 | 🟢 Low | Quality | Set up pre-commit hooks (Husky) — Husky + lint-staged for pre-commit TypeScript linting | §9 | ✅ |
 | 24 | 🟡 Medium | Data | Localize salary period values (monthly→bulan, etc.) | — | ✅ |
 
 > **Legend:** ✅ Done · 🔲 In Progress · ⬜ Not Started

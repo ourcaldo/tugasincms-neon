@@ -10,6 +10,8 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   eslint: {
+    // ESLint is enforced via pre-commit hook (Husky + lint-staged)
+    // and npm run lint (eslint CLI), not during next build
     ignoreDuringBuilds: true,
   },
   output: 'standalone',

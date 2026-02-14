@@ -1,6 +1,8 @@
 import { sql } from '@/lib/database'
 import { auth } from '@clerk/nextjs/server'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { unauthorizedResponse, errorResponse } from './response'
+import { setCorsHeaders, handleCorsPreflightRequest } from './cors'
 
 export interface ApiToken {
   id: string
@@ -57,4 +59,72 @@ export const extractBearerToken = (request: NextRequest): string | null => {
   const authHeader = request.headers.get('authorization')
   if (!authHeader) return null
   return authHeader.replace('Bearer ', '')
+}
+
+// ── Auth Wrappers ───────────────────────────────────────────────────────
+// Eliminate repeated auth boilerplate in route handlers.
+
+/**
+ * Wraps an internal CMS route handler with Clerk authentication.
+ * Automatically returns 401 if user is not logged in.
+ *
+ * Usage:
+ *   export const GET = withClerkAuth(async (request, userId) => { ... })
+ */
+export function withClerkAuth(
+  handler: (request: NextRequest, userId: string, context?: any) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context?: any) => {
+    try {
+      const userId = await getUserIdFromClerk()
+      if (!userId) {
+        return unauthorizedResponse('You must be logged in')
+      }
+      return await handler(request, userId, context)
+    } catch (error) {
+      console.error('Unhandled error in route handler:', error)
+      return errorResponse('Internal server error')
+    }
+  }
+}
+
+/**
+ * Wraps a public v1 API route handler with Bearer token auth + CORS.
+ * Automatically handles token verification and CORS headers.
+ *
+ * Usage:
+ *   export const GET = withApiTokenAuth(async (request, token, origin) => {
+ *     // token is the verified ApiToken object
+ *     return setCorsHeaders(successResponse(data), origin)
+ *   })
+ *
+ *   export { apiTokenOptions as OPTIONS } from '@/lib/auth'
+ */
+export function withApiTokenAuth(
+  handler: (request: NextRequest, token: ApiToken, origin: string | null) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context?: any) => {
+    const origin = request.headers.get('origin')
+    try {
+      const bearerToken = extractBearerToken(request)
+      const validToken = await verifyApiToken(bearerToken || '')
+      if (!validToken) {
+        return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+      }
+      const response = await handler(request, validToken, origin)
+      return response
+    } catch (error) {
+      console.error('Unhandled error in v1 route handler:', error)
+      return setCorsHeaders(errorResponse('Internal server error'), origin)
+    }
+  }
+}
+
+/**
+ * Shared CORS OPTIONS handler for v1 API routes.
+ * Usage: export { apiTokenOptions as OPTIONS } from '@/lib/auth'
+ */
+export async function apiTokenOptions(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return handleCorsPreflightRequest(origin)
 }

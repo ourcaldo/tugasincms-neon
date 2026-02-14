@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimitMiddleware } from '@/lib/rate-limit'
+import { randomUUID } from 'crypto'
 
 // Force Node.js runtime because ioredis doesn't work in Edge Runtime
 export const runtime = 'nodejs'
@@ -36,11 +37,30 @@ function normalizeUrl(url: string): string {
 
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   const url = request.nextUrl.clone()
+  const requestId = request.headers.get('x-request-id') || randomUUID()
+  const start = Date.now()
 
   // Apply rate limiting to all /api/v1 routes
   if (url.pathname.startsWith('/api/v1')) {
     const rateLimitResponse = await rateLimitMiddleware(request)
-    if (rateLimitResponse) return rateLimitResponse
+    if (rateLimitResponse) {
+      rateLimitResponse.headers.set('X-Request-ID', requestId)
+      return rateLimitResponse
+    }
+
+    // Sampled request logging (~10% of v1 API requests)
+    if (Math.random() < 0.1) {
+      console.log(JSON.stringify({
+        type: 'api_request',
+        requestId,
+        method: request.method,
+        path: url.pathname,
+        query: url.search || undefined,
+        ip: request.headers.get('x-real-ip') || 'unknown',
+        userAgent: request.headers.get('user-agent')?.slice(0, 100),
+        ts: new Date().toISOString(),
+      }))
+    }
   }
 
   // Handle trailing slash normalization for non-API routes
@@ -48,7 +68,9 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
     const normalizedUrl = normalizeUrl(request.url)
 
     if (normalizedUrl !== request.url) {
-      return NextResponse.redirect(normalizedUrl, 301)
+      const redirect = NextResponse.redirect(normalizedUrl, 301)
+      redirect.headers.set('X-Request-ID', requestId)
+      return redirect
     }
   }
 
@@ -57,7 +79,11 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
     await auth.protect()
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next({
+    request: { headers: new Headers(request.headers) },
+  })
+  response.headers.set('X-Request-ID', requestId)
+  return response
 })
 
 export const config = {

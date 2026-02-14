@@ -37,23 +37,42 @@ npm run dev
 
 ## Environment Variables
 
+### Required for Production
+
+| Variable | Purpose |
+|----------|---------|
+| `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Neon PostgreSQL connection |
+| `CLERK_SECRET_KEY` | Server-side Clerk authentication |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Client-side Clerk authentication |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins (wildcard `*` rejected in production) |
+| `CMS_HOST` | This CMS domain, used for sitemap index XML references |
+| `SITEMAP_HOST` | Public frontend domain, used for content URLs in sitemaps |
+
+### Required for Features
+
+| Variable | Purpose |
+|----------|---------|
+| `REDIS_URL` | Redis connection string (caching + rate limiting) |
+| `NEXT_PUBLIC_APPWRITE_PROJECT_ID`, `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_BUCKET_ID` | Appwrite file storage |
+
+### Optional Tuning
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `RATE_LIMIT_REQUESTS` | `1000` | Max requests per rate-limit window |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit sliding window (seconds) |
+
 ```env
-# Database (Neon PostgreSQL)
+# Example — see .env.example for full list
 PGHOST=your-neon-host.neon.tech
 PGDATABASE=your-database
 PGUSER=your-user
 PGPASSWORD=your-password
-
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_xxx
 CLERK_SECRET_KEY=sk_xxx
-
-# Appwrite Storage
-NEXT_PUBLIC_APPWRITE_PROJECT_ID=your-project
-NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
-NEXT_PUBLIC_BUCKET_ID=your-bucket
-
-# Redis Cache (optional)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_xxx
+ALLOWED_ORIGINS=https://nexjob.tech,https://www.nexjob.tech
+CMS_HOST=cms.nexjob.tech
+SITEMAP_HOST=nexjob.tech
 REDIS_URL=redis://...
 ```
 
@@ -80,15 +99,28 @@ lib/
 
 ## API Endpoints (v1)
 
+All v1 endpoints require a `Bearer` token in the `Authorization` header.
+Responses follow the shape `{ success, data?, error?, cached? }`.
+Every response includes an `X-Request-ID` header for tracing.
+
 | Endpoint | Description |
 |----------|-------------|
+| `/api/health` | Health check (DB + Redis status, no auth required) |
 | `/api/v1/job-posts` | Job listings |
 | `/api/v1/posts` | Articles |
 | `/api/v1/categories` | Categories |
 | `/api/v1/tags` | Tags |
+| `/api/v1/pages` | Static pages |
 | `/api/v1/settings/advertisements` | Ad settings |
-| `/api/v1/robots.txt` | Robots.txt config |
+| `/api/v1/robots.txt` | Robots.txt config (no auth) |
 | `/api/v1/sitemaps` | Sitemap generation |
+
+### API Versioning
+
+- All public API endpoints are under `/api/v1/`.
+- Internal CMS dashboard APIs are under `/api/` (no version prefix) and require Clerk session auth.
+- If a breaking change is needed, a `/api/v2/` namespace will be introduced while `/api/v1/` remains available for a deprecation period.
+- Non-breaking additions (new fields, new endpoints) are added in-place to v1.
 
 ## Scripts
 

@@ -1,27 +1,13 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
-import { verifyApiToken, extractBearerToken } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
-import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
+import { withApiTokenAuth, apiTokenOptions, ApiToken } from '@/lib/auth'
+import { successResponse } from '@/lib/response'
+import { setCorsHeaders } from '@/lib/cors'
 
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  return handleCorsPreflightRequest(origin)
-}
+export { apiTokenOptions as OPTIONS }
 
-export async function GET(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  
-  try {
-    const token = extractBearerToken(request)
-    
-    const validToken = await verifyApiToken(token || '')
-    
-    if (!validToken) {
-      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
-    }
-    
+export const GET = withApiTokenAuth(async (request: NextRequest, validToken: ApiToken, origin: string | null) => {
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '50')), 100)
@@ -87,8 +73,4 @@ export async function GET(request: NextRequest) {
     await setCachedData(cacheKey, responseData, 3600)
     
     return setCorsHeaders(successResponse(responseData, false), origin)
-  } catch (error) {
-    console.error('Error fetching tags:', error)
-    return setCorsHeaders(errorResponse('Failed to fetch tags'), origin)
-  }
-}
+})
