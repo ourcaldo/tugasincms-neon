@@ -1,402 +1,210 @@
-# TugasCMS - Complete Project Analysis & Roadmap
+# TugasCMS Deep-Dive Report (CMS Backend)
 
-**Analysis Date**: October 30, 2025  
-**Project Version**: v1.0.0  
-**Current Stage**: Production-Ready with Active Development  
-
----
-
-## 1. Project Overview
-
-### What is TugasCMS?
-
-TugasCMS is a **professional headless Content Management System** built with modern web technologies. It serves as both an admin dashboard for content management and a RESTful API backend for frontend applications to consume content.
-
-**Primary Use Cases**:
-- Blog and article management
-- Page management (static pages like About, Contact, Privacy)
-- Job posting platform with advanced filtering
-- Multi-tenant SaaS with API token authentication
-- SEO-optimized content delivery via public APIs
-
-**Key Differentiators**:
-- **Headless Architecture**: Frontend-agnostic, API-first design
-- **Dual API System**: Internal (Clerk auth) + External (Bearer token auth)
-- **Job Posts Feature**: Dedicated job posting system with employment types, experience levels, location hierarchy
-- **Custom Post Types**: Extensible content type system
-- **Production-Grade Caching**: Redis-based with graceful degradation
-- **Multi-tenant Isolation**: Token-based API access with user scoping
+**Date:** February 14, 2026  
+**Scope:** Full review of architecture, data flow, API surface, security, performance, SEO, and configuration  
+**Project:** TugasCMS - Next.js 15 CMS + Public API
 
 ---
 
-## 2. Technology Stack
+## 0. Executive Summary
 
-### Frontend Layer
-- **Framework**: Next.js 15.5.4 (App Router, Turbopack)
-- **UI Library**: React 18.3.1
-- **Language**: TypeScript 5.9.3
-- **Styling**: Tailwind CSS 4.1.13
-- **Component Library**: Radix UI (accessible, unstyled primitives)
-- **Icons**: Lucide React
-- **Rich Text Editor**: Tiptap (ProseMirror-based)
-- **Form Management**: React Hook Form
-- **State Management**: React Hooks (no Redux/Zustand)
+TugasCMS is a headless CMS and admin dashboard that provides both internal management APIs and a token-protected public API for content and job data. It runs as a single Next.js 15 app with a PostgreSQL backend on Neon, optional Redis caching, Clerk authentication for the dashboard, and Appwrite for file storage. The project is production-capable with solid fundamentals, but there are several areas where security and operational hardening can be improved.
 
-### Backend Layer
-- **Runtime**: Node.js (via Next.js API Routes)
-- **Database**: Neon PostgreSQL (serverless, formerly Supabase)
-- **Query Builder**: @neondatabase/serverless with SQL template literals
-- **Authentication**: Clerk (session-based for dashboard)
-- **API Auth**: Custom Bearer token system (for external APIs)
-- **Image Storage**: Appwrite Cloud
-- **Caching**: Redis (optional, graceful degradation)
+**Key strengths**
+- Clear separation between internal dashboard APIs and public v1 APIs.
+- Token authentication with usage tracking and optional Redis cache.
+- Comprehensive job post data model with location hierarchy.
 
-### DevOps & Deployment
-- **Development**: Replit (cloud IDE)
-- **Build Tool**: Next.js Turbopack
-- **Port**: 5000 (unified frontend + backend)
-- **Database Host**: Neon (AWS ap-southeast-1)
-- **Image CDN**: Appwrite Sydney datacenter
-
-### Database Schema Complexity
-- **14 tables** total (users, posts, pages, job_posts, categories, tags, api_tokens, etc.)
-- **Location hierarchy**: 4 tables (provinces, regencies, districts, villages)
-- **Job metadata**: 3 tables (employment_types, experience_levels, education_levels)
-- **Junction tables**: 8 tables for many-to-many relationships
-- **Total relationships**: 20+ foreign keys
+**Top risks**
+- CORS can be fully open if `ALLOWED_ORIGINS` is empty or set to `*`.
+- Rate limiting relies on `x-forwarded-for` and can be spoofed without a trusted proxy.
+- Public API responses are large and rely on cache invalidation for performance.
 
 ---
 
-## 3. Current Project Stage
+## 1. Architecture Overview
 
-### Development Maturity: **Production-Ready (v1.0)**
+**Runtime stack**
+- Next.js 15 (App Router, standalone output)
+- React 18, TypeScript 5.9
+- PostgreSQL (Neon serverless)
+- Clerk for dashboard authentication
+- Redis cache (optional, via `REDIS_URL`)
+- Appwrite for file storage
 
-**✅ Completed Features** (100% functional):
-1. **Authentication & Authorization**
-   - Clerk integration for dashboard login
-   - API token generation and management
-   - Multi-tenant data isolation
-   - Session-based dashboard auth
-   - Bearer token API auth
+**Core entry points**
+- `app/layout.tsx` - global providers and theme.
+- `app/(dashboard)/layout.tsx` - protected dashboard wrapper.
+- `middleware.ts` - auth protection, rate limiting for `/api/v1`, and trailing slash normalization.
 
-2. **Content Management**
-   - Posts CRUD (create, read, update, delete)
-   - Pages CRUD with hierarchy support
-   - Job Posts CRUD with advanced fields
-   - Categories and Tags management
-   - SEO fields (meta title, description, focus keyword)
-   - Rich text editing with Tiptap
-   - Image upload via Appwrite
-   - Bulk delete operations
-
-3. **Public API v1** (/api/v1)
-   - Posts endpoints (GET with filters)
-   - Pages endpoints (GET by ID/slug)
-   - Job Posts endpoints (GET, POST, PUT, DELETE)
-   - Categories endpoints (GET with post counts)
-   - Tags endpoints (GET with post counts)
-   - Sitemap generation (root, pages, blog)
-   - Filter metadata endpoints
-   - CORS support
-   - Rate limiting (100 req/15min)
-   - Redis caching with 1hr TTL
-   - Pagination support
-
-4. **Job Posts System**
-   - Company information fields
-   - Employment type, experience level, education level taxonomies
-   - Salary range management
-   - Location hierarchy (province → regency → district → village)
-   - Remote/Hybrid flags
-   - Skills and benefits arrays
-   - Application email/URL
-   - Deadline management
-   - Advanced filtering (9 filter types)
-
-5. **Infrastructure**
-   - Health check endpoint
-   - Automated sitemap regeneration (60min cron)
-   - Cache invalidation on data changes
-   - SQL injection protection
-   - TypeScript type safety
-   - Production build optimization
-
-**🚧 Partially Complete**:
-- Custom Post Types (UI exists, needs more testing)
-- Profile management (basic implementation)
-
-**❌ Not Implemented**:
-- User roles and permissions system
-- Media library (UI planned but not built)
-- Email notifications
-- Workflow automation
-- Version history / content revisions
-- Multi-language support
-- Advanced analytics dashboard
+**Core services**
+- `lib/database.ts` - Neon connection and env bootstrapping.
+- `lib/auth.ts` - API token verification and Clerk user lookup.
+- `lib/response.ts` - API response helpers.
+- `lib/cache.ts` - Redis cache with graceful fallback.
+- `lib/rate-limit.ts` - rate limiting (Redis + in-memory fallback).
+- `lib/sitemap.ts` - sitemap generation and caching.
 
 ---
 
-## 4. Current Issues & Bugs
+## 2. Data Flow Summary
 
-### 🔴 Critical Issues (Must Fix Immediately)
+**Dashboard flow**
+1. User signs in via Clerk.
+2. Middleware enforces `auth.protect()` for non-public routes.
+3. Dashboard UI calls internal `/api/*` routes.
+4. API routes query Neon via `sql` and return JSON responses.
 
-**None currently identified** - The import was successful and the application is running without errors.
+**Public API flow (`/api/v1`)**
+1. Client sends a Bearer token.
+2. `verifyApiToken()` validates the token and updates `last_used_at`.
+3. Request is rate-limited (Redis or in-memory fallback).
+4. Responses are cached by key in Redis.
 
-### 🟡 High Priority Issues (Fix Soon)
-
-1. **Clerk Infinite Redirect Loop** (observed in logs)
-   - **Error**: "Refreshing the session token resulted in an infinite redirect loop"
-   - **Cause**: Clerk instance keys may not match between development and production
-   - **Impact**: Users may get stuck in redirect loops on sign-in
-   - **Fix**: Verify CLERK_SECRET_KEY and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY match the same Clerk instance
-
-2. **Database Credentials in .env.example**
-   - **Issue**: Production database credentials are hardcoded in .env.example
-   - **Impact**: Security risk if repo is public
-   - **Fix**: Use placeholder values in .env.example, document separately
-
-3. **Redis Password in .env.example**
-   - **Issue**: Redis password "Jembut123!" is exposed in .env.example
-   - **Impact**: Security vulnerability
-   - **Fix**: Use placeholder or remove from example file
-
-### 🟢 Low Priority Issues (Nice to Have)
-
-1. **No Error Boundary Components**
-   - **Issue**: React errors crash the entire app
-   - **Fix**: Add Next.js error.tsx and global-error.tsx
-
-2. **Missing Loading States**
-   - **Issue**: No skeleton loaders on data fetching pages
-   - **Fix**: Add Suspense boundaries with loading.tsx files
-
-3. **No TypeScript Strict Mode**
-   - **Issue**: tsconfig.json may not have strict mode enabled
-   - **Fix**: Enable strict: true for better type safety
-
-4. **No API Rate Limiting Dashboard**
-   - **Issue**: No way to monitor API usage per token
-   - **Fix**: Add analytics dashboard for token usage
-
-5. **Sitemap Cron Workflow Not Configured**
-   - **Issue**: package.json has sitemap:cron script but no workflow set up
-   - **Fix**: Add workflow for automated sitemap regeneration
+**Sitemap flow**
+1. `generateAllSitemaps()` creates XML chunks and indexes.
+2. `/api/v1/sitemaps` exposes sitemap metadata.
+3. `/api/v1/sitemaps/[...path]` serves sitemap XML, cached in Redis.
+4. `scripts/sitemap-cron.ts` regenerates sitemaps every 60 minutes.
 
 ---
 
-## 5. What We Can Enhance (Quick Wins)
+## 3. API Surface Map
 
-### A. Performance Optimizations
+**Public API v1 (token-protected)**
+- `GET /api/v1/posts` and `GET /api/v1/posts/[id]`
+- `GET /api/v1/pages` and `GET /api/v1/pages/[id]`
+- `GET /api/v1/categories` and `GET /api/v1/categories/[id]`
+- `GET /api/v1/tags` and `GET /api/v1/tags/[id]`
+- `GET /api/v1/job-posts` and `GET /api/v1/job-posts/[id]`
+- `GET /api/v1/job-posts/filters` (user-scoped filters)
+- `GET /api/v1/job-posts/sitemaps`
+- `GET /api/v1/robots.txt`
+- `GET /api/v1/settings` and `GET/PUT /api/v1/settings/advertisements`
+- `GET/PUT /api/v1/settings/seo`
+- `GET /api/v1/sitemaps` and `GET /api/v1/sitemaps/[...path]`
 
-1. **Image Optimization**
-   - **Current**: Direct Appwrite URLs
-   - **Enhancement**: Use Next.js Image component with Appwrite loader
-   - **Benefit**: Automatic responsive images, WebP conversion, lazy loading
-   - **Effort**: 2 hours
-
-2. **Database Connection Pooling**
-   - **Current**: New connection per request via Neon serverless
-   - **Enhancement**: Implement connection pooling for better performance
-   - **Benefit**: Faster query response times
-   - **Effort**: 1 hour
-
-3. **API Response Compression**
-   - **Current**: No compression on API responses
-   - **Enhancement**: Enable gzip/brotli compression in Next.js config
-   - **Benefit**: 60-80% reduction in API payload size
-   - **Effort**: 30 minutes
-
-### B. User Experience Improvements
-
-1. **Keyboard Shortcuts**
-   - **Enhancement**: Add CMD+S to save, CMD+P to publish, ESC to close dialogs
-   - **Benefit**: Faster content editing workflow
-   - **Effort**: 3 hours
-
-2. **Auto-Save Drafts**
-   - **Enhancement**: Save draft every 30 seconds while editing
-   - **Benefit**: Never lose work due to browser crashes
-   - **Effort**: 4 hours
-
-3. **Bulk Operations**
-   - **Current**: Only bulk delete exists
-   - **Enhancement**: Bulk status change, bulk category assignment
-   - **Benefit**: Faster content management
-   - **Effort**: 6 hours
-
-4. **Dark Mode Theme**
-   - **Current**: Basic theme switcher exists
-   - **Enhancement**: Fully tested dark mode for all components
-   - **Benefit**: Better UX for night-time editing
-   - **Effort**: 4 hours
-
-### C. Developer Experience
-
-1. **API Client SDK**
-   - **Enhancement**: Generate TypeScript SDK for v1 API
-   - **Benefit**: Easier integration for frontend developers
-   - **Effort**: 8 hours
-
-2. **API Documentation UI**
-   - **Enhancement**: Convert API_DOCUMENTATION.md to interactive Swagger/OpenAPI UI
-   - **Benefit**: Live API testing, better documentation
-   - **Effort**: 6 hours
-
-3. **Database Migrations System**
-   - **Enhancement**: Use Drizzle ORM or similar for schema migrations
-   - **Benefit**: Version-controlled database changes
-   - **Effort**: 10 hours
-
-### D. Security Enhancements
-
-1. **Content Security Policy (CSP)**
-   - **Enhancement**: Add strict CSP headers
-   - **Benefit**: Protection against XSS attacks
-   - **Effort**: 2 hours
-
-2. **API Token Scopes**
-   - **Enhancement**: Add read/write/delete scopes to API tokens
-   - **Benefit**: Fine-grained permission control
-   - **Effort**: 8 hours
-
-3. **Rate Limiting Dashboard**
-   - **Enhancement**: UI to view and manage rate limits per token
-   - **Benefit**: Better API abuse prevention
-   - **Effort**: 6 hours
+**Dashboard API (Clerk-protected by middleware)**
+- `POST /api/posts`, `PUT /api/posts/[id]`, `DELETE /api/posts/[id]`
+- `POST /api/pages`, `PUT /api/pages/[id]`, `DELETE /api/pages/[id]`
+- `POST /api/job-posts`, `PUT /api/job-posts/[id]`, `DELETE /api/job-posts/[id]`
+- `POST /api/categories`, `POST /api/tags`, `POST /api/job-categories`, `POST /api/job-tags`
+- `POST /api/settings/tokens`, `DELETE /api/settings/tokens/delete/[tokenId]`
+- `POST /api/settings/profile`
+- `GET /api/location/*` (provinces, regencies, districts, villages)
+- `GET /api/health`
 
 ---
 
-## 6. Future Enhancement Roadmap
+## 4. Security Review
 
-### Phase 1: Foundation Improvements (1-2 weeks)
+### High
 
-**Goal**: Fix critical issues and improve stability
+| ID | Issue | Impact | Evidence | Recommendation |
+|---|---|---|---|---|
+| S1 | CORS can be fully open | Any origin can access APIs if env is misconfigured | `lib/cors.ts` defaults to `['*']` when `ALLOWED_ORIGINS` not set | Require explicit allowed origins in production and fail fast if empty. |
+| S2 | Rate limit IP spoof risk | Attacker can bypass rate limits | `lib/rate-limit.ts` trusts `x-forwarded-for` | Enforce trusted proxy headers or use platform-provided IPs. |
+| S3 | Tokens stored in localStorage | XSS could leak tokens | `lib/api.ts` stores `api_token` in localStorage | Prefer HttpOnly cookies for dashboard API tokens. |
 
-- [ ] Fix Clerk redirect loop issue
-- [ ] Secure .env.example (remove credentials)
-- [ ] Add error boundaries (error.tsx, global-error.tsx)
-- [ ] Add loading states (loading.tsx files)
-- [ ] Enable TypeScript strict mode
-- [ ] Set up sitemap cron workflow
-- [ ] Add health check monitoring
+### Medium
 
-**Outcome**: Production-stable application with proper error handling
-
-### Phase 2: Media Management (2-3 weeks)
-
-**Goal**: Build complete media library
-
-- [ ] Media library listing page
-- [ ] Image upload with drag-and-drop
-- [ ] Image optimization pipeline
-- [ ] Image search and filtering
-- [ ] Image metadata (alt text, captions, credits)
-- [ ] Image usage tracking (which posts use which images)
-- [ ] Bulk image operations
-
-**Outcome**: Professional media management system
-
-### Phase 3: User Management & Permissions (2-3 weeks)
-
-**Goal**: Multi-user collaboration
-
-- [ ] User roles (Admin, Editor, Author, Contributor)
-- [ ] Permission system (who can create/edit/delete/publish)
-- [ ] User invitation system
-- [ ] Activity logging (audit trail)
-- [ ] User profile pages
-- [ ] Team management
-
-**Outcome**: Team-ready CMS with proper access control
-
-### Phase 4: Advanced Content Features (3-4 weeks)
-
-**Goal**: Enterprise-grade content management
-
-- [ ] Content revisions (version history)
-- [ ] Content scheduling (publish at specific time)
-- [ ] Content duplication
-- [ ] Content templates
-- [ ] Custom fields builder
-- [ ] Content relationships (related posts)
-- [ ] Content workflow (draft → review → published)
-- [ ] Content approval system
-
-**Outcome**: Full-featured enterprise CMS
-
-### Phase 5: Analytics & Insights (2 weeks)
-
-**Goal**: Data-driven decision making
-
-- [ ] Dashboard with key metrics
-- [ ] Content performance tracking (views, engagement)
-- [ ] API usage analytics per token
-- [ ] User activity dashboard
-- [ ] Search analytics (what users search for)
-- [ ] Export analytics to CSV
-
-**Outcome**: Business intelligence for content strategy
-
-### Phase 6: Automation & Integrations (3 weeks)
-
-**Goal**: Workflow automation and third-party integrations
-
-- [ ] Webhook system (notify on publish, delete, etc.)
-- [ ] Email notifications (new comment, scheduled publish, etc.)
-- [ ] Social media auto-posting
-- [ ] SEO tools integration (Google Search Console, etc.)
-- [ ] Slack/Discord notifications
-- [ ] Zapier/Make.com webhooks
-
-**Outcome**: Automated content distribution
-
-### Phase 7: Multi-language Support (3-4 weeks)
-
-**Goal**: Internationalization
-
-- [ ] Multi-language content (i18n)
-- [ ] Language switcher in UI
-- [ ] Translation workflow
-- [ ] RTL support for Arabic/Hebrew
-- [ ] Locale-specific dates/times
-
-**Outcome**: Global-ready CMS
+| ID | Issue | Impact | Evidence | Recommendation |
+|---|---|---|---|---|
+| S4 | .env overrides system env | Operational confusion in deploys | `lib/database.ts` forces `.env` load | Avoid overriding env vars in production builds. |
 
 ---
 
-## 7. Recommended Immediate Actions
+## 5. Performance Review
 
-### For Production Deployment (Do Today):
+**Caching**
+- Redis cache is used for `api/v1` list endpoints and sitemaps.
+- Cache invalidation is manual and depends on write operations.
 
-1. **Secure Environment Variables**
-   ```bash
-   # Update .env.example to use placeholders
-   PGPASSWORD=your_database_password_here
-   REDIS_PASSWORD=your_redis_password_here
-   ```
+**Query cost**
+- List endpoints perform a count query and a data query per request.
+- Many queries join categories and tags with JSON aggregates.
 
-2. **Fix Clerk Configuration**
-   - Verify Clerk keys match the intended environment
-   - Test sign-in flow end-to-end
-   - Check middleware configuration
+**Recommendations**
+1. Add selective invalidation when related content changes.
+2. Add `limit` bounds to all list endpoints (some already capped).
+3. Consider precomputed materialized views for sitemap-heavy workloads.
 
-3. **Add Health Monitoring**
-   - Set up uptime monitoring (Uptime Robot, Better Uptime)
-   - Configure error tracking (Sentry, LogRocket)
-   - Add performance monitoring (Vercel Analytics)
+---
 
-4. **Database Backup Strategy**
-   - Configure automated Neon database backups
-   - Document restore procedure
-   - Test backup restore process
+## 6. SEO and Discoverability
 
-### For Developer Experience (Do This Week):
+**Sitemaps**
+- Multi-sitemap strategy: root, pages, blog, jobs, locations.
+- Cached in Redis and auto-regenerated by cron.
 
-1. **Documentation Updates**
-   - Add CONTRIBUTING.md with development setup
-   - Add DEPLOYMENT.md with deployment steps
-   - Update README.md with feature list
-   - Create TROUBLESHOOTING.md for common issues
+**Robots**
+- `/api/v1/robots.txt` provides database-backed robots with fallback.
+- Includes query param disallow rules.
+
+**Recommendations**
+1. Ensure frontend and CMS sitemap hosts are aligned.
+2. If query param blocking is too aggressive, allow pagination params.
+
+---
+
+## 7. Configuration and Build
+
+**Observations**
+- `output: 'standalone'` is suitable for container deploys.
+- `eslint.ignoreDuringBuilds: true` can mask build-time issues.
+- `dynamic = 'force-dynamic'` in layouts disables static optimization.
+
+**Recommendations**
+1. Enable ESLint during CI builds for stricter checks.
+2. Review dynamic rendering for pages that can be static.
+3. Document required env vars for prod and staging.
+
+---
+
+## 8. Operations and Observability
+
+**Current state**
+- Logging via `console.*`.
+- Basic health endpoint exists.
+- No centralized error tracking or request tracing.
+
+**Recommendations**
+1. Add error tracking and trace IDs for API requests.
+2. Add request logging for `/api/v1` routes with sampling.
+3. Add uptime monitoring for `/api/health`.
+
+---
+
+## 9. Prioritized Action Plan
+
+**Fix now (security and ops)**
+1. Enforce `ALLOWED_ORIGINS` in production, avoid wildcard.
+2. Lock down IP detection to trusted proxy headers.
+3. Avoid storing long-lived API tokens in localStorage.
+
+**Fix soon (performance and SEO)**
+1. Tighten cache invalidation strategy for posts, pages, and job data.
+2. Verify sitemap host mapping and reduce query-param disallow rules.
+
+**Improve (quality)**
+1. Add strict ESLint and type checks in CI.
+2. Document operational runbooks (backup, restore, cron schedule).
+
+---
+
+## 10. Appendix: Key Files
+
+- `middleware.ts`
+- `lib/database.ts`
+- `lib/auth.ts`
+- `lib/cache.ts`
+- `lib/rate-limit.ts`
+- `lib/sitemap.ts`
+- `app/api/v1/*`
+
+---
+
+*Report updated on February 14, 2026.*
 
 2. **Code Quality**
    - Set up ESLint with stricter rules
