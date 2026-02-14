@@ -119,7 +119,16 @@ SQL migration files are in `database/`:
 
 ## Deployment (VPS + Nginx)
 
-### Docker
+### Option A: PM2
+
+```bash
+npm ci
+npm run build
+pm2 start npm --name "tugascms" -- start
+pm2 save
+```
+
+### Option B: Docker
 
 ```bash
 docker compose up -d --build
