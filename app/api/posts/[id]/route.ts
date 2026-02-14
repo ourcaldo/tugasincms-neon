@@ -130,6 +130,7 @@ export async function PUT(
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData(`api:posts:id:${id}`)
+    await deleteCachedData('api:v1:posts:*')
     
     if (status === 'published' || existingPost[0].status === 'published') {
       await invalidateSitemaps()
@@ -193,6 +194,7 @@ export async function DELETE(
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData(`api:posts:id:${id}`)
+    await deleteCachedData('api:v1:posts:*')
     
     if (existingPost[0].status === 'published') {
       await invalidateSitemaps()

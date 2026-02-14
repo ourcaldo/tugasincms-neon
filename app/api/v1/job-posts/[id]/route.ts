@@ -3,7 +3,7 @@ import { sql } from '@/lib/database'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
-import { getCachedData, setCachedData } from '@/lib/cache'
+import { getCachedData, setCachedData, invalidateJobCaches } from '@/lib/cache'
 import { z } from 'zod'
 import {
   processJobCategoriesInput,
@@ -306,6 +306,7 @@ export async function PUT(
       WHERE jp.id = ${id}
       GROUP BY jp.id
     `
+    await invalidateJobCaches()
     
     return setCorsHeaders(successResponse(fullPost[0], false), origin)
   } catch (error) {
@@ -347,6 +348,7 @@ export async function DELETE(
     
     // Delete job post (cascades will handle relations)
     await sql`DELETE FROM job_posts WHERE id = ${id}`
+    await invalidateJobCaches()
     
     const response = new NextResponse(null, { status: 204 })
     return setCorsHeaders(response, origin)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { invalidateJobCaches } from '@/lib/cache'
 import { z } from 'zod'
 
 const updateJobCategorySchema = z.object({
@@ -44,6 +45,7 @@ export async function PUT(
     if (!result || result.length === 0) {
       return notFoundResponse('Job category not found')
     }
+    await invalidateJobCaches()
 
     return successResponse(result[0], false)
   } catch (error: any) {
@@ -70,6 +72,7 @@ export async function DELETE(
       DELETE FROM job_categories
       WHERE id = ${id}
     `
+    await invalidateJobCaches()
 
     return new NextResponse(null, { status: 204 })
   } catch (error) {

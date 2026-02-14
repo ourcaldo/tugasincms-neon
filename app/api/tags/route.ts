@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     const newTag = result[0]
     
     await deleteCachedData('api:tags:*')
+    await deleteCachedData('api:v1:tags:*')
     
     return successResponse(newTag, false, 201)
   } catch (error) {

@@ -8,7 +8,7 @@ import {
   validationErrorResponse,
 } from "@/lib/response";
 import { setCorsHeaders, handleCorsPreflightRequest } from "@/lib/cors";
-import { getCachedData, setCachedData } from "@/lib/cache";
+import { getCachedData, setCachedData, invalidateJobCaches } from "@/lib/cache";
 import { z } from "zod";
 import {
   processJobCategoriesInput,
@@ -682,6 +682,7 @@ export async function POST(request: NextRequest) {
       WHERE jp.id = ${postId}
       GROUP BY jp.id
     `;
+    await invalidateJobCaches();
 
     return setCorsHeaders(successResponse(fullPost[0], false, 201), origin);
   } catch (error: any) {

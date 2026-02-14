@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { invalidateJobCaches } from '@/lib/cache'
 import { z } from 'zod'
 
 const jobTagSchema = z.object({
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
       VALUES (${name}, ${slug})
       RETURNING *
     `
+    await invalidateJobCaches()
 
     return successResponse(result[0], false, 201)
   } catch (error: any) {

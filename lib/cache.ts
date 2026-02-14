@@ -117,3 +117,12 @@ export function closeCacheConnection(): void {
     redisClient = null
   }
 }
+
+/**
+ * Invalidate all job-related cache keys.
+ * Call this after any job post, job tag, or job category mutation.
+ */
+export async function invalidateJobCaches(): Promise<void> {
+  await deleteCachedData('api:v1:job-posts:*')
+  await deleteCachedData('api:v1:job-posts:filters:*')
+}

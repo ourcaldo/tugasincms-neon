@@ -383,6 +383,7 @@ export async function POST(request: NextRequest) {
     
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData(`api:posts:user:${userId}`)
+    await deleteCachedData('api:v1:posts:*')
     
     if (status === 'published') {
       await invalidateSitemaps()

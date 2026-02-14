@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     const newCategory = result[0]
     
     await deleteCachedData('api:categories:*')
+    await deleteCachedData('api:v1:categories:*')
     
     return successResponse(newCategory, false, 201)
   } catch (error) {

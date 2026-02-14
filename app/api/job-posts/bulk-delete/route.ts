@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, validationErrorResponse } from '@/lib/response'
+import { invalidateJobCaches } from '@/lib/cache'
 import { z } from 'zod'
 
 const bulkDeleteSchema = z.object({
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       WHERE id = ANY(${postIds})
         AND author_id = ${userId}
     `
+    await invalidateJobCaches()
     
     return successResponse({
       message: `${postIds.length} job post(s) deleted successfully`,

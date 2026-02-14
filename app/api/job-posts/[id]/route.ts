@@ -3,6 +3,7 @@ import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { invalidateSitemaps } from '@/lib/sitemap'
+import { invalidateJobCaches } from '@/lib/cache'
 import { z } from 'zod'
 import {
   processJobCategoriesInput,
@@ -262,6 +263,7 @@ export async function PUT(
     if (status === 'published' || existingPost[0].status === 'published') {
       await invalidateSitemaps()
     }
+    await invalidateJobCaches()
     
     return successResponse(fullPost[0], false)
   } catch (error) {
@@ -301,6 +303,7 @@ export async function DELETE(
     if (existingPost[0].status === 'published') {
       await invalidateSitemaps()
     }
+    await invalidateJobCaches()
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {

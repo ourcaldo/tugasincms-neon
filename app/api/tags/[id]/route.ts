@@ -37,6 +37,8 @@ export async function PUT(
     await deleteCachedData('api:tags:*')
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData('api:posts:*')
+    await deleteCachedData('api:v1:tags:*')
+    await deleteCachedData('api:v1:posts:*')
     
     return successResponse(updatedTag, false)
   } catch (error) {
@@ -64,6 +66,8 @@ export async function DELETE(
     await deleteCachedData('api:tags:*')
     await deleteCachedData('api:public:posts:*')
     await deleteCachedData('api:posts:*')
+    await deleteCachedData('api:v1:tags:*')
+    await deleteCachedData('api:v1:posts:*')
     
     return new NextResponse(null, { status: 204 })
   } catch (error) {
