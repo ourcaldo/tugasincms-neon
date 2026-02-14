@@ -638,7 +638,7 @@ export async function POST(request: NextRequest) {
         ${seo_title || null}, ${meta_description || null}, ${focus_keyword || null},
         ${job_company_name || null}, ${job_company_logo || null}, ${job_company_website || null},
         ${job_employment_type_id || null}, ${job_experience_level_id || null}, ${job_education_level_id || null},
-        ${job_salary_min || null}, ${job_salary_max || null}, ${job_salary_currency || "IDR"}, ${job_salary_period || "monthly"},
+        ${job_salary_min || null}, ${job_salary_max || null}, ${job_salary_currency || "IDR"}, ${job_salary_period || "bulan"},
         ${job_is_salary_negotiable || false}, ${resolvedLocations.province_id}, ${resolvedLocations.regency_id}, ${resolvedLocations.district_id},
         ${resolvedLocations.village_id}, ${job_address_detail || null}, ${job_is_remote || false}, ${job_is_hybrid || false},
         ${job_application_email || null}, ${job_application_url || null}, ${job_application_deadline || null},

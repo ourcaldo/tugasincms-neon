@@ -92,7 +92,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
       salaryMin: '',
       salaryMax: '',
       salaryCurrency: 'IDR',
-      salaryPeriod: 'month',
+      salaryPeriod: 'bulan',
       isSalaryNegotiable: false,
       provinceId: '',
       regencyId: '',
@@ -216,7 +216,7 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
           salaryMin: data.job_salary_min?.toString() || '',
           salaryMax: data.job_salary_max?.toString() || '',
           salaryCurrency: data.job_salary_currency || 'IDR',
-          salaryPeriod: data.job_salary_period || 'month',
+          salaryPeriod: data.job_salary_period || 'bulan',
           isSalaryNegotiable: data.job_is_salary_negotiable || false,
           provinceId: data.job_province_id || '',
           regencyId: data.job_regency_id || '',
@@ -1132,10 +1132,10 @@ export function JobPostEditor({ postId, onSave, onPreview, onPublish }: JobPostE
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="hour">Per Hour</SelectItem>
-                        <SelectItem value="day">Per Day</SelectItem>
-                        <SelectItem value="month">Per Month</SelectItem>
-                        <SelectItem value="year">Per Year</SelectItem>
+                        <SelectItem value="jam">Per Jam</SelectItem>
+                        <SelectItem value="hari">Per Hari</SelectItem>
+                        <SelectItem value="bulan">Per Bulan</SelectItem>
+                        <SelectItem value="tahun">Per Tahun</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

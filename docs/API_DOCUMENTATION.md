@@ -501,7 +501,7 @@ List job posts with extensive filtering. Supports parameter aliases for convenie
         "job_salary_min": 15000000,
         "job_salary_max": 25000000,
         "job_salary_currency": "IDR",
-        "job_salary_period": "monthly",
+        "job_salary_period": "bulan",
         "job_is_salary_negotiable": true,
         "job_is_remote": false,
         "job_is_hybrid": true,
@@ -610,7 +610,7 @@ Create a job post.
   "job_salary_min": 15000000,
   "job_salary_max": 25000000,
   "job_salary_currency": "IDR",
-  "job_salary_period": "monthly",
+  "job_salary_period": "bulan",
   "job_is_salary_negotiable": true,
   "job_province_id": "31",
   "job_regency_id": "3171",
@@ -652,7 +652,7 @@ Create a job post.
 | `job_salary_min` | int | No | min 10,000 |
 | `job_salary_max` | int | No | min 10,000 (must be > `job_salary_min` if both provided) |
 | `job_salary_currency` | string | No | max 10, default `"IDR"` |
-| `job_salary_period` | string | No | max 50, default `"monthly"` |
+| `job_salary_period` | string | No | max 50, default `"bulan"` |
 | `job_is_salary_negotiable` | boolean | No | default `false` |
 | `job_province_id` | string | No | max 2 (or province name for auto-lookup) |
 | `job_regency_id` | string | No | max 4 |
@@ -689,7 +689,7 @@ Create a job post.
     "job_salary_min": 15000000,
     "job_salary_max": 25000000,
     "job_salary_currency": "IDR",
-    "job_salary_period": "monthly",
+    "job_salary_period": "bulan",
     "job_is_salary_negotiable": true,
     "job_is_remote": false,
     "job_is_hybrid": true,
@@ -754,7 +754,7 @@ Get a job post by UUID. Author-scoped to token owner.
     "job_salary_min": 15000000,
     "job_salary_max": 25000000,
     "job_salary_currency": "IDR",
-    "job_salary_period": "monthly",
+    "job_salary_period": "bulan",
     "job_is_salary_negotiable": true,
     "job_province_id": "31",
     "job_regency_id": "3171",
