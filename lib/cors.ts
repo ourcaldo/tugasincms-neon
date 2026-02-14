@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { CORS_MAX_AGE } from './constants'
 
 const isProduction = process.env.NODE_ENV === 'production'
 
@@ -45,7 +46,7 @@ export function setCorsHeaders(response: NextResponse, origin?: string | null): 
 
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  response.headers.set('Access-Control-Max-Age', '86400')
+  response.headers.set('Access-Control-Max-Age', String(CORS_MAX_AGE))
 
   return response
 }

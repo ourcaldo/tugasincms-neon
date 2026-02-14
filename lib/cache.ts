@@ -1,8 +1,15 @@
 import Redis from 'ioredis'
+import {
+  API_CACHE_TTL,
+  REDIS_CONNECT_TIMEOUT,
+  REDIS_MAX_RETRIES,
+  REDIS_RETRY_BASE_MS,
+  REDIS_RETRY_MAX_MS,
+} from './constants'
 
 let redisClient: Redis | null = null
 
-const CACHE_TTL = 3600
+const CACHE_TTL = API_CACHE_TTL
 
 export function getRedisClient(): Redis | null {
   if (!process.env.REDIS_URL) {
@@ -14,14 +21,14 @@ export function getRedisClient(): Redis | null {
       const useTLS = process.env.REDIS_URL.startsWith('rediss://')
       
       redisClient = new Redis(process.env.REDIS_URL, {
-        connectTimeout: 10000,
-        maxRetriesPerRequest: 3,
+        connectTimeout: REDIS_CONNECT_TIMEOUT,
+        maxRetriesPerRequest: REDIS_MAX_RETRIES,
         retryStrategy: (times) => {
-          if (times > 3) {
-            console.error('Redis connection failed after 3 retries')
+          if (times > REDIS_MAX_RETRIES) {
+            console.error(`Redis connection failed after ${REDIS_MAX_RETRIES} retries`)
             return null
           }
-          return Math.min(times * 100, 2000)
+          return Math.min(times * REDIS_RETRY_BASE_MS, REDIS_RETRY_MAX_MS)
         },
         ...(useTLS && {
           tls: {

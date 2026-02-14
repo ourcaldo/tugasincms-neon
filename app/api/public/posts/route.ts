@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         AND p.post_type = 'post'
       GROUP BY p.id
       ORDER BY p.publish_date DESC
+      LIMIT 500
     `
     
     const postsWithRelations = mapPostsFromDB(publishedPosts as any || [])

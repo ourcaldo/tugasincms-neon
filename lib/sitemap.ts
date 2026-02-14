@@ -1,5 +1,6 @@
 import { sql } from './database'
 import { getCachedData, setCachedData, deleteCachedData } from './cache'
+import { POSTS_PER_SITEMAP as SITEMAP_CHUNK_SIZE, SITEMAP_CACHE_TTL } from './constants'
 
 export interface SitemapUrl {
   loc: string
@@ -15,7 +16,7 @@ export interface SitemapInfo {
   references?: string[]
 }
 
-const POSTS_PER_SITEMAP = 200
+const POSTS_PER_SITEMAP = SITEMAP_CHUNK_SIZE
 
 function getCmsHost(): string {
   if (process.env.CMS_HOST) {
@@ -325,7 +326,7 @@ export interface GeneratedSitemaps {
 export async function generateAllSitemaps(requestHost?: string): Promise<GeneratedSitemaps> {
   const sitemapHost = getSitemapHost()
   const cmsHost = getCmsHost()
-  const TTL = 3600 // 60 minutes
+  const TTL = SITEMAP_CACHE_TTL
   
   const pagesSitemap = await generatePagesSitemap(sitemapHost)
   try { await setCachedData('sitemap:pages', pagesSitemap, TTL) } catch (e) { }

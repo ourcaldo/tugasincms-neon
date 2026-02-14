@@ -29,22 +29,22 @@ TugasCMS is a headless CMS and admin dashboard that provides both internal manag
 | 3 | 🔴 High | Security | ~~Move API tokens from localStorage to HttpOnly cookies~~ — Removed localStorage token system; SEO/robots pages now use Clerk auth | S3 | ✅ |
 | 4 | 🟡 Medium | Security | Avoid `.env` overriding system env vars in production — `.env` now only loaded in development | S4 | ✅ |
 | 5 | 🟡 Medium | Performance | Add selective cache invalidation on content writes — `invalidateJobCaches()` helper + v1 cross-invalidation on all write routes | §5 | ✅ |
-| 6 | 🟡 Medium | Performance | Add `limit` bounds to all list endpoints | §5 | ⬜ |
+| 6 | 🟡 Medium | Performance | Add `limit` bounds to all list endpoints — `Math.min(limit, 100)` on all paginated routes + `LIMIT 500` on public posts | §5 | ✅ |
 | 7 | 🟡 Medium | Performance | Consider materialized views for sitemap workloads | §5 | ⬜ |
-| 8 | 🟡 Medium | SEO | Verify frontend/CMS sitemap host alignment | §6 | ⬜ |
-| 9 | 🟡 Medium | SEO | Review query-param disallow rules in robots.txt | §6 | ⬜ |
+| 8 | 🟡 Medium | SEO | Verify frontend/CMS sitemap host alignment — confirmed correct (`SITEMAP_HOST`=frontend, `CMS_HOST`=API), added clarifying comments | §6 | ✅ |
+| 9 | 🟡 Medium | SEO | Review query-param disallow rules in robots.txt — removed ineffective `/*#*` and redundant `/search?` rules | §6 | ✅ |
 | 10 | 🟢 Low | Build | Enable ESLint during CI builds | §7 | ⬜ |
-| 11 | 🟢 Low | Build | Review `force-dynamic` usage — allow static where possible | §7 | ⬜ |
+| 11 | 🟢 Low | Build | Review `force-dynamic` usage — N/A: no routes use `force-dynamic` | §7 | ✅ |
 | 12 | 🟢 Low | Build | Document required env vars for prod/staging | §7 | ⬜ |
 | 13 | 🟢 Low | Ops | Add error tracking + trace IDs for API requests | §8 | ⬜ |
 | 14 | 🟢 Low | Ops | Add request logging for `/api/v1` with sampling | §8 | ⬜ |
 | 15 | 🟢 Low | Ops | Add uptime monitoring for `/api/health` | §8 | ⬜ |
 | 16 | 🟡 Medium | Tech Debt | Add type safety for DB queries (Drizzle/Prisma) | §8-TD | ⬜ |
-| 17 | 🟡 Medium | Tech Debt | Standardize all API error response formats | §8-TD | ⬜ |
+| 17 | 🟡 Medium | Tech Debt | Standardize all API error response formats — extended `validationErrorResponse()` with errors array, fixed 2 non-standard responses | §8-TD | ✅ |
 | 18 | 🟢 Low | Tech Debt | Document API versioning policy | §8-TD | ⬜ |
 | 19 | 🟡 Medium | Tech Debt | Extract duplicate auth/validation logic to middleware | §8-TD | ⬜ |
 | 20 | 🟢 Low | Tech Debt | Add integration/E2E tests (Playwright) | §8-TD | ⬜ |
-| 21 | 🟡 Medium | Tech Debt | Move hard-coded rate limits & TTLs to config file | §8-TD | ⬜ |
+| 21 | 🟡 Medium | Tech Debt | Move hard-coded rate limits & TTLs to config file — created `lib/constants.ts` with all config values, updated lib files | §8-TD | ✅ |
 | 22 | 🟢 Low | Quality | Set up ESLint stricter rules + Prettier | §9 | ⬜ |
 | 23 | 🟢 Low | Quality | Set up pre-commit hooks (Husky) | §9 | ⬜ |
 | 24 | 🟡 Medium | Data | Localize salary period values (monthly→bulan, etc.) | — | ✅ |

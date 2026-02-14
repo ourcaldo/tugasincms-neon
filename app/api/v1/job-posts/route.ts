@@ -227,8 +227,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get("limit") || "20")), 100);
     
     // Helper function to get param with aliases
     const getParam = (names: string[]) => {
@@ -534,17 +534,13 @@ export async function POST(request: NextRequest) {
       const errors = validation.error.issues.map((issue: any) => ({
         field: issue.path.join('.'),
         message: issue.message,
-        code: issue.code,
-        received: issue.code === 'invalid_type' ? (issue as any).received : undefined
       }));
       
       return setCorsHeaders(
-        NextResponse.json({
-          success: false,
-          error: "Validation failed",
-          message: `Validation failed: ${errors[0].field} - ${errors[0].message}`,
-          errors: errors
-        }, { status: 400 }),
+        validationErrorResponse(
+          `Validation failed: ${errors[0].field} - ${errors[0].message}`,
+          errors
+        ),
         origin,
       );
     }

@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     }
     
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20')), 100)
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || ''
     const category = searchParams.get('category') || ''

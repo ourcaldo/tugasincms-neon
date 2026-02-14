@@ -44,10 +44,8 @@ Disallow: /sign-in
 Disallow: /sign-up
 Disallow: /_next/
 
-# SEO optimizations
+# Block query-param pages (search/filter results = duplicate content)
 Disallow: /*?*
-Disallow: /*#*
-Disallow: /search?
 
 # Crawl delay for politeness
 Crawl-delay: 1`

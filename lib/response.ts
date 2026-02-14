@@ -28,8 +28,12 @@ export function forbiddenResponse(message: string = 'Forbidden'): NextResponse<A
   return errorResponse(message, 403)
 }
 
-export function validationErrorResponse(message: string = 'Validation error'): NextResponse<ApiResponse> {
-  return errorResponse(message, 400)
+export function validationErrorResponse(message: string = 'Validation error', errors?: Array<{ field: string; message: string }>): NextResponse {
+  const body: Record<string, unknown> = { success: false, error: message }
+  if (errors && errors.length > 0) {
+    body.errors = errors
+  }
+  return NextResponse.json(body, { status: 400 })
 }
 
 /**

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getRedisClient } from './cache'
+import {
+  RATE_LIMIT_DEFAULT_REQUESTS,
+  RATE_LIMIT_DEFAULT_WINDOW,
+  RATE_LIMIT_CLEANUP_PROBABILITY,
+} from './constants'
 
 // Rate limit configuration from environment variables (with defaults)
-const RATE_LIMIT_REQUESTS = parseInt(process.env.RATE_LIMIT_REQUESTS || '1000', 10)
-const RATE_LIMIT_WINDOW_SECONDS = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS || '60', 10)
+const RATE_LIMIT_REQUESTS = parseInt(process.env.RATE_LIMIT_REQUESTS || String(RATE_LIMIT_DEFAULT_REQUESTS), 10)
+const RATE_LIMIT_WINDOW_SECONDS = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS || String(RATE_LIMIT_DEFAULT_WINDOW), 10)
 
 // In-memory fallback when Redis is not available
 const inMemoryStore = new Map<string, { count: number; resetTime: number }>()
@@ -89,7 +94,7 @@ function checkRateLimitMemory(ip: string): { success: boolean; remaining: number
     const record = inMemoryStore.get(ip)
 
     // Clean up expired entries periodically
-    if (Math.random() < 0.01) {
+    if (Math.random() < RATE_LIMIT_CLEANUP_PROBABILITY) {
         for (const [key, value] of inMemoryStore.entries()) {
             if (value.resetTime < now) {
                 inMemoryStore.delete(key)
