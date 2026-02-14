@@ -25,7 +25,7 @@ TugasCMS is a headless CMS and admin dashboard that provides both internal manag
 | # | Priority | Category | Action Item | Section | Status |
 |---|---|---|---|---|---|
 | 1 | 🔴 High | Security | Enforce `ALLOWED_ORIGINS` in production, reject wildcard `*` | S1 | ✅ |
-| 2 | 🔴 High | Security | Lock down IP detection to trusted proxy headers only | S2 | ⬜ |
+| 2 | 🔴 High | Security | Lock down IP detection to trusted proxy headers only | S2 | ✅ |
 | 3 | 🔴 High | Security | ~~Move API tokens from localStorage to HttpOnly cookies~~ — Removed localStorage token system; SEO/robots pages now use Clerk auth | S3 | ✅ |
 | 4 | 🟡 Medium | Security | Avoid `.env` overriding system env vars in production | S4 | ⬜ |
 | 5 | 🟡 Medium | Performance | Add selective cache invalidation on content writes | §5 | ⬜ |

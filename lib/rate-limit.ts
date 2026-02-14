@@ -9,14 +9,25 @@ const RATE_LIMIT_WINDOW_SECONDS = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS
 const inMemoryStore = new Map<string, { count: number; resetTime: number }>()
 
 /**
- * Get client IP from request headers
+ * Get client IP from request headers.
+ * 
+ * Priority order (most trusted first):
+ * 1. X-Real-IP — set by Nginx from $remote_addr (cannot be spoofed)
+ * 2. X-Forwarded-For — only the first entry (set by Nginx)
+ * 3. Fallback to 'anonymous'
+ * 
+ * IMPORTANT: Nginx must be configured with:
+ *   proxy_set_header X-Real-IP $remote_addr;
+ *   proxy_set_header X-Forwarded-For $remote_addr;
  */
 export function getClientIP(request: NextRequest): string {
-    const forwarded = request.headers.get('x-forwarded-for')
+    // X-Real-IP is most reliable when set by Nginx from $remote_addr
     const realIp = request.headers.get('x-real-ip')
+    if (realIp) return realIp.trim()
 
+    // Fallback to X-Forwarded-For (first entry, set by Nginx)
+    const forwarded = request.headers.get('x-forwarded-for')
     if (forwarded) return forwarded.split(',')[0].trim()
-    if (realIp) return realIp
 
     return 'anonymous'
 }
