@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless'
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -11,18 +11,32 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
-const PGHOST = process.env.PGHOST
-const PGDATABASE = process.env.PGDATABASE  
-const PGUSER = process.env.PGUSER
-const PGPASSWORD = process.env.PGPASSWORD
-const PGSSLMODE = process.env.PGSSLMODE || 'require'
+function createSqlClient(): NeonQueryFunction<false, false> {
+  const PGHOST = process.env.PGHOST
+  const PGDATABASE = process.env.PGDATABASE  
+  const PGUSER = process.env.PGUSER
+  const PGPASSWORD = process.env.PGPASSWORD
+  const PGSSLMODE = process.env.PGSSLMODE || 'require'
 
-if (!PGHOST || !PGDATABASE || !PGUSER || !PGPASSWORD) {
-  throw new Error(
-    'Missing database environment variables. Please set PGHOST, PGDATABASE, PGUSER, and PGPASSWORD in your .env file.'
-  )
+  if (!PGHOST || !PGDATABASE || !PGUSER || !PGPASSWORD) {
+    throw new Error(
+      'Missing database environment variables. Please set PGHOST, PGDATABASE, PGUSER, and PGPASSWORD in your .env file.'
+    )
+  }
+
+  const connectionString = `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}/${PGDATABASE}?sslmode=${PGSSLMODE}`
+  return neon(connectionString)
 }
 
-const connectionString = `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}/${PGDATABASE}?sslmode=${PGSSLMODE}`
+let _sql: NeonQueryFunction<false, false> | null = null
 
-export const sql = neon(connectionString)
+export const sql: NeonQueryFunction<false, false> = new Proxy({} as NeonQueryFunction<false, false>, {
+  apply(_target, thisArg, args) {
+    if (!_sql) _sql = createSqlClient()
+    return Reflect.apply(_sql, thisArg, args)
+  },
+  get(_target, prop, receiver) {
+    if (!_sql) _sql = createSqlClient()
+    return Reflect.get(_sql, prop, receiver)
+  },
+})
