@@ -39,25 +39,7 @@ function normalizeUrl(url: string): string {
 - Works with authentication middleware
 - 301 redirects for SEO
 
-### 3. Vercel Configuration (`vercel.json`)
-```json
-{
-  "redirects": [
-    {
-      "source": "/((?!api|_next|.*\\.).*[^/])$",
-      "destination": "/$1/",
-      "permanent": true
-    }
-  ]
-}
-```
-
-**Benefits:**
-- Deployment-level enforcement
-- Works even if application logic fails
-- Regex-based pattern matching
-
-### 4. URL Utilities (`lib/url-utils.ts`)
+### 3. URL Utilities (`lib/url-utils.ts`)
 ```typescript
 // Helper functions for consistent URL handling
 export function ensureTrailingSlash(url: string): string
@@ -187,7 +169,6 @@ return NextResponse.redirect('/dashboard/jobs')
 
 2. **Infinite Redirects**
    - Check middleware logic
-   - Verify Vercel.json patterns
    - Test with different URL formats
 
 3. **API Routes Not Working**
@@ -261,4 +242,3 @@ const TRAILING_SLASH_POLICY = process.env.TRAILING_SLASH_POLICY || 'enforce'
 
 - [Next.js Trailing Slash Documentation](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
 - [Google SEO Guidelines on URL Structure](https://developers.google.com/search/docs/crawling-indexing/url-structure)
-- [Vercel Redirects Documentation](https://vercel.com/docs/concepts/projects/project-configuration#redirects)
