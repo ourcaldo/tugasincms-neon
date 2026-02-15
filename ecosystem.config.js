@@ -4,7 +4,7 @@ module.exports = {
       name: 'tugasincms',
       script: 'npm',
       args: 'start',
-      cwd: '/var/www/tugasincms',
+      cwd: '/root/tugasincms-neon',
       instances: 1,
       exec_mode: 'fork',
       env: {
@@ -18,9 +18,9 @@ module.exports = {
       max_memory_restart: '1G',
 
       // Logging
-      log_file: '/var/log/pm2/tugasincms.log',
-      out_file: '/var/log/pm2/tugasincms-out.log',
-      error_file: '/var/log/pm2/tugasincms-error.log',
+      log_file: '/root/.pm2/logs/tugasincms.log',
+      out_file: '/root/.pm2/logs/tugasincms-out.log',
+      error_file: '/root/.pm2/logs/tugasincms-error.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
 
       // Health monitoring
@@ -31,7 +31,7 @@ module.exports = {
       name: 'tugasincms-sitemap-cron',
       script: 'npm',
       args: 'run sitemap:cron',
-      cwd: '/var/www/tugasincms',
+      cwd: '/root/tugasincms-neon',
       cron_restart: '0 */6 * * *', // Every 6 hours
       autorestart: false,
       watch: false,
@@ -40,9 +40,9 @@ module.exports = {
       },
 
       // Logging
-      log_file: '/var/log/pm2/tugasincms-sitemap.log',
-      out_file: '/var/log/pm2/tugasincms-sitemap-out.log',
-      error_file: '/var/log/pm2/tugasincms-sitemap-error.log',
+      log_file: '/root/.pm2/logs/tugasincms-sitemap.log',
+      out_file: '/root/.pm2/logs/tugasincms-sitemap-out.log',
+      error_file: '/root/.pm2/logs/tugasincms-sitemap-error.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     },
   ],
