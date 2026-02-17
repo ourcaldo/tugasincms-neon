@@ -8,11 +8,17 @@ import {
 } from './constants'
 
 let redisClient: Redis | null = null
+let redisAvailable = false
 
 const CACHE_TTL = API_CACHE_TTL
 
 export function getRedisClient(): Redis | null {
   if (!process.env.REDIS_URL) {
+    return null
+  }
+
+  // If Redis was created but is not available (connection failed), treat as no-Redis
+  if (redisClient && !redisAvailable) {
     return null
   }
 
@@ -26,6 +32,7 @@ export function getRedisClient(): Redis | null {
         retryStrategy: (times) => {
           if (times > REDIS_MAX_RETRIES) {
             console.error(`Redis connection failed after ${REDIS_MAX_RETRIES} retries`)
+            redisAvailable = false
             return null
           }
           return Math.min(times * REDIS_RETRY_BASE_MS, REDIS_RETRY_MAX_MS)
@@ -40,23 +47,35 @@ export function getRedisClient(): Redis | null {
       })
 
       redisClient.on('connect', () => {
+        redisAvailable = true
         console.log('✅ Connected to Redis cache')
       })
 
+      redisClient.on('ready', () => {
+        redisAvailable = true
+      })
+
       redisClient.on('error', (error) => {
+        redisAvailable = false
         console.error('Redis connection error:', error.message)
       })
 
       redisClient.on('close', () => {
+        redisAvailable = false
         console.log('Redis connection closed')
+      })
+
+      redisClient.on('end', () => {
+        redisAvailable = false
       })
     } catch (error) {
       console.error('Failed to initialize Redis client:', error)
+      redisAvailable = false
       return null
     }
   }
 
-  return redisClient
+  return redisAvailable ? redisClient : null
 }
 
 export async function getCachedData<T>(key: string): Promise<T | null> {

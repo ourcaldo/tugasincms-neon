@@ -30,13 +30,17 @@ function createSqlClient(): NeonQueryFunction<false, false> {
 
 let _sql: NeonQueryFunction<false, false> | null = null
 
-export const sql: NeonQueryFunction<false, false> = new Proxy({} as NeonQueryFunction<false, false>, {
+function getSql(): NeonQueryFunction<false, false> {
+  if (!_sql) _sql = createSqlClient()
+  return _sql
+}
+
+// Proxy target must be a function for the `apply` trap to work (tagged template literals)
+export const sql: NeonQueryFunction<false, false> = new Proxy(function () {} as unknown as NeonQueryFunction<false, false>, {
   apply(_target, thisArg, args) {
-    if (!_sql) _sql = createSqlClient()
-    return Reflect.apply(_sql, thisArg, args)
+    return Reflect.apply(getSql(), thisArg, args)
   },
   get(_target, prop, receiver) {
-    if (!_sql) _sql = createSqlClient()
-    return Reflect.get(_sql, prop, receiver)
+    return Reflect.get(getSql(), prop, receiver)
   },
 })

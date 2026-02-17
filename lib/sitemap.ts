@@ -315,6 +315,7 @@ export interface GeneratedSitemaps {
   pages: string
   blogIndex: string | null
   blogChunks: string[]
+  jobMainIndex: string
   jobPostsIndex: string | null
   jobPostsChunks: string[]
   jobCategorySitemap: string | null
@@ -442,6 +443,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
     pages: pagesSitemap,
     blogIndex,
     blogChunks,
+    jobMainIndex: jobSitemapIndex,
     jobPostsIndex,
     jobPostsChunks,
     jobCategorySitemap,

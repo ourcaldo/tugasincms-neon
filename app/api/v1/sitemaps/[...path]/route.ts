@@ -11,7 +11,7 @@ export async function GET(
     const filename = path.join('/')
     
     let sitemapKey: string
-    let sitemapField: 'root' | 'pages' | 'blogIndex' | 'jobPostsIndex' | 'jobCategorySitemap' | 'jobLocationIndex' | null = null
+    let sitemapField: 'root' | 'pages' | 'blogIndex' | 'jobPostsIndex' | 'jobCategorySitemap' | 'jobLocationIndex' | 'jobMainIndex' | null = null
     let chunkType: 'blog' | 'job' | null = null
     let chunkNum: number | null = null
     let locationProvince: string | null = null
@@ -32,6 +32,7 @@ export async function GET(
       chunkType = 'blog'
     } else if (filename === 'sitemap-job.xml') {
       sitemapKey = 'sitemap:job:main:index'
+      sitemapField = 'jobMainIndex'
     } else if (filename.match(/^sitemap-job-(\d+)\.xml$/)) {
       const match = filename.match(/^sitemap-job-(\d+)\.xml$/)!
       chunkNum = parseInt(match[1])
@@ -58,7 +59,11 @@ export async function GET(
       const generated = await generateAllSitemaps()
       
       if (sitemapField) {
-        sitemapXml = generated[sitemapField]
+        if (sitemapField === 'jobMainIndex') {
+          sitemapXml = generated.jobMainIndex
+        } else {
+          sitemapXml = generated[sitemapField]
+        }
       } else if (chunkType && chunkNum !== null) {
         const chunks = chunkType === 'blog' ? generated.blogChunks : generated.jobPostsChunks
         sitemapXml = chunks[chunkNum - 1] || null
