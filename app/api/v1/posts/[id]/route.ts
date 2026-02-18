@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/lib/response'
 import { mapPostFromDB } from '@/lib/post-mapper'
@@ -64,7 +65,7 @@ export async function GET(
     
     const postWithRelations = mapPostFromDB(post[0] as any)
     
-    await setCachedData(cacheKey, postWithRelations, 3600)
+    await setCachedData(cacheKey, postWithRelations, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(postWithRelations, false), origin)
   } catch (error) {

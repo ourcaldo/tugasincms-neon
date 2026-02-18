@@ -4,15 +4,18 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Tag } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, Tag, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { Checkbox } from '../ui/checkbox'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface JobTag {
   id: string
@@ -24,7 +27,8 @@ interface JobTag {
 
 export function JobTagsList() {
   const [tags, setTags] = useState<JobTag[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalTags, setTotalTags] = useState(0)
@@ -36,7 +40,10 @@ export function JobTagsList() {
     slug: '',
   })
   const apiClient = useApiClient()
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   useEffect(() => {
     fetchTags()
@@ -44,7 +51,7 @@ export function JobTagsList() {
 
   const fetchTags = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: JobTag[] }>('/job-tags')
       const tagsData = response.data || []
       setTags(tagsData)
@@ -55,7 +62,7 @@ export function JobTagsList() {
       setTags([])
       setTotalTags(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -66,7 +73,7 @@ export function JobTagsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: JobTag }>('/job-tags', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -81,7 +88,7 @@ export function JobTagsList() {
       console.error('Error creating job tag:', error)
       toast.error('Failed to create job tag')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -92,7 +99,7 @@ export function JobTagsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: JobTag }>(`/job-tags/${editingTag.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -107,19 +114,20 @@ export function JobTagsList() {
       console.error('Error updating job tag:', error)
       toast.error('Failed to update job tag')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteTag = async (tagId: string) => {
-    if (!confirm('Are you sure you want to delete this job tag? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteTag = (tagId: string) => {
+    setDeleteTarget(tagId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/job-tags/${tagId}`)
-      const newTags = tags.filter(tag => tag.id !== tagId)
+      setMutationLoading(true)
+      await apiClient.delete(`/job-tags/${deleteTarget}`)
+      const newTags = tags.filter(tag => tag.id !== deleteTarget)
       setTags(newTags)
       setTotalTags(newTags.length)
 
@@ -133,20 +141,20 @@ export function JobTagsList() {
       console.error('Error deleting job tag:', error)
       toast.error('Failed to delete job tag')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedTags.size === 0) return
+    setBulkDeleteOpen(true)
+  }
 
-    if (!confirm(`Are you sure you want to delete ${selectedTags.size} selected job tag(s)? This action cannot be undone.`)) {
-      return
-    }
-
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true)
-      await Promise.all(Array.from(selectedTags).map(id => apiClient.delete(`/job-tags/${id}`)))
+      setMutationLoading(true)
+      await apiClient.post('/job-tags/bulk-delete', { ids: Array.from(selectedTags) })
       const newTags = tags.filter(tag => !selectedTags.has(tag.id))
       setTags(newTags)
       setTotalTags(newTags.length)
@@ -162,7 +170,8 @@ export function JobTagsList() {
       console.error('Error deleting job tags:', error)
       toast.error('Failed to delete selected job tags')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setBulkDeleteOpen(false)
     }
   }
 
@@ -205,7 +214,12 @@ export function JobTagsList() {
     }
   }
 
-  const paginatedTags = tags.slice(
+  const filteredTags = tags.filter(tag =>
+    tag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tag.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedTags = filteredTags.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
@@ -234,10 +248,10 @@ export function JobTagsList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Job Tags</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Job Tags</h1>
           <p className="text-muted-foreground mt-1">Label job posts with tags for better organization</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -274,7 +288,7 @@ export function JobTagsList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateTag} disabled={loading}>
+              <Button onClick={handleCreateTag} disabled={mutationLoading}>
                 Create Job Tag
               </Button>
             </DialogFooter>
@@ -282,26 +296,27 @@ export function JobTagsList() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search job tags..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {selectedTags.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedTags.size} job tag{selectedTags.size === 1 ? '' : 's'} selected
           </p>
-          {selectedTags.size < tags.length && (
-            <Button 
-              variant="secondary" 
-              size="sm"
-              onClick={handleSelectAllData}
-            >
-              Select All {tags.length} Job Tags
-            </Button>
-          )}
           <Button 
             variant="destructive" 
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button 
@@ -311,24 +326,29 @@ export function JobTagsList() {
           >
             Clear Selection
           </Button>
+          {selectedTags.size < tags.length && (
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={handleSelectAllData}
+            >
+              Select All {tags.length} Job Tags
+            </Button>
+          )}
         </div>
       )}
 
       <Card>
         <CardContent className="p-0">
-          {loading && tags.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading job tags...</p>
-            </div>
+          {fetchLoading && tags.length === 0 ? (
+            <LoadingState message="Loading job tags..." />
           ) : tags.length === 0 ? (
-            <div className="text-center py-12">
-              <Tag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No job tags yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Job Tag
-              </Button>
-            </div>
+            <EmptyState
+              icon={Tag}
+              title="No job tags yet"
+              description="Label job posts with tags for better organization."
+              action={{ label: 'Create Your First Job Tag', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -387,10 +407,10 @@ export function JobTagsList() {
                 </TableBody>
               </Table>
 
-              {totalTags > itemsPerPage && (
+              {filteredTags.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalTags)} of {totalTags} job tags
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTags.length)} of {filteredTags.length} job tags
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -402,9 +422,9 @@ export function JobTagsList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalTags / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredTags.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalTags / itemsPerPage)
+                          const totalPages = Math.ceil(filteredTags.length / itemsPerPage)
                           return page === 1 || 
                                  page === totalPages || 
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -428,8 +448,8 @@ export function JobTagsList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalTags / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalTags / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTags.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredTags.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -468,12 +488,27 @@ export function JobTagsList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateTag} disabled={loading}>
+            <Button onClick={handleUpdateTag} disabled={mutationLoading}>
               Update Job Tag
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Job Tag"
+        description="Are you sure you want to delete this job tag? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Job Tags"
+        description={`Are you sure you want to delete ${selectedTags.size} selected job tag(s)? This action cannot be undone.`}
+      />
     </div>
   )
 }

@@ -23,7 +23,15 @@ export async function DELETE(
     
     const token = tokenResult[0]
     
-    if (token && token.user_id !== currentUserId) {
+    // H-10: Return 404 if token doesn't exist
+    if (!token) {
+      return new NextResponse(JSON.stringify({ success: false, error: 'Token not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    
+    if (token.user_id !== currentUserId) {
       return forbiddenResponse('You can only delete your own tokens')
     }
     

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { getRedisClient } from './cache'
 import {
   RATE_LIMIT_DEFAULT_REQUESTS,
@@ -11,6 +12,11 @@ const RATE_LIMIT_REQUESTS = parseInt(process.env.RATE_LIMIT_REQUESTS || String(R
 const RATE_LIMIT_WINDOW_SECONDS = parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS || String(RATE_LIMIT_DEFAULT_WINDOW), 10)
 
 // In-memory fallback when Redis is not available
+// M-2: NOTE — In-memory store resets on serverless cold start. When Redis is
+//   unavailable, rate limits are best-effort only. For strict enforcement
+//   in serverless, configure REDIS_URL.
+// M-3: Cap at 10000 entries to prevent unbounded growth
+const MAX_IN_MEMORY_ENTRIES = 10_000
 const inMemoryStore = new Map<string, { count: number; resetTime: number }>()
 
 /**
@@ -61,7 +67,7 @@ async function checkRateLimitRedis(ip: string): Promise<{ success: boolean; rema
         pipeline.zcard(key)
 
         // Add current request
-        pipeline.zadd(key, now, `${now}-${Math.random()}`)
+        pipeline.zadd(key, now, `${now}-${randomUUID()}`)
 
         // Set expiry on the key
         pipeline.expire(key, RATE_LIMIT_WINDOW_SECONDS)
@@ -93,8 +99,8 @@ function checkRateLimitMemory(ip: string): { success: boolean; remaining: number
     const now = Date.now()
     const record = inMemoryStore.get(ip)
 
-    // Clean up expired entries periodically
-    if (Math.random() < RATE_LIMIT_CLEANUP_PROBABILITY) {
+    // Clean up expired entries periodically or when map is too large
+    if (Math.random() < RATE_LIMIT_CLEANUP_PROBABILITY || inMemoryStore.size > MAX_IN_MEMORY_ENTRIES) {
         for (const [key, value] of inMemoryStore.entries()) {
             if (value.resetTime < now) {
                 inMemoryStore.delete(key)

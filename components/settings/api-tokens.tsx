@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { APIToken } from '../../types';
 import { toast } from 'sonner';
 import { useApiClient } from '../../lib/api-client';
+import { PageHeader } from '../layout/page-header';
 
 interface ApiTokenResponse {
   id: string;
@@ -122,21 +123,18 @@ export function ApiTokens() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1>API Tokens</h1>
-          <p className="text-muted-foreground">
-            Manage API tokens for accessing your content programmatically
-          </p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Generate Token
-            </Button>
-          </DialogTrigger>
+    <div className="space-y-6">
+      <PageHeader
+        title="API Tokens"
+        description="Manage API tokens for accessing your content programmatically"
+        actions={
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Generate Token
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Generate New API Token</DialogTitle>
@@ -190,7 +188,8 @@ export function ApiTokens() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {/* API Documentation */}
       <Card>
@@ -255,15 +254,8 @@ export function ApiTokens() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {token.token.substring(0, 12)}...
+                        {'•'.repeat(8)}...{token.id.slice(-4)}
                       </code>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToken(token.token)}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -289,10 +281,6 @@ export function ApiTokens() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => copyToken(token.token)}>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy Token
-                        </DropdownMenuItem>
                         <DropdownMenuItem 
                           onClick={() => deleteToken(token.id)}
                           className="text-destructive"

@@ -48,8 +48,9 @@ export async function PUT(
     await invalidateJobCaches()
 
     return successResponse(result[0], false)
-  } catch (error: any) {
-    if (error?.code === '23505') {
+  } catch (error: unknown) {
+    console.error('Failed to update job category:', error)
+    if (error instanceof Error && 'code' in error && (error as Record<string, unknown>).code === '23505') {
       return validationErrorResponse('A job category with this slug already exists')
     }
     return errorResponse('Failed to update job category')
@@ -76,6 +77,7 @@ export async function DELETE(
 
     return new NextResponse(null, { status: 204 })
   } catch (error) {
+    console.error('Failed to delete job category:', error)
     return errorResponse('Failed to delete job category')
   }
 }

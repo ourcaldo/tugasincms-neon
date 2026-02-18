@@ -1,3 +1,16 @@
+export interface CategoryRef {
+  id: string
+  name: string
+  slug: string
+  description?: string
+}
+
+export interface TagRef {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface PageFromDB {
   id: string
   title: string
@@ -16,8 +29,8 @@ export interface PageFromDB {
   template: string | null
   parent_page_id: string | null
   menu_order: number | null
-  categories?: any[]
-  tags?: any[]
+  categories?: CategoryRef[]
+  tags?: TagRef[]
 }
 
 export interface MappedPage {
@@ -38,8 +51,8 @@ export interface MappedPage {
     focusKeyword?: string
     slug: string
   }
-  categories: any[]
-  tags: any[]
+  categories: CategoryRef[]
+  tags: TagRef[]
   template?: string
   parentPageId?: string
   menuOrder?: number

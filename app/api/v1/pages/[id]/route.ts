@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/lib/response'
 import { mapPageFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
@@ -84,12 +85,12 @@ export async function GET(
     const pageResult = await pageQuery
     
     if (pageResult.length === 0) {
-      return setCorsHeaders(errorResponse('Page not found', 404), origin)
+      return setCorsHeaders(notFoundResponse('Page not found'), origin)
     }
     
     const page = mapPageFromDB(pageResult[0] as any)
     
-    await setCachedData(cacheKey, page, 3600)
+    await setCachedData(cacheKey, page, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(page, false), origin)
   } catch (error) {

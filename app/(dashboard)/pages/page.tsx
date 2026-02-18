@@ -3,8 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { PagesList } from '@/components/pages/pages-list'
 
-export const dynamic = 'force-dynamic'
-
 interface Page {
   id: string
   title: string
@@ -24,21 +22,20 @@ export default function PagesPage() {
   }
 
   const handleViewPage = (page: Page) => {
-    router.push(`/pages/edit/${page.id}`)
+    // H-19: Open in new tab for viewing, not edit
+    window.open(`/pages/${page.slug || page.id}`, '_blank')
   }
 
-  const handleDeletePage = (pageId: string) => {
+  const handleDeletePage = (_pageId: string) => {
     // Handled by the list component
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <PagesList
-        onCreatePage={handleCreatePage}
-        onEditPage={handleEditPage}
-        onViewPage={handleViewPage}
-        onDeletePage={handleDeletePage}
-      />
-    </div>
+    <PagesList
+      onCreatePage={handleCreatePage}
+      onEditPage={handleEditPage}
+      onViewPage={handleViewPage}
+      onDeletePage={handleDeletePage}
+    />
   )
 }

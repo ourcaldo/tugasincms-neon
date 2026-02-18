@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { withApiTokenAuth, apiTokenOptions, ApiToken } from '@/lib/auth'
 import { successResponse } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
@@ -33,28 +34,26 @@ export const GET = withApiTokenAuth(async (request: NextRequest, validToken: Api
     const count = countResult[0].count
     
     const tags = await sql`
-      SELECT * FROM tags
+      SELECT t.*, COALESCE(pt_count.count, 0)::int as post_count
+      FROM tags t
+      LEFT JOIN (
+        SELECT tag_id, COUNT(*) as count
+        FROM post_tags
+        GROUP BY tag_id
+      ) pt_count ON t.id = pt_count.tag_id
       WHERE ${whereClause}
-      ORDER BY name ASC
+      ORDER BY t.name ASC
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    const tagsWithCounts = await Promise.all(
-      (tags || []).map(async (tag: any) => {
-        const postCountResult = await sql`
-          SELECT COUNT(*)::int as count FROM post_tags WHERE tag_id = ${tag.id}
-        `
-        
-        return {
-          id: tag.id,
-          name: tag.name,
-          slug: tag.slug,
-          postCount: postCountResult[0].count,
-          createdAt: tag.created_at,
-          updatedAt: tag.updated_at,
-        }
-      })
-    )
+    const tagsWithCounts = (tags || []).map((tag: any) => ({
+      id: tag.id,
+      name: tag.name,
+      slug: tag.slug,
+      postCount: tag.post_count,
+      createdAt: tag.created_at,
+      updatedAt: tag.updated_at,
+    }))
     
     const totalPages = Math.ceil(count / limit)
     
@@ -70,7 +69,7 @@ export const GET = withApiTokenAuth(async (request: NextRequest, validToken: Api
       }
     }
     
-    await setCachedData(cacheKey, responseData, 3600)
+    await setCachedData(cacheKey, responseData, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(responseData, false), origin)
 })

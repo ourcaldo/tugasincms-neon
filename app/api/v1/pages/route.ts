@@ -3,6 +3,7 @@ import { sql } from '@/lib/database'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 import { mapPagesFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
@@ -24,8 +25,9 @@ export async function GET(request: NextRequest) {
     }
     
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+    // H-9: Ensure page has a lower bound of 1
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20') || 1), 100)
     const search = searchParams.get('search') || ''
     const category = searchParams.get('category') || ''
     const tag = searchParams.get('tag') || ''
@@ -118,7 +120,7 @@ export async function GET(request: NextRequest) {
       },
     }
     
-    await setCachedData(cacheKey, responseData, 3600)
+    await setCachedData(cacheKey, responseData, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {

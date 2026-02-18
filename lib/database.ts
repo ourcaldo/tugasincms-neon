@@ -1,10 +1,11 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 import * as dotenv from 'dotenv'
-import * as fs from 'fs'
-import * as path from 'path'
 
 // Load .env file only in development (don't override system env vars in production)
 if (process.env.NODE_ENV !== 'production') {
+  // L-8: Lazy import fs/path only in dev to avoid edge/client issues
+  const fs = require('fs')
+  const path = require('path')
   const envPath = path.resolve(process.cwd(), '.env')
   if (fs.existsSync(envPath)) {
     dotenv.config({ path: envPath })
@@ -24,7 +25,7 @@ function createSqlClient(): NeonQueryFunction<false, false> {
     )
   }
 
-  const connectionString = `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}/${PGDATABASE}?sslmode=${PGSSLMODE}`
+  const connectionString = `postgresql://${PGUSER}:${encodeURIComponent(PGPASSWORD)}@${PGHOST}/${PGDATABASE}?sslmode=${PGSSLMODE}`
   return neon(connectionString)
 }
 

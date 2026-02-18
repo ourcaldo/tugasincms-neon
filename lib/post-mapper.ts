@@ -1,3 +1,16 @@
+export interface CategoryRef {
+  id: string
+  name: string
+  slug: string
+  description?: string
+}
+
+export interface TagRef {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface PostFromDB {
   id: string
   title: string
@@ -13,8 +26,8 @@ export interface PostFromDB {
   seo_title: string | null
   meta_description: string | null
   focus_keyword: string | null
-  categories?: any[]
-  tags?: any[]
+  categories?: CategoryRef[]
+  tags?: TagRef[]
 }
 
 export interface MappedPost {
@@ -35,8 +48,8 @@ export interface MappedPost {
     focusKeyword?: string
     slug: string
   }
-  categories: any[]
-  tags: any[]
+  categories: CategoryRef[]
+  tags: TagRef[]
 }
 
 export function mapPostFromDB(post: PostFromDB): MappedPost {

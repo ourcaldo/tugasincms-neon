@@ -15,8 +15,8 @@ let storage: Storage | null = null;
 
 if (isAppwriteConfigured()) {
   client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
+    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
   
   storage = new Storage(client);
 }
@@ -32,7 +32,7 @@ export const uploadImage = async (file: File): Promise<string> => {
   try {
     const fileId = ID.unique();
     const response = await storage.createFile({
-      bucketId: process.env.NEXT_PUBLIC_BUCKET_ID!,
+      bucketId: process.env.NEXT_PUBLIC_BUCKET_ID || '',
       fileId: fileId,
       file: file
     });
@@ -53,7 +53,7 @@ export const deleteImage = async (fileId: string): Promise<void> => {
 
   try {
     await storage.deleteFile({
-      bucketId: process.env.NEXT_PUBLIC_BUCKET_ID!,
+      bucketId: process.env.NEXT_PUBLIC_BUCKET_ID || '',
       fileId: fileId
     });
   } catch (error) {

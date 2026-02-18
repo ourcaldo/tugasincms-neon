@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -12,13 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { CalendarIcon, Upload, X, Save, Eye, Send } from 'lucide-react';
 import { format } from 'date-fns';
-import { Category } from '../../types';
-import { mockTags } from '../../lib/mock-data';
+import { Category, Tag } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { TiptapEditor } from '../editor/tiptap-editor';
 import { useApiClient } from '../../lib/api-client';
 import { uploadImage } from '../../lib/appwrite';
 import { toast } from 'sonner';
+import { PageHeader } from '../layout/page-header';
+import { LoadingState } from '../ui/loading-state';
 
 interface PageData {
   id?: string;
@@ -79,6 +81,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(!!pageId && !page);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [pages, setPages] = useState<PageData[]>([]);
   const apiClient = useApiClient();
   const { user } = useUser();
@@ -91,29 +94,37 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
 
   useEffect(() => {
     fetchCategories();
+    fetchTags();
     fetchPages();
   }, []);
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const result = await response.json();
+      const result = await apiClient.get<any>('/categories');
       const data = result.data || result;
       setCategories(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (_error) {
       setCategories([]);
+    }
+  };
+
+  const fetchTags = async () => {
+    try {
+      const result = await apiClient.get<any>('/tags');
+      const data = result.data || result;
+      setAllTags(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+      setAllTags([]);
     }
   };
 
   const fetchPages = async () => {
     try {
-      const response = await fetch('/api/pages');
-      if (!response.ok) throw new Error('Failed to fetch pages');
-      const result = await response.json();
+      const result = await apiClient.get<any>('/pages');
       const data = result.data?.pages || result.data || result;
       setPages(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (_error) {
       setPages([]);
     }
   };
@@ -122,17 +133,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     if (!pageId) return;
     try {
       setLoading(true);
-      const response = await fetch(`/api/pages/${pageId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch page');
-      }
-      
-      const result = await response.json();
+      const result = await apiClient.get<any>(`/pages/${pageId}`);
       const data = result.data || result;
       
       setFormData({
@@ -156,7 +157,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
         },
       });
       setIsInitialLoad(false);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load page');
       setIsInitialLoad(false);
     } finally {
@@ -225,7 +226,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
           categories: [...prev.categories, newCat]
         }));
         toast.success(`Category "${trimmedName}" created`);
-      } catch (error) {
+      } catch (_error) {
         toast.error('Failed to create category');
       }
     }
@@ -239,21 +240,36 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     }));
   };
 
-  const addTag = (tagName: string) => {
-    const existingTag = mockTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-    const tag = existingTag || {
-      id: `new-${Date.now()}`,
-      name: tagName,
-      slug: tagName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  // C-9: Create tags via API for persistence instead of using mockTags
+  const addTag = async (tagName: string) => {
+    const trimmedName = tagName.trim();
+    if (!trimmedName) return;
 
-    if (!formData.tags.find(t => t.id === tag.id)) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag]
-      }));
+    const existingTag = allTags.find(t => t.name.toLowerCase() === trimmedName.toLowerCase());
+    
+    if (existingTag) {
+      if (!formData.tags.find(t => t.id === existingTag.id)) {
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, existingTag]
+        }));
+      }
+    } else {
+      try {
+        const newTag = await apiClient.post<Tag>('/tags', {
+          name: trimmedName,
+          slug: trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        });
+        setAllTags(prev => [...prev, newTag]);
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, newTag]
+        }));
+        toast.success(`Tag "${trimmedName}" created`);
+      } catch (error) {
+        console.error('Error creating tag:', error);
+        toast.error('Failed to create tag');
+      }
     }
     setNewTag('');
   };
@@ -275,10 +291,10 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
         setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
         toast.dismiss();
         toast.success('Image uploaded successfully');
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast.dismiss();
         
-        if (error?.message === 'APPWRITE_NOT_CONFIGURED') {
+        if (error instanceof Error && error.message === 'APPWRITE_NOT_CONFIGURED') {
           toast.error('Image upload not available. Please use an external image URL instead.');
         } else {
           toast.error('Failed to upload image. Use external URL instead.');
@@ -330,7 +346,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
       }
       
       onSave(formData);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to save page');
     } finally {
       setLoading(false);
@@ -378,7 +394,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
       toast.success('Page published successfully');
       onSave(publishData);
       if (onPublish) onPublish();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to publish page');
     } finally {
       setLoading(false);
@@ -386,23 +402,16 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
   };
 
   if (isInitialLoad) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <p className="text-muted-foreground">Loading page...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Loading page..." />;
   }
 
   return (
     <TooltipProvider>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{page || pageId ? 'Edit Page' : 'Create New Page'}</h1>
-          <div className="flex gap-2">
+      <div className="space-y-6">
+        <PageHeader
+          title={page || pageId ? 'Edit Page' : 'Create New Page'}
+          actions={
+            <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" onClick={onPreview}>
@@ -436,8 +445,9 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
                 <p>{pageId || page ? 'Update your page' : 'Publish your page immediately'}</p>
               </TooltipContent>
             </Tooltip>
-          </div>
-        </div>
+            </>
+          }
+        />
 
       <div className="space-y-6">
         <Card>
@@ -789,37 +799,65 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
             <CardHeader>
               <CardTitle>SEO Settings</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="seo-title">SEO Title</Label>
-                <Input
-                  id="seo-title"
-                  value={formData.seo?.title}
-                  onChange={(e) => handleSEOChange('title', e.target.value)}
-                  placeholder="Page title for search engines"
-                />
-              </div>
+            <CardContent>
+              <Tabs defaultValue="seo" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="seo">SEO</TabsTrigger>
+                  <TabsTrigger value="preview">Preview</TabsTrigger>
+                </TabsList>
+                <TabsContent value="seo" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="seo-title">SEO Title</Label>
+                    <Input
+                      id="seo-title"
+                      value={formData.seo?.title}
+                      onChange={(e) => handleSEOChange('title', e.target.value)}
+                      placeholder="Page title for search engines"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="meta-description">Meta Description</Label>
-                <Textarea
-                  id="meta-description"
-                  value={formData.seo?.metaDescription}
-                  onChange={(e) => handleSEOChange('metaDescription', e.target.value)}
-                  placeholder="Brief description for search results"
-                  rows={3}
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="meta-description">Meta Description</Label>
+                    <Textarea
+                      id="meta-description"
+                      value={formData.seo?.metaDescription}
+                      onChange={(e) => handleSEOChange('metaDescription', e.target.value)}
+                      placeholder="Brief description for search results"
+                      rows={3}
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="focus-keyword">Focus Keyword</Label>
-                <Input
-                  id="focus-keyword"
-                  value={formData.seo?.focusKeyword}
-                  onChange={(e) => handleSEOChange('focusKeyword', e.target.value)}
-                  placeholder="Primary keyword for SEO"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Label htmlFor="focus-keyword">Focus Keyword</Label>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The main keyword you want this page to rank for in search engines</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Input
+                      id="focus-keyword"
+                      value={formData.seo?.focusKeyword}
+                      onChange={(e) => handleSEOChange('focusKeyword', e.target.value)}
+                      placeholder="Primary keyword for SEO"
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="preview" className="space-y-4">
+                  <div className="border rounded-lg p-4 bg-muted/50">
+                    <h3 className="text-primary text-lg mb-1">
+                      {formData.seo?.title || formData.title || 'Your Page Title'}
+                    </h3>
+                    <p className="text-muted-foreground text-sm mb-2">
+                      yourdomain.com/{formData.seo?.slug || formData.slug}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {formData.seo?.metaDescription || formData.excerpt || 'Your page description will appear here...'}
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>

@@ -43,8 +43,16 @@ export function validationErrorResponse(message: string = 'Validation error', er
  * @returns NextResponse redirect
  */
 export function redirectResponse(url: string, status: number = 301): NextResponse {
-  const normalizedUrl = ensureTrailingSlash(url)
-  return NextResponse.redirect(normalizedUrl, status)
+  // M-11: Ensure absolute URL for NextResponse.redirect
+  let absoluteUrl: string
+  try {
+    absoluteUrl = new URL(ensureTrailingSlash(url)).toString()
+  } catch {
+    // Relative URL — prefix with base URL from env or fallback
+    const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost:3000'
+    absoluteUrl = new URL(ensureTrailingSlash(url), base).toString()
+  }
+  return NextResponse.redirect(absoluteUrl, status)
 }
 
 /**

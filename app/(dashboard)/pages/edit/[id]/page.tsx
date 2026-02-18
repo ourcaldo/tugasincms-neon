@@ -3,8 +3,6 @@
 import { useRouter, useParams } from 'next/navigation'
 import { PageEditor } from '@/components/pages/page-editor'
 
-export const dynamic = 'force-dynamic'
-
 export default function EditPagePage() {
   const router = useRouter()
   const params = useParams()

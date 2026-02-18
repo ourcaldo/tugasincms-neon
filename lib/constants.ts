@@ -17,6 +17,10 @@ export const INTERNAL_CACHE_TTL = 300
 export const TAXONOMY_CACHE_TTL = 600
 /** Sitemap cache — 1 hour */
 export const SITEMAP_CACHE_TTL = 3600
+/** Static location data cache — 24 hours */
+export const LOCATION_CACHE_TTL = 86400
+/** Reference data (employment types, education levels, etc.) — 1 hour */
+export const REFERENCE_DATA_CACHE_TTL = 3600
 
 // ── Redis Connection ────────────────────────────────────────────────────
 export const REDIS_CONNECT_TIMEOUT = 10_000
@@ -25,7 +29,8 @@ export const REDIS_RETRY_BASE_MS = 100
 export const REDIS_RETRY_MAX_MS = 2000
 
 // ── Rate Limiting ───────────────────────────────────────────────────────
-export const RATE_LIMIT_DEFAULT_REQUESTS = 1000
+// M-38: Default aligned with .env.example recommendation (100, not 1000)
+export const RATE_LIMIT_DEFAULT_REQUESTS = 100
 export const RATE_LIMIT_DEFAULT_WINDOW = 60
 /** Probability of in-memory store cleanup per request */
 export const RATE_LIMIT_CLEANUP_PROBABILITY = 0.01

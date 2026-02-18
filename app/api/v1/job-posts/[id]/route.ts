@@ -4,57 +4,16 @@ import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 import { getCachedData, setCachedData, invalidateJobCaches } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
+import { invalidateSitemaps } from '@/lib/sitemap'
 import { z } from 'zod'
+import { updateJobPostSchema } from '@/lib/validation'
 import {
   processJobCategoriesInput,
   processJobTagsInput,
   processJobSkillsInput,
 } from '@/lib/job-utils'
 import { resolveLocationHierarchy } from '@/lib/location-utils'
-
-const updateJobPostSchema = z.object({
-  title: z.string().min(1).max(500).optional(),
-  content: z.string().min(1).optional(),
-  excerpt: z.string().max(1000).optional(),
-  slug: z.string().max(200).optional().or(z.literal("")),
-  featured_image: z.string().optional(),
-  publish_date: z.string().optional(),
-  status: z.enum(['draft', 'published', 'scheduled']).optional(),
-  seo_title: z.string().max(200).optional(),
-  meta_description: z.string().max(500).optional(),
-  focus_keyword: z.string().max(100).optional(),
-  
-  // Job-specific fields
-  job_company_name: z.string().max(200).optional(),
-  job_company_logo: z.string().max(500).optional(),
-  job_company_website: z.string().max(500).optional(),
-  job_employment_type_id: z.string().uuid().optional().nullable(),
-  job_experience_level_id: z.string().uuid().optional().nullable(),
-  job_education_level_id: z.string().uuid().optional().nullable(),
-  job_salary_min: z.number().optional().nullable(),
-  job_salary_max: z.number().optional().nullable(),
-  job_salary_currency: z.string().max(10).optional(),
-  job_salary_period: z.string().max(50).optional(),
-  job_is_salary_negotiable: z.boolean().optional(),
-  job_province_id: z.string().max(2).optional().nullable(),
-  job_regency_id: z.string().max(4).optional().nullable(),
-  job_district_id: z.string().max(6).optional().nullable(),
-  job_village_id: z.string().max(10).optional().nullable(),
-  job_address_detail: z.string().optional().nullable(),
-  job_is_remote: z.boolean().optional(),
-  job_is_hybrid: z.boolean().optional(),
-  job_application_email: z.string().max(200).optional().nullable(),
-  job_application_url: z.string().max(500).optional().nullable(),
-  job_application_deadline: z.string().optional().nullable(),
-  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
-  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
-  job_requirements: z.string().optional().nullable(),
-  job_responsibilities: z.string().optional().nullable(),
-  
-  // Relations - can be UUIDs, names, or comma-separated strings
-  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
-  job_tags: z.union([z.array(z.string()), z.string()]).optional()
-})
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin')
@@ -126,7 +85,7 @@ export async function GET(
       return setCorsHeaders(notFoundResponse('Job post not found'), origin)
     }
     
-    await setCachedData(cacheKey, post[0], 3600)
+    await setCachedData(cacheKey, post[0], API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(post[0], false), origin)
   } catch (error) {
@@ -227,12 +186,28 @@ export async function PUT(
           regency_id: job_regency_id,
           province_id: job_province_id,
         })
-      } catch (error: any) {
+      } catch (error: unknown) {
         return setCorsHeaders(
-          validationErrorResponse(error.message || 'Invalid location data'),
+          validationErrorResponse(error instanceof Error ? error.message : 'Invalid location data'),
           origin
         )
       }
+    }
+    
+    // H-6: Use CASE WHEN for nullable fields so explicit null clears the value
+    const n = {
+      empType: 'job_employment_type_id' in body ? 1 : 0,
+      expLevel: 'job_experience_level_id' in body ? 1 : 0,
+      eduLevel: 'job_education_level_id' in body ? 1 : 0,
+      salMin: 'job_salary_min' in body ? 1 : 0,
+      salMax: 'job_salary_max' in body ? 1 : 0,
+      addr: 'job_address_detail' in body ? 1 : 0,
+      appEmail: 'job_application_email' in body ? 1 : 0,
+      appUrl: 'job_application_url' in body ? 1 : 0,
+      appDeadline: 'job_application_deadline' in body ? 1 : 0,
+      reqs: 'job_requirements' in body ? 1 : 0,
+      resps: 'job_responsibilities' in body ? 1 : 0,
+      hasLoc: hasLocationFields ? 1 : 0,
     }
     
     // Update job post
@@ -252,49 +227,47 @@ export async function PUT(
         job_company_name = COALESCE(${job_company_name}, job_company_name),
         job_company_logo = COALESCE(${job_company_logo}, job_company_logo),
         job_company_website = COALESCE(${job_company_website}, job_company_website),
-        job_employment_type_id = COALESCE(${job_employment_type_id}, job_employment_type_id),
-        job_experience_level_id = COALESCE(${job_experience_level_id}, job_experience_level_id),
-        job_education_level_id = COALESCE(${job_education_level_id}, job_education_level_id),
-        job_salary_min = COALESCE(${job_salary_min}, job_salary_min),
-        job_salary_max = COALESCE(${job_salary_max}, job_salary_max),
+        job_employment_type_id = CASE WHEN ${n.empType} = 1 THEN ${job_employment_type_id} ELSE job_employment_type_id END,
+        job_experience_level_id = CASE WHEN ${n.expLevel} = 1 THEN ${job_experience_level_id} ELSE job_experience_level_id END,
+        job_education_level_id = CASE WHEN ${n.eduLevel} = 1 THEN ${job_education_level_id} ELSE job_education_level_id END,
+        job_salary_min = CASE WHEN ${n.salMin} = 1 THEN ${job_salary_min} ELSE job_salary_min END,
+        job_salary_max = CASE WHEN ${n.salMax} = 1 THEN ${job_salary_max} ELSE job_salary_max END,
         job_salary_currency = COALESCE(${job_salary_currency}, job_salary_currency),
         job_salary_period = COALESCE(${job_salary_period}, job_salary_period),
         job_is_salary_negotiable = COALESCE(${job_is_salary_negotiable}, job_is_salary_negotiable),
-        job_province_id = COALESCE(${resolvedLocations?.province_id}, job_province_id),
-        job_regency_id = COALESCE(${resolvedLocations?.regency_id}, job_regency_id),
-        job_district_id = COALESCE(${resolvedLocations?.district_id}, job_district_id),
-        job_village_id = COALESCE(${resolvedLocations?.village_id}, job_village_id),
-        job_address_detail = COALESCE(${job_address_detail}, job_address_detail),
+        job_province_id = CASE WHEN ${n.hasLoc} = 1 THEN ${resolvedLocations?.province_id ?? null} ELSE job_province_id END,
+        job_regency_id = CASE WHEN ${n.hasLoc} = 1 THEN ${resolvedLocations?.regency_id ?? null} ELSE job_regency_id END,
+        job_district_id = CASE WHEN ${n.hasLoc} = 1 THEN ${resolvedLocations?.district_id ?? null} ELSE job_district_id END,
+        job_village_id = CASE WHEN ${n.hasLoc} = 1 THEN ${resolvedLocations?.village_id ?? null} ELSE job_village_id END,
+        job_address_detail = CASE WHEN ${n.addr} = 1 THEN ${job_address_detail} ELSE job_address_detail END,
         job_is_remote = COALESCE(${job_is_remote}, job_is_remote),
         job_is_hybrid = COALESCE(${job_is_hybrid}, job_is_hybrid),
-        job_application_email = COALESCE(${job_application_email}, job_application_email),
-        job_application_url = COALESCE(${job_application_url}, job_application_url),
-        job_deadline = COALESCE(${job_application_deadline}, job_deadline),
+        job_application_email = CASE WHEN ${n.appEmail} = 1 THEN ${job_application_email} ELSE job_application_email END,
+        job_application_url = CASE WHEN ${n.appUrl} = 1 THEN ${job_application_url} ELSE job_application_url END,
+        job_deadline = CASE WHEN ${n.appDeadline} = 1 THEN ${job_application_deadline} ELSE job_deadline END,
         job_skills = COALESCE(${processedSkills}, job_skills),
         job_benefits = COALESCE(${processedBenefits}, job_benefits),
-        job_requirements = COALESCE(${job_requirements}, job_requirements),
-        job_responsibilities = COALESCE(${job_responsibilities}, job_responsibilities),
+        job_requirements = CASE WHEN ${n.reqs} = 1 THEN ${job_requirements} ELSE job_requirements END,
+        job_responsibilities = CASE WHEN ${n.resps} = 1 THEN ${job_responsibilities} ELSE job_responsibilities END,
         updated_at = NOW()
       WHERE id = ${id} AND author_id = ${userId}
     `
     
-    // Update categories
+    // Update categories (batch)
     if (categoryIds !== undefined) {
       await sql`DELETE FROM job_post_categories WHERE job_post_id = ${id}`
       if (categoryIds.length > 0) {
-        for (const catId of categoryIds) {
-          await sql`INSERT INTO job_post_categories (job_post_id, category_id) VALUES (${id}, ${catId})`
-        }
+        await sql`INSERT INTO job_post_categories (job_post_id, category_id)
+          SELECT ${id}, unnest(${categoryIds}::uuid[])`
       }
     }
     
-    // Update tags
+    // Update tags (batch)
     if (tagIds !== undefined) {
       await sql`DELETE FROM job_post_tags WHERE job_post_id = ${id}`
       if (tagIds.length > 0) {
-        for (const tagId of tagIds) {
-          await sql`INSERT INTO job_post_tags (job_post_id, tag_id) VALUES (${id}, ${tagId})`
-        }
+        await sql`INSERT INTO job_post_tags (job_post_id, tag_id)
+          SELECT ${id}, unnest(${tagIds}::uuid[])`
       }
     }
     
@@ -321,6 +294,7 @@ export async function PUT(
       GROUP BY jp.id
     `
     await invalidateJobCaches()
+    await invalidateSitemaps()
     
     return setCorsHeaders(successResponse(fullPost[0], false), origin)
   } catch (error) {
@@ -363,6 +337,7 @@ export async function DELETE(
     // Delete job post (cascades will handle relations)
     await sql`DELETE FROM job_posts WHERE id = ${id}`
     await invalidateJobCaches()
+    await invalidateSitemaps()
     
     const response = new NextResponse(null, { status: 204 })
     return setCorsHeaders(response, origin)

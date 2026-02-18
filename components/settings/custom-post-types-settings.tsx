@@ -6,6 +6,9 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { PageHeader } from '../layout/page-header'
+import { LoadingState } from '../ui/loading-state'
+import { useApiClient } from '../../lib/api-client'
 
 interface CustomPostType {
   id: string
@@ -23,6 +26,7 @@ export function CustomPostTypesSettings() {
   const [postTypes, setPostTypes] = useState<CustomPostType[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const apiClient = useApiClient()
 
   useEffect(() => {
     fetchPostTypes()
@@ -30,15 +34,14 @@ export function CustomPostTypesSettings() {
 
   const fetchPostTypes = async () => {
     try {
-      const response = await fetch('/api/settings/custom-post-types')
-      const result = await response.json()
+      const result = await apiClient.get<any>('/settings/custom-post-types')
       
       if (result.success) {
         setPostTypes(result.data)
       } else {
         toast.error('Failed to fetch custom post types')
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to fetch custom post types')
     } finally {
       setLoading(false)
@@ -54,13 +57,7 @@ export function CustomPostTypesSettings() {
     setUpdating(slug)
     
     try {
-      const response = await fetch(`/api/settings/custom-post-types/${slug}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_enabled: !currentState })
-      })
-
-      const result = await response.json()
+      const result = await apiClient.put<any>(`/settings/custom-post-types/${slug}`, { is_enabled: !currentState })
 
       if (result.success) {
         setPostTypes(prev =>
@@ -72,7 +69,7 @@ export function CustomPostTypesSettings() {
       } else {
         toast.error(result.error || 'Failed to update custom post type')
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to update custom post type')
     } finally {
       setUpdating(null)
@@ -80,21 +77,15 @@ export function CustomPostTypesSettings() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <LoadingState message="Loading post types..." />
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Custom Post Types</h3>
-        <p className="text-sm text-muted-foreground">
-          Enable or disable custom post types for your CMS.
-        </p>
-      </div>
+      <PageHeader
+        title="Custom Post Types"
+        description="Enable or disable custom post types for your CMS."
+      />
 
       <div className="space-y-4">
         {postTypes.map((postType) => (

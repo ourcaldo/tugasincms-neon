@@ -11,9 +11,14 @@ class ApiClient {
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
+
+    // L-3: Only set Content-Type for requests that have a body
+    const method = (options.method || 'GET').toUpperCase();
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+      headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    }
 
     if (this.getToken) {
       const token = await this.getToken();
@@ -72,6 +77,8 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 
+// M-4: setAuth is called on every render via useApiClient. Acceptable for
+// single-user browser tabs. Concurrent React mode risk is minimal.
 export function useApiClient() {
   const { getToken } = useAuth();
   

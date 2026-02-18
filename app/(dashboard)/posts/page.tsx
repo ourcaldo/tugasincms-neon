@@ -3,8 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { PostsList } from '@/components/posts/posts-list'
 
-export const dynamic = 'force-dynamic'
-
 export default function PostsPage() {
   const router = useRouter()
 

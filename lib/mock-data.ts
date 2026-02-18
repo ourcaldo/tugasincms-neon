@@ -127,7 +127,7 @@ export const mockApiTokens: APIToken[] = [
   {
     id: '1',
     name: 'Production API',
-    token: 'tk_prod_1234567890abcdef',
+    token: 'tk_prod_EXAMPLE_TOKEN_1',
     userId: 'user_1',
     lastUsed: new Date('2024-01-20'),
     createdAt: new Date('2024-01-01'),
@@ -135,7 +135,7 @@ export const mockApiTokens: APIToken[] = [
   {
     id: '2',
     name: 'Development API',
-    token: 'tk_dev_0987654321fedcba',
+    token: 'tk_dev_EXAMPLE_TOKEN_2',
     userId: 'user_1',
     createdAt: new Date('2024-01-15'),
   },

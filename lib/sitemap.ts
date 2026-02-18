@@ -83,6 +83,20 @@ ${sitemapEntries}
 </sitemapindex>`
 }
 
+/**
+ * Create a URL-safe slug from a location name.
+ * Handles dots, special chars, consecutive hyphens, and leading/trailing hyphens.
+ */
+function createLocationSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\./g, '')          // remove dots (e.g., "D.I. Yogyakarta")
+    .replace(/[^a-z0-9\s-]/g, '') // remove non-alphanumeric except spaces/hyphens
+    .replace(/\s+/g, '-')        // spaces → hyphens
+    .replace(/-+/g, '-')         // collapse consecutive hyphens
+    .replace(/^-|-$/g, '')       // trim leading/trailing hyphens
+}
+
 function escapeXml(unsafe: string): string {
   return unsafe.replace(/[<>&'"]/g, (c) => {
     switch (c) {
@@ -189,6 +203,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?:
   const url = baseUrl || getBaseUrl()
   const cmsHost = cmsBaseUrl || getCmsHost()
   
+  // M-1: Batch query instead of N+1 per province
   const provinces = await sql`
     SELECT 
       p.id,
@@ -197,20 +212,30 @@ export async function generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?:
     ORDER BY p.name ASC
   `
   
+  const allRegencies = await sql`
+    SELECT 
+      r.id,
+      r.name,
+      r.province_id
+    FROM reg_regencies r
+    ORDER BY r.name ASC
+  `
+  
+  // Group regencies by province_id
+  const regenciesByProvince = new Map<string, typeof allRegencies>()
+  for (const reg of allRegencies) {
+    const list = regenciesByProvince.get(reg.province_id) || []
+    list.push(reg)
+    regenciesByProvince.set(reg.province_id, list)
+  }
+  
   const locationChunks: Record<string, string> = {}
   const provinceUrls: string[] = []
   
   for (const province of provinces) {
-    const provinceSlug = province.name.toLowerCase().replace(/\s+/g, '-')
+    const provinceSlug = createLocationSlug(province.name)
     
-    const regencies = await sql`
-      SELECT 
-        r.id,
-        r.name
-      FROM reg_regencies r
-      WHERE r.province_id = ${province.id}
-      ORDER BY r.name ASC
-    `
+    const regencies = regenciesByProvince.get(province.id) || []
     
     if (regencies.length > 0) {
       const locationUrls: SitemapUrl[] = []
@@ -222,7 +247,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?:
       })
       
       regencies.forEach((regency: any) => {
-        const regencySlug = regency.name.toLowerCase().replace(/\s+/g, '-').replace(/\./g, '')
+        const regencySlug = createLocationSlug(regency.name)
         locationUrls.push({
           loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}/`,
           changefreq: 'daily' as const,
@@ -330,18 +355,18 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
   const TTL = SITEMAP_CACHE_TTL
   
   const pagesSitemap = await generatePagesSitemap(sitemapHost)
-  try { await setCachedData('sitemap:pages', pagesSitemap, TTL) } catch (e) { }
+  try { await setCachedData('sitemap:pages', pagesSitemap, TTL) } catch (e) { console.warn('Sitemap cache write failed (pages):', e) }
 
   const { index: blogIndex, chunks: blogChunks } = await generateBlogSitemaps(sitemapHost, cmsHost)
   
   if (blogIndex) {
-    try { await setCachedData('sitemap:post:index', blogIndex, TTL) } catch (e) { }
+    try { await setCachedData('sitemap:post:index', blogIndex, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
     
     for (let i = 0; i < blogChunks.length; i++) {
-      try { await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], TTL) } catch (e) { }
+      try { await setCachedData(`sitemap:post:chunk:${i + 1}`, blogChunks[i], TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
     }
     
-    try { await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), TTL) } catch (e) { }
+    try { await setCachedData('sitemap:post:chunk:count', blogChunks.length.toString(), TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
   }
 
   const {
@@ -353,24 +378,24 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
   } = await generateJobSitemaps(sitemapHost, cmsHost)
   
   if (jobPostsIndex) {
-    try { await setCachedData('sitemap:job:index', jobPostsIndex, TTL) } catch (e) { }
+    try { await setCachedData('sitemap:job:index', jobPostsIndex, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
     
     for (let i = 0; i < jobPostsChunks.length; i++) {
-      try { await setCachedData(`sitemap:job:chunk:${i + 1}`, jobPostsChunks[i], TTL) } catch (e) { }
+      try { await setCachedData(`sitemap:job:chunk:${i + 1}`, jobPostsChunks[i], TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
     }
     
-    try { await setCachedData('sitemap:job:chunk:count', jobPostsChunks.length.toString(), TTL) } catch (e) { }
+    try { await setCachedData('sitemap:job:chunk:count', jobPostsChunks.length.toString(), TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
   }
 
   if (jobCategorySitemap) {
-    try { await setCachedData('sitemap:job:category', jobCategorySitemap, TTL) } catch (e) { }
+    try { await setCachedData('sitemap:job:category', jobCategorySitemap, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
   }
 
   if (jobLocationIndex) {
-    try { await setCachedData('sitemap:job:location:index', jobLocationIndex, TTL) } catch (e) { }
+    try { await setCachedData('sitemap:job:location:index', jobLocationIndex, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
     
     for (const [provinceSlug, locationXml] of Object.entries(jobLocationChunks)) {
-      try { await setCachedData(`sitemap:job:location:${provinceSlug}`, locationXml, TTL) } catch (e) { }
+      try { await setCachedData(`sitemap:job:location:${provinceSlug}`, locationXml, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
     }
   }
 
@@ -392,7 +417,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
   }
   
   const jobSitemapIndex = generateSitemapIndexXML(jobSitemapReferences)
-  try { await setCachedData('sitemap:job:main:index', jobSitemapIndex, TTL) } catch (e) { }
+  try { await setCachedData('sitemap:job:main:index', jobSitemapIndex, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
 
   const rootSitemaps = [
     `${cmsHost}/api/v1/sitemaps/sitemap-pages.xml`,
@@ -400,7 +425,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
     ...(jobPostsIndex || jobCategorySitemap || jobLocationIndex ? [jobSitemapUrl] : [])
   ]
   const rootSitemap = generateSitemapIndexXML(rootSitemaps)
-  try { await setCachedData('sitemap:root', rootSitemap, TTL) } catch (e) { }
+  try { await setCachedData('sitemap:root', rootSitemap, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
 
   const sitemapInfo: SitemapInfo[] = [
     {
@@ -434,7 +459,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
     })
   }
 
-  try { await setCachedData('sitemaps:info', sitemapInfo, TTL) } catch (e) { }
+  try { await setCachedData('sitemaps:info', sitemapInfo, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
 
   console.log(`Sitemaps generated successfully (cached: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
   

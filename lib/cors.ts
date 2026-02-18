@@ -32,9 +32,15 @@ function getAllowedOrigins(): string[] {
   return origins
 }
 
-const ALLOWED_ORIGINS = getAllowedOrigins()
+// M-6: Lazy evaluation so runtime env changes take effect
+let _cachedOrigins: string[] | null = null
+function getOrigins(): string[] {
+  if (!_cachedOrigins) _cachedOrigins = getAllowedOrigins()
+  return _cachedOrigins
+}
 
 export function setCorsHeaders(response: NextResponse, origin?: string | null): NextResponse {
+  const ALLOWED_ORIGINS = getOrigins()
   if (ALLOWED_ORIGINS.includes('*')) {
     response.headers.set('Access-Control-Allow-Origin', '*')
   } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
@@ -54,4 +60,9 @@ export function setCorsHeaders(response: NextResponse, origin?: string | null): 
 export function handleCorsPreflightRequest(origin?: string | null): NextResponse {
   const response = new NextResponse(null, { status: 204 })
   return setCorsHeaders(response, origin)
+}
+
+/** Clear cached origins (e.g. for testing or runtime update) */
+export function clearOriginsCache() {
+  _cachedOrigins = null
 }

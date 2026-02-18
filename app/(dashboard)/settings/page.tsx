@@ -1,7 +1,6 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Settings, User, FileText, Megaphone, Bot } from 'lucide-react'
 import Link from 'next/link'
 

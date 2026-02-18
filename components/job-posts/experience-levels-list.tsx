@@ -9,10 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Award } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, Award, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 import { Checkbox } from '../ui/checkbox'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface ExperienceLevel {
   id: string
@@ -25,7 +28,8 @@ interface ExperienceLevel {
 
 export function ExperienceLevelsList() {
   const [levels, setLevels] = useState<ExperienceLevel[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalLevels, setTotalLevels] = useState(0)
@@ -39,6 +43,9 @@ export function ExperienceLevelsList() {
     years_max: '',
   })
   const [selectedLevels, setSelectedLevels] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -47,7 +54,7 @@ export function ExperienceLevelsList() {
 
   const fetchLevels = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: ExperienceLevel[] }>('/job-data/experience-levels')
       const levelsData = response.data || []
       setLevels(levelsData)
@@ -58,7 +65,7 @@ export function ExperienceLevelsList() {
       setLevels([])
       setTotalLevels(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -69,7 +76,7 @@ export function ExperienceLevelsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: ExperienceLevel }>('/job-data/experience-levels', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -86,7 +93,7 @@ export function ExperienceLevelsList() {
       console.error('Error creating experience level:', error)
       toast.error('Failed to create experience level')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -97,7 +104,7 @@ export function ExperienceLevelsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: ExperienceLevel }>(`/job-data/experience-levels/${editingLevel.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -114,19 +121,20 @@ export function ExperienceLevelsList() {
       console.error('Error updating experience level:', error)
       toast.error('Failed to update experience level')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteLevel = async (levelId: string) => {
-    if (!confirm('Are you sure you want to delete this experience level? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteLevel = (levelId: string) => {
+    setDeleteTarget(levelId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/job-data/experience-levels/${levelId}`)
-      const newLevels = levels.filter(level => level.id !== levelId)
+      setMutationLoading(true)
+      await apiClient.delete(`/job-data/experience-levels/${deleteTarget}`)
+      const newLevels = levels.filter(level => level.id !== deleteTarget)
       setLevels(newLevels)
       setTotalLevels(newLevels.length)
 
@@ -140,19 +148,20 @@ export function ExperienceLevelsList() {
       console.error('Error deleting experience level:', error)
       toast.error('Failed to delete experience level')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedLevels.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedLevels.size} selected experience levels? This action cannot be undone.`)) {
-      return;
-    }
+    setBulkDeleteOpen(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true);
-      await Promise.all(Array.from(selectedLevels).map(id => apiClient.delete(`/job-data/experience-levels/${id}`)));
+      setMutationLoading(true);
+      await apiClient.post('/job-data/experience-levels/bulk-delete', { ids: Array.from(selectedLevels) });
 
       const newLevels = levels.filter(level => !selectedLevels.has(level.id));
       setLevels(newLevels);
@@ -169,7 +178,8 @@ export function ExperienceLevelsList() {
       console.error('Error deleting experience levels:', error);
       toast.error('Failed to delete selected experience levels');
     } finally {
-      setLoading(false);
+      setMutationLoading(false);
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -195,13 +205,18 @@ export function ExperienceLevelsList() {
     setFormData({ name: '', slug: '', years_min: '', years_max: '' })
   }
 
-  const paginatedLevels = levels.slice(
+  const filteredLevels = levels.filter(level =>
+    level.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    level.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedLevels = filteredLevels.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
 
   const isAllCurrentPageSelected = selectedLevels.size === paginatedLevels.length && paginatedLevels.length > 0;
-  const isAllDataSelected = selectedLevels.size === totalLevels && totalLevels > 0;
+  const isAllDataSelected = selectedLevels.size === filteredLevels.length && filteredLevels.length > 0;
 
   const handleSelectAll = () => {
     if (isAllDataSelected) {
@@ -235,10 +250,10 @@ export function ExperienceLevelsList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Experience Levels</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Experience Levels</h1>
           <p className="text-muted-foreground mt-1">Manage job experience levels</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -299,7 +314,7 @@ export function ExperienceLevelsList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateLevel} disabled={loading}>
+              <Button onClick={handleCreateLevel} disabled={mutationLoading}>
                 Create Experience Level
               </Button>
             </DialogFooter>
@@ -307,8 +322,18 @@ export function ExperienceLevelsList() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search experience levels..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {selectedLevels.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedLevels.size} experience level{selectedLevels.size === 1 ? '' : 's'} selected
           </p>
@@ -317,7 +342,7 @@ export function ExperienceLevelsList() {
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button
@@ -333,7 +358,7 @@ export function ExperienceLevelsList() {
               size="sm"
               onClick={handleSelectAll}
             >
-              Select all {totalLevels} data
+              Select all {filteredLevels.length} data
             </Button>
           )}
         </div>
@@ -341,19 +366,15 @@ export function ExperienceLevelsList() {
 
       <Card>
         <CardContent className="p-0">
-          {loading && levels.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading experience levels...</p>
-            </div>
+          {fetchLoading && levels.length === 0 ? (
+            <LoadingState message="Loading experience levels..." />
           ) : levels.length === 0 ? (
-            <div className="text-center py-12">
-              <Award className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No experience levels yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Experience Level
-              </Button>
-            </div>
+            <EmptyState
+              icon={Award}
+              title="No experience levels yet"
+              description="Manage job experience levels."
+              action={{ label: 'Create Your First Experience Level', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -416,10 +437,10 @@ export function ExperienceLevelsList() {
                 </TableBody>
               </Table>
 
-              {totalLevels > itemsPerPage && (
+              {filteredLevels.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalLevels)} of {totalLevels} experience levels
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredLevels.length)} of {filteredLevels.length} experience levels
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -431,9 +452,9 @@ export function ExperienceLevelsList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalLevels / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredLevels.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalLevels / itemsPerPage)
+                          const totalPages = Math.ceil(filteredLevels.length / itemsPerPage)
                           return page === 1 ||
                                  page === totalPages ||
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -457,8 +478,8 @@ export function ExperienceLevelsList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalLevels / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalLevels / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredLevels.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredLevels.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -521,12 +542,27 @@ export function ExperienceLevelsList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateLevel} disabled={loading}>
+            <Button onClick={handleUpdateLevel} disabled={mutationLoading}>
               Update Experience Level
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Experience Level"
+        description="Are you sure you want to delete this experience level? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Experience Levels"
+        description={`Are you sure you want to delete ${selectedLevels.size} selected experience levels? This action cannot be undone.`}
+      />
     </div>
   )
 }

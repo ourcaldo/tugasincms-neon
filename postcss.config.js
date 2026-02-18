@@ -1,6 +1,6 @@
 export default {
   plugins: {
     '@tailwindcss/postcss': {},
-    autoprefixer: {},
+    // L-31: autoprefixer removed — Tailwind CSS v4 includes autoprefixing
   },
 }

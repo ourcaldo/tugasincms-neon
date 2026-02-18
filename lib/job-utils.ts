@@ -25,30 +25,18 @@ export async function findOrCreateJobCategory(
   const normalizedName = toTitleCase(name);
   const slug = createSlug(name);
 
-  const existing = await sql`
-    SELECT id, name, slug 
-    FROM job_categories 
-    WHERE LOWER(name) = LOWER(${normalizedName})
-  `;
-
-  if (existing && existing.length > 0) {
-    return {
-      id: existing[0].id,
-      name: existing[0].name,
-      slug: existing[0].slug,
-    };
-  }
-
-  const newCategory = await sql`
+  // H-4: Use INSERT ON CONFLICT to avoid race condition
+  const result = await sql`
     INSERT INTO job_categories (name, slug)
     VALUES (${normalizedName}, ${slug})
+    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
     RETURNING id, name, slug
   `;
 
   return {
-    id: newCategory[0].id,
-    name: newCategory[0].name,
-    slug: newCategory[0].slug,
+    id: result[0].id,
+    name: result[0].name,
+    slug: result[0].slug,
   };
 }
 
@@ -58,30 +46,18 @@ export async function findOrCreateJobTag(
   const normalizedName = toTitleCase(name);
   const slug = createSlug(name);
 
-  const existing = await sql`
-    SELECT id, name, slug 
-    FROM job_tags 
-    WHERE LOWER(name) = LOWER(${normalizedName})
-  `;
-
-  if (existing && existing.length > 0) {
-    return {
-      id: existing[0].id,
-      name: existing[0].name,
-      slug: existing[0].slug,
-    };
-  }
-
-  const newTag = await sql`
+  // H-4: Use INSERT ON CONFLICT to avoid race condition
+  const result = await sql`
     INSERT INTO job_tags (name, slug)
     VALUES (${normalizedName}, ${slug})
+    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
     RETURNING id, name, slug
   `;
 
   return {
-    id: newTag[0].id,
-    name: newTag[0].name,
-    slug: newTag[0].slug,
+    id: result[0].id,
+    name: result[0].name,
+    slug: result[0].slug,
   };
 }
 

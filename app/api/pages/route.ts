@@ -4,6 +4,7 @@ import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { mapPagesFromDB, mapPageFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { INTERNAL_CACHE_TTL } from '@/lib/constants'
 import { pageSchema } from '@/lib/validation'
 import { invalidateSitemaps } from '@/lib/sitemap'
 
@@ -30,270 +31,52 @@ export async function GET(request: NextRequest) {
       return successResponse(cachedData, true)
     }
     
-    let countQuery, pagesQuery
+    // Build WHERE conditions dynamically using NULL-parameter pattern
+    const searchPattern = search ? `%${search}%` : null
+    const statusFilter = status || null
+    const categoryFilter = category || null
+
+    const countResult = await sql`
+      SELECT COUNT(DISTINCT p.id)::int as count
+      FROM pages p
+      WHERE p.author_id = ${userId}
+        AND (${searchPattern}::text IS NULL OR p.title ILIKE ${searchPattern})
+        AND (${statusFilter}::text IS NULL OR p.status = ${statusFilter})
+        AND (${categoryFilter}::text IS NULL OR EXISTS (
+          SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${categoryFilter}::uuid
+        ))
+    `
+
+    const pages = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM pages p
+      LEFT JOIN page_categories pc ON p.id = pc.page_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN page_tags pt ON p.id = pt.page_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.author_id = ${userId}
+        AND (${searchPattern}::text IS NULL OR p.title ILIKE ${searchPattern})
+        AND (${statusFilter}::text IS NULL OR p.status = ${statusFilter})
+        AND (${categoryFilter}::text IS NULL OR EXISTS (
+          SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${categoryFilter}::uuid
+        ))
+      GROUP BY p.id
+      ORDER BY p.menu_order ASC, p.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
     
-    if (category && search && status) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (category && search) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (category && status) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (search && status) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (category) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND EXISTS (SELECT 1 FROM page_categories WHERE page_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (search) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.title ILIKE ${`%${search}%`}
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (status) {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-          AND p.status = ${status}
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.status = ${status}
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else {
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM pages p
-        WHERE p.author_id = ${userId}
-      `
-      pagesQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM pages p
-        LEFT JOIN page_categories pc ON p.id = pc.page_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN page_tags pt ON p.id = pt.page_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-        GROUP BY p.id
-        ORDER BY p.menu_order ASC, p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    }
-    
-    const countResult = await countQuery
     const total = countResult[0].count
-    
-    const pages = await pagesQuery
     
     const pagesWithRelations = mapPagesFromDB((pages || []) as any)
     
@@ -304,7 +87,7 @@ export async function GET(request: NextRequest) {
       limit
     }
     
-    await setCachedData(cacheKey, responseData, 300)
+    await setCachedData(cacheKey, responseData, INTERNAL_CACHE_TTL)
     
     return successResponse(responseData, false)
   } catch (error) {

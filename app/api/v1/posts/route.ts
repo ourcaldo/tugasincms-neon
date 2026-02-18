@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 import { mapPostsFromDB } from '@/lib/post-mapper'
@@ -61,13 +62,11 @@ export async function GET(request: NextRequest) {
     const countResult = await sql`
       SELECT COUNT(DISTINCT p.id)::int as count
       FROM posts p
-      ${categoryId ? sql`LEFT JOIN post_categories pc ON p.id = pc.post_id` : sql``}
-      ${tagId ? sql`LEFT JOIN post_tags pt ON p.id = pt.post_id` : sql``}
       WHERE (p.post_type = 'post' OR p.post_type IS NULL)
         AND p.status = ${status}
         ${search ? sql`AND (p.title ILIKE ${`%${search}%`} OR p.content ILIKE ${`%${search}%`} OR p.excerpt ILIKE ${`%${search}%`})` : sql``}
-        ${categoryId === 'none' ? sql`AND FALSE` : categoryId ? sql`AND pc.category_id = ${categoryId}` : sql``}
-        ${tagId === 'none' ? sql`AND FALSE` : tagId ? sql`AND pt.tag_id = ${tagId}` : sql``}
+        ${categoryId === 'none' ? sql`AND FALSE` : categoryId ? sql`AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${categoryId})` : sql``}
+        ${tagId === 'none' ? sql`AND FALSE` : tagId ? sql`AND EXISTS (SELECT 1 FROM post_tags WHERE post_id = p.id AND tag_id = ${tagId})` : sql``}
     `
     const count = countResult[0].count
     
@@ -121,7 +120,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    await setCachedData(cacheKey, responseData, 3600)
+    await setCachedData(cacheKey, responseData, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {

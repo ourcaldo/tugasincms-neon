@@ -1,49 +1,70 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { withClerkAuth } from '@/lib/auth'
-import { successResponse, errorResponse, validationErrorResponse } from '@/lib/response'
+import { getUserIdFromClerk } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { TAXONOMY_CACHE_TTL } from '@/lib/constants'
 import { tagSchema } from '@/lib/validation'
 
-export const GET = withClerkAuth(async (request: NextRequest, userId: string) => {
-  const cacheKey = 'api:tags:all'
-  
-  const cachedTags = await getCachedData(cacheKey)
-  if (cachedTags) {
-    return successResponse(cachedTags, true)
-  }
-  
-  const tags = await sql`
-    SELECT * FROM tags
-    ORDER BY name
-  `
-  
-  await setCachedData(cacheKey, tags || [], 600)
-  
-  return successResponse(tags || [], false)
-})
+export async function GET(_request: NextRequest) {
+  try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
 
-export const POST = withClerkAuth(async (request: NextRequest, userId: string) => {
-  const body = await request.json()
-  
-  const validation = tagSchema.safeParse(body)
-  if (!validation.success) {
-    return validationErrorResponse(validation.error.issues[0].message)
+    const cacheKey = 'api:tags:all'
+    
+    const cachedTags = await getCachedData(cacheKey)
+    if (cachedTags) {
+      return successResponse(cachedTags, true)
+    }
+    
+    const tags = await sql`
+      SELECT * FROM tags
+      ORDER BY name
+    `
+    
+    await setCachedData(cacheKey, tags || [], TAXONOMY_CACHE_TTL)
+    
+    return successResponse(tags || [], false)
+  } catch (error) {
+    console.error('Error fetching tags:', error)
+    return errorResponse('Failed to fetch tags')
   }
-  
-  const { name, slug } = validation.data
-  const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-')
-  
-  const result = await sql`
-    INSERT INTO tags (name, slug)
-    VALUES (${name}, ${finalSlug})
-    RETURNING *
-  `
-  
-  const newTag = result[0]
-  
-  await deleteCachedData('api:tags:*')
-  await deleteCachedData('api:v1:tags:*')
-  
-  return successResponse(newTag, false, 201)
-})
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await getUserIdFromClerk()
+    if (!userId) {
+      return unauthorizedResponse('You must be logged in')
+    }
+
+    const body = await request.json()
+    
+    const validation = tagSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
+    }
+    
+    const { name, slug } = validation.data
+    const finalSlug = slug || name.toLowerCase().replace(/\s+/g, '-')
+    
+    const result = await sql`
+      INSERT INTO tags (name, slug)
+      VALUES (${name}, ${finalSlug})
+      RETURNING *
+    `
+    
+    const newTag = result[0]
+    
+    await deleteCachedData('api:tags:*')
+    await deleteCachedData('api:v1:tags:*')
+    
+    return successResponse(newTag, false, 201)
+  } catch (error) {
+    console.error('Error creating tag:', error)
+    return errorResponse('Failed to create tag')
+  }
+}

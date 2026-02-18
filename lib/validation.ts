@@ -5,7 +5,7 @@ export const postSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   excerpt: z.string().max(1000, 'Excerpt is too long').optional(),
   slug: z.string().max(200, 'Slug is too long').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase and use hyphens').optional(),
-  featuredImage: z.string().optional(),
+  featuredImage: z.string().url('Invalid image URL').optional().or(z.literal('')),
   publishDate: z.string().datetime('Invalid date format').optional(),
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
   seo: z.object({
@@ -54,7 +54,7 @@ export const publicPostSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   excerpt: z.string().max(1000, 'Excerpt is too long').optional(),
   slug: z.string().min(1, 'Slug is required').max(200, 'Slug is too long'),
-  featuredImage: z.string().optional(),
+  featuredImage: z.string().url('Invalid image URL').optional().or(z.literal('')),
   publishDate: z.string().optional(),
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
   seo: z.object({
@@ -62,8 +62,8 @@ export const publicPostSchema = z.object({
     metaDescription: z.string().max(500, 'Meta description is too long').optional(),
     focusKeyword: z.string().max(100, 'Focus keyword is too long').optional(),
   }).optional(),
-  categories: z.string().optional(),
-  tags: z.string().optional(),
+  categories: z.array(z.string().uuid()).optional(),
+  tags: z.array(z.string().uuid()).optional(),
 })
 
 export const pageSchema = z.object({
@@ -71,7 +71,7 @@ export const pageSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   excerpt: z.string().max(1000, 'Excerpt is too long').optional(),
   slug: z.string().max(200, 'Slug is too long').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase and use hyphens').optional(),
-  featuredImage: z.string().optional(),
+  featuredImage: z.string().url('Invalid image URL').optional().or(z.literal('')),
   publishDate: z.string().datetime('Invalid date format').optional(),
   status: z.enum(['draft', 'published', 'scheduled']).optional(),
   seo: z.object({
@@ -87,3 +87,100 @@ export const pageSchema = z.object({
 })
 
 export const updatePageSchema = pageSchema.partial()
+
+// Job post create schema (used by POST handlers)
+export const jobPostSchema = z.object({
+  title: z.string().min(1, "Title is required").max(500, "Title must not exceed 500 characters"),
+  content: z.string().min(1, "Content is required"),
+  excerpt: z.string().max(1000, "Excerpt must not exceed 1000 characters").optional(),
+  slug: z.string().max(200, "Slug must not exceed 200 characters").optional().or(z.literal("")),
+  featured_image: z.string().url("Featured image must be a valid URL").optional().or(z.literal("")),
+  publish_date: z.string().datetime("Publish date must be a valid ISO datetime").optional().or(z.literal("")),
+  status: z.enum(['draft', 'published', 'scheduled'], {
+    message: "Status must be one of: draft, published, scheduled"
+  }),
+  seo_title: z.string().max(200, "SEO title must not exceed 200 characters").optional(),
+  meta_description: z.string().max(500, "Meta description must not exceed 500 characters").optional(),
+  focus_keyword: z.string().max(100, "Focus keyword must not exceed 100 characters").optional(),
+  // Job-specific fields
+  job_company_name: z.string().max(200, "Company name must not exceed 200 characters").optional(),
+  job_company_logo: z.string().url("Company logo must be a valid URL").optional().or(z.literal("")),
+  job_company_website: z.string().url("Company website must be a valid URL").optional().or(z.literal("")),
+  job_employment_type_id: z.string().uuid("job_employment_type_id must be a valid UUID").optional().or(z.literal("")),
+  job_experience_level_id: z.string().uuid("job_experience_level_id must be a valid UUID").optional().or(z.literal("")),
+  job_education_level_id: z.string().uuid("job_education_level_id must be a valid UUID").optional().or(z.literal("")),
+  job_salary_min: z.number().int("Minimum salary must be an integer").min(10000, "Minimum salary must be at least 10,000 (5 digits)").optional(),
+  job_salary_max: z.number().int("Maximum salary must be an integer").min(10000, "Maximum salary must be at least 10,000 (5 digits)").optional(),
+  job_salary_currency: z.string().max(10, "Currency code must not exceed 10 characters").optional(),
+  job_salary_period: z.string().max(50, "Salary period must not exceed 50 characters").optional(),
+  job_is_salary_negotiable: z.boolean().optional(),
+  job_province_id: z.string().max(2, "Province ID must not exceed 2 characters").optional(),
+  job_regency_id: z.string().max(4, "Regency ID must not exceed 4 characters").optional(),
+  job_district_id: z.string().max(6, "District ID must not exceed 6 characters").optional(),
+  job_village_id: z.string().max(10, "Village ID must not exceed 10 characters").optional(),
+  job_address_detail: z.string().optional(),
+  job_is_remote: z.boolean().optional(),
+  job_is_hybrid: z.boolean().optional(),
+  job_application_email: z.string().email("Application email must be a valid email address").max(200).optional().or(z.literal("")),
+  job_application_url: z.string().url("Application URL must be a valid URL").max(500).optional().or(z.literal("")),
+  job_application_deadline: z.string().datetime("Application deadline must be a valid ISO datetime").optional().or(z.literal("")),
+  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
+  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
+  job_requirements: z.string().optional(),
+  job_responsibilities: z.string().optional(),
+  // Relations - can be UUIDs, names, or comma-separated strings
+  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
+  job_tags: z.union([z.array(z.string()), z.string()]).optional(),
+}).refine((data) => {
+  if (data.job_salary_min !== undefined && data.job_salary_max !== undefined &&
+      data.job_salary_min !== null && data.job_salary_max !== null) {
+    return data.job_salary_max > data.job_salary_min;
+  }
+  return true;
+}, {
+  message: "Maximum salary must be greater than minimum salary",
+  path: ["job_salary_max"]
+})
+
+// Job post update schema (used by PUT handlers — all fields optional)
+export const updateJobPostSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().min(1).optional(),
+  excerpt: z.string().max(1000).optional(),
+  slug: z.string().max(200).optional().or(z.literal("")),
+  featured_image: z.string().optional(),
+  publish_date: z.string().optional(),
+  status: z.enum(['draft', 'published', 'scheduled']).optional(),
+  seo_title: z.string().max(200).optional(),
+  meta_description: z.string().max(500).optional(),
+  focus_keyword: z.string().max(100).optional(),
+  // Job-specific fields
+  job_company_name: z.string().max(200).optional(),
+  job_company_logo: z.string().max(500).optional(),
+  job_company_website: z.string().url("Company website must be a valid URL").max(500).optional().or(z.literal("")),
+  job_employment_type_id: z.string().uuid().optional().nullable(),
+  job_experience_level_id: z.string().uuid().optional().nullable(),
+  job_education_level_id: z.string().uuid().optional().nullable(),
+  job_salary_min: z.number().optional().nullable(),
+  job_salary_max: z.number().optional().nullable(),
+  job_salary_currency: z.string().max(10).optional(),
+  job_salary_period: z.string().max(50).optional(),
+  job_is_salary_negotiable: z.boolean().optional(),
+  job_province_id: z.string().max(2).optional().nullable(),
+  job_regency_id: z.string().max(4).optional().nullable(),
+  job_district_id: z.string().max(6).optional().nullable(),
+  job_village_id: z.string().max(10).optional().nullable(),
+  job_address_detail: z.string().optional().nullable(),
+  job_is_remote: z.boolean().optional(),
+  job_is_hybrid: z.boolean().optional(),
+  job_application_email: z.string().email("Application email must be a valid email address").max(200).optional().nullable().or(z.literal("")),
+  job_application_url: z.string().url("Application URL must be a valid URL").max(500).optional().nullable().or(z.literal("")),
+  job_application_deadline: z.string().optional().nullable(),
+  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
+  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
+  job_requirements: z.string().optional().nullable(),
+  job_responsibilities: z.string().optional().nullable(),
+  // Relations - can be UUIDs, names, or comma-separated strings
+  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
+  job_tags: z.union([z.array(z.string()), z.string()]).optional()
+})

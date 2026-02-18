@@ -3,7 +3,7 @@ import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const userId = await getUserIdFromClerk()
     if (!userId) {
@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
 
     return successResponse(customPostTypes || [], false)
   } catch (error) {
+    console.error('Failed to fetch custom post types:', error)
     return errorResponse('Failed to fetch custom post types')
   }
 }

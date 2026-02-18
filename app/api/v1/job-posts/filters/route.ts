@@ -4,6 +4,7 @@ import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin')
@@ -188,7 +189,7 @@ export async function GET(request: NextRequest) {
       }))
     }
     
-    await setCachedData(cacheKey, filterData, 3600)
+    await setCachedData(cacheKey, filterData, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(filterData, false), origin)
   } catch (error) {

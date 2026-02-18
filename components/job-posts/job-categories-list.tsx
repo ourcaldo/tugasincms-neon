@@ -4,16 +4,19 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Briefcase } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, FolderOpen, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 import { Textarea } from '../ui/textarea'
 import { Checkbox } from '../ui/checkbox'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface JobCategory {
   id: string
@@ -26,7 +29,8 @@ interface JobCategory {
 
 export function JobCategoriesList() {
   const [categories, setCategories] = useState<JobCategory[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalCategories, setTotalCategories] = useState(0)
@@ -39,6 +43,9 @@ export function JobCategoriesList() {
     description: '',
   })
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -47,7 +54,7 @@ export function JobCategoriesList() {
 
   const fetchCategories = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: JobCategory[] }>('/job-categories')
       const categoriesData = response.data || []
       setCategories(categoriesData)
@@ -58,7 +65,7 @@ export function JobCategoriesList() {
       setCategories([])
       setTotalCategories(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -69,7 +76,7 @@ export function JobCategoriesList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: JobCategory }>('/job-categories', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -85,7 +92,7 @@ export function JobCategoriesList() {
       console.error('Error creating job category:', error)
       toast.error('Failed to create job category')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -96,7 +103,7 @@ export function JobCategoriesList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: JobCategory }>(`/job-categories/${editingCategory.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -112,19 +119,20 @@ export function JobCategoriesList() {
       console.error('Error updating job category:', error)
       toast.error('Failed to update job category')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm('Are you sure you want to delete this job category? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteCategory = (categoryId: string) => {
+    setDeleteTarget(categoryId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/job-categories/${categoryId}`)
-      const newCategories = categories.filter(cat => cat.id !== categoryId)
+      setMutationLoading(true)
+      await apiClient.delete(`/job-categories/${deleteTarget}`)
+      const newCategories = categories.filter(cat => cat.id !== deleteTarget)
       setCategories(newCategories)
       setTotalCategories(newCategories.length)
 
@@ -138,19 +146,20 @@ export function JobCategoriesList() {
       console.error('Error deleting job category:', error)
       toast.error('Failed to delete job category')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedCategories.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedCategories.size} selected job categories? This action cannot be undone.`)) {
-      return;
-    }
+    setBulkDeleteOpen(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true);
-      await Promise.all(Array.from(selectedCategories).map(id => apiClient.delete(`/job-categories/${id}`)));
+      setMutationLoading(true);
+      await apiClient.post('/job-categories/bulk-delete', { ids: Array.from(selectedCategories) });
 
       const newCategories = categories.filter(cat => !selectedCategories.has(cat.id));
       setCategories(newCategories);
@@ -167,7 +176,8 @@ export function JobCategoriesList() {
       console.error('Error deleting job categories:', error);
       toast.error('Failed to delete selected job categories');
     } finally {
-      setLoading(false);
+      setMutationLoading(false);
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -192,13 +202,18 @@ export function JobCategoriesList() {
     setFormData({ name: '', slug: '', description: '' })
   }
 
-  const paginatedCategories = categories.slice(
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    cat.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedCategories = filteredCategories.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
 
   const isAllCurrentPageSelected = selectedCategories.size === paginatedCategories.length && paginatedCategories.length > 0;
-  const isAllDataSelected = selectedCategories.size === totalCategories && totalCategories > 0;
+  const isAllDataSelected = selectedCategories.size === filteredCategories.length && filteredCategories.length > 0;
 
   const handleSelectAll = () => {
     if (isAllDataSelected) {
@@ -221,10 +236,10 @@ export function JobCategoriesList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Job Categories</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Job Categories</h1>
           <p className="text-muted-foreground mt-1">Organize job posts with categories</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -271,7 +286,7 @@ export function JobCategoriesList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateCategory} disabled={loading}>
+              <Button onClick={handleCreateCategory} disabled={mutationLoading}>
                 Create Job Category
               </Button>
             </DialogFooter>
@@ -279,8 +294,18 @@ export function JobCategoriesList() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search job categories..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {selectedCategories.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedCategories.size} job categor{selectedCategories.size === 1 ? 'y' : 'ies'} selected
           </p>
@@ -289,7 +314,7 @@ export function JobCategoriesList() {
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button
@@ -305,7 +330,7 @@ export function JobCategoriesList() {
               size="sm"
               onClick={handleSelectAll}
             >
-              Select all {totalCategories} data
+              Select all {filteredCategories.length} data
             </Button>
           )}
         </div>
@@ -313,19 +338,15 @@ export function JobCategoriesList() {
 
       <Card>
         <CardContent className="p-0">
-          {loading && categories.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading job categories...</p>
-            </div>
+          {fetchLoading && categories.length === 0 ? (
+            <LoadingState message="Loading job categories..." />
           ) : categories.length === 0 ? (
-            <div className="text-center py-12">
-              <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No job categories yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Job Category
-              </Button>
-            </div>
+            <EmptyState
+              icon={FolderOpen}
+              title="No job categories yet"
+              description="Organize job posts with categories."
+              action={{ label: 'Create Your First Job Category', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -388,10 +409,10 @@ export function JobCategoriesList() {
                 </TableBody>
               </Table>
 
-              {totalCategories > itemsPerPage && (
+              {filteredCategories.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCategories)} of {totalCategories} job categories
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredCategories.length)} of {filteredCategories.length} job categories
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -403,9 +424,9 @@ export function JobCategoriesList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalCategories / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredCategories.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalCategories / itemsPerPage)
+                          const totalPages = Math.ceil(filteredCategories.length / itemsPerPage)
                           return page === 1 ||
                                  page === totalPages ||
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -429,8 +450,8 @@ export function JobCategoriesList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalCategories / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalCategories / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredCategories.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredCategories.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -479,12 +500,27 @@ export function JobCategoriesList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateCategory} disabled={loading}>
+            <Button onClick={handleUpdateCategory} disabled={mutationLoading}>
               Update Job Category
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Job Category"
+        description="Are you sure you want to delete this job category? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Job Categories"
+        description={`Are you sure you want to delete ${selectedCategories.size} selected job categories? This action cannot be undone.`}
+      />
     </div>
   )
 }

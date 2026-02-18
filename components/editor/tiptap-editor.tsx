@@ -67,8 +67,7 @@ export function TiptapEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none p-4 [&_h1]:mt-6 [&_h1]:mb-4 [&_h2]:mt-6 [&_h2]:mb-4 [&_h3]:mt-5 [&_h3]:mb-3 [&_h4]:mt-4 [&_h4]:mb-2 [&_p]:mb-4 [&_ul]:my-4 [&_ol]:my-4 [&_blockquote]:my-4",
-        style: "min-height: 400px;",
+          "prose prose-sm sm:prose-base dark:prose-invert focus:outline-none max-w-none p-4 min-h-[400px]",
       },
     },
   });
@@ -86,19 +85,29 @@ export function TiptapEditor({
 
   if (!editor) return null;
 
+  // H-14: Validate URLs to prevent javascript: protocol
+  const isValidUrl = (url: string): boolean => {
+    const trimmed = url.trim().toLowerCase()
+    if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:text/html') || trimmed.startsWith('vbscript:')) {
+      return false
+    }
+    return true
+  }
+
   const addImage = () => {
-    if (imageUrl) {
+    if (imageUrl && isValidUrl(imageUrl)) {
       editor.chain().focus().setImage({ src: imageUrl }).run();
       setImageUrl("");
     }
   };
 
   const setLink = () => {
-    if (linkUrl) {
+    if (linkUrl && isValidUrl(linkUrl)) {
       editor.chain().focus().setLink({ href: linkUrl }).run();
       setLinkUrl("");
     } else {
       editor.chain().focus().unsetLink().run();
+      setLinkUrl("");
     }
   };
 
@@ -117,6 +126,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={editor.isActive("bold") ? "bg-muted" : ""}
+            aria-label="Bold"
           >
             <Bold className="h-4 w-4" />
           </Button>
@@ -126,6 +136,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleItalic().run()}
             className={editor.isActive("italic") ? "bg-muted" : ""}
+            aria-label="Italic"
           >
             <Italic className="h-4 w-4" />
           </Button>
@@ -135,6 +146,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleStrike().run()}
             className={editor.isActive("strike") ? "bg-muted" : ""}
+            aria-label="Strikethrough"
           >
             <Strikethrough className="h-4 w-4" />
           </Button>
@@ -144,6 +156,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleCode().run()}
             className={editor.isActive("code") ? "bg-muted" : ""}
+            aria-label="Inline code"
           >
             <Code className="h-4 w-4" />
           </Button>
@@ -156,6 +169,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             className={editor.isActive("heading", { level: 1 }) ? "bg-muted" : ""}
+            aria-label="Heading 1"
           >
             <Heading1 className="h-4 w-4" />
           </Button>
@@ -165,6 +179,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             className={editor.isActive("heading", { level: 2 }) ? "bg-muted" : ""}
+            aria-label="Heading 2"
           >
             <Heading2 className="h-4 w-4" />
           </Button>
@@ -174,6 +189,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             className={editor.isActive("heading", { level: 3 }) ? "bg-muted" : ""}
+            aria-label="Heading 3"
           >
             <Heading3 className="h-4 w-4" />
           </Button>
@@ -186,6 +202,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             className={editor.isActive("bulletList") ? "bg-muted" : ""}
+            aria-label="Bullet list"
           >
             <List className="h-4 w-4" />
           </Button>
@@ -195,6 +212,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             className={editor.isActive("orderedList") ? "bg-muted" : ""}
+            aria-label="Ordered list"
           >
             <ListOrdered className="h-4 w-4" />
           </Button>
@@ -204,6 +222,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             className={editor.isActive("blockquote") ? "bg-muted" : ""}
+            aria-label="Blockquote"
           >
             <Quote className="h-4 w-4" />
           </Button>
@@ -212,7 +231,7 @@ export function TiptapEditor({
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm">
+              <Button type="button" variant="ghost" size="sm" aria-label="Insert link">
                 <LinkIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -242,7 +261,7 @@ export function TiptapEditor({
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm">
+              <Button type="button" variant="ghost" size="sm" aria-label="Insert image">
                 <ImageIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -278,6 +297,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
+            aria-label="Undo"
           >
             <Undo className="h-4 w-4" />
           </Button>
@@ -287,6 +307,7 @@ export function TiptapEditor({
             size="sm"
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
+            aria-label="Redo"
           >
             <Redo className="h-4 w-4" />
           </Button>

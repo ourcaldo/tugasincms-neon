@@ -47,6 +47,7 @@ export async function PUT(
 
     return successResponse(result[0], false)
   } catch (error) {
+    console.error('Failed to update custom post type:', error)
     return errorResponse('Failed to update custom post type')
   }
 }

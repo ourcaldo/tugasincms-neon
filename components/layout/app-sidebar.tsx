@@ -3,20 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
 import {
   FileText,
+  File,
   Settings,
-  PlusCircle,
-  BarChart3,
-  User,
-  LogOut,
+  LayoutDashboard,
   Briefcase,
   FolderKanban,
   Tags,
   Users,
   Award,
   GraduationCap,
+  Image,
+  User,
+  Key,
+  Megaphone,
+  Bot,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -29,10 +32,8 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  SidebarSeparator,
 } from '../ui/sidebar';
-import { Button } from '../ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface CustomPostType {
   slug: string;
@@ -40,43 +41,63 @@ interface CustomPostType {
   is_enabled: boolean;
 }
 
-const baseMenuItems = [
+interface MenuItem {
+  title: string;
+  href: string;
+  icon?: LucideIcon;
+}
+
+interface MenuGroup {
+  title: string;
+  items: MenuItem[];
+}
+
+const baseMenuItems: MenuGroup[] = [
   {
-    title: 'Posts and Pages',
-    icon: FileText,
+    title: 'Overview',
     items: [
-      { title: 'All Posts', href: '/posts', tooltip: 'View and manage all blog posts' },
-      { title: 'All Pages', href: '/pages', tooltip: 'View and manage all pages' },
-      { title: 'Categories', href: '/categories', tooltip: 'Organize posts with categories' },
-      { title: 'Tags', href: '/tags', tooltip: 'Manage post tags for better organization' },
+      { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Content',
+    items: [
+      { title: 'Posts', href: '/posts', icon: FileText },
+      { title: 'Pages', href: '/pages', icon: File },
+      { title: 'Categories', href: '/categories', icon: FolderKanban },
+      { title: 'Tags', href: '/tags', icon: Tags },
     ],
   },
   {
     title: 'Management',
-    icon: BarChart3,
     items: [
-      { title: 'Media Library', href: '/media', tooltip: 'Upload and manage images and files' },
+      { title: 'Media Library', href: '/media', icon: Image },
     ],
   },
   {
     title: 'Settings',
-    icon: Settings,
     items: [
-      { title: 'Profile', href: '/settings/profile', tooltip: 'Update your profile information' },
-      { title: 'API Tokens', href: '/settings/tokens', tooltip: 'Manage API access tokens' },
-      { title: 'Custom Post Types', href: '/settings/custom-post-types', tooltip: 'Manage custom post types' },
-      { title: 'Advertisements', href: '/settings/advertisements', tooltip: 'Manage advertisement settings and codes' },
-      { title: 'Robots.txt', href: '/settings/robots', tooltip: 'Configure robots.txt for search engines' },
+      { title: 'Profile', href: '/settings/profile', icon: User },
+      { title: 'API Tokens', href: '/settings/tokens', icon: Key },
+      { title: 'Custom Post Types', href: '/settings/custom-post-types', icon: FileText },
+      { title: 'Advertisements', href: '/settings/advertisements', icon: Megaphone },
+      { title: 'SEO & Robots', href: '/settings/seo', icon: Bot },
     ],
   },
 ];
 
+function isRouteActive(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  if (pathname === href) return true;
+  // For top-level routes, check starts-with but avoid false positives
+  // e.g. /posts/new should highlight /posts, but /posts shouldn't highlight /pages
+  if (href !== '/dashboard' && pathname.startsWith(href + '/')) return true;
+  return false;
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user } = useUser();
-  const { signOut } = useClerk();
-  const [customPostTypes, setCustomPostTypes] = useState<CustomPostType[]>([]);
-  const [menuItems, setMenuItems] = useState(baseMenuItems);
+  const [menuItems, setMenuItems] = useState<MenuGroup[]>(baseMenuItems);
 
   useEffect(() => {
     fetchCustomPostTypes();
@@ -89,52 +110,40 @@ export function AppSidebar() {
         const data = await response.json();
         const cpts = data.data || data || [];
         const enabled = cpts.filter((cpt: CustomPostType) => cpt.is_enabled);
-        setCustomPostTypes(enabled);
         
-        // Build dynamic menu items (exclude 'post' as it's already in baseMenuItems)
-        const dynamicMenus = enabled
+        const dynamicMenus: MenuGroup[] = enabled
           .filter((cpt: CustomPostType) => cpt.slug !== 'post')
           .map((cpt: CustomPostType) => {
             const capitalizedName = cpt.name.charAt(0).toUpperCase() + cpt.name.slice(1);
-            // Fix double "Post" issue - if name already ends with "Post", don't add it again
-            const menuTitle = capitalizedName.endsWith('Post') ? capitalizedName : `${capitalizedName} Posts`;
-            const allItemsTitle = capitalizedName.endsWith('Post') ? `All ${capitalizedName}s` : `All ${capitalizedName} Posts`;
+            const menuTitle = capitalizedName.endsWith('Post') ? `${capitalizedName}s` : `${capitalizedName} Posts`;
             
-            // Build base items
-            const baseItems: any[] = [
-              { 
-                title: allItemsTitle, 
-                href: `/${cpt.slug}-posts`, 
-                tooltip: `View and manage all ${cpt.name} posts` 
-              },
+            const items: MenuItem[] = [
+              { title: menuTitle, href: `/${cpt.slug}-posts`, icon: cpt.slug === 'job' ? Briefcase : FileText },
             ];
             
-            // Add job-specific items if this is the job CPT
             if (cpt.slug === 'job') {
-              baseItems.push(
-                { title: 'Job Categories', href: '/job-categories', icon: FolderKanban, tooltip: 'Manage job categories' },
-                { title: 'Job Tags', href: '/job-tags', icon: Tags, tooltip: 'Manage job tags' },
-                { title: 'Employment Types', href: '/employment-types', icon: Users, tooltip: 'Manage employment types' },
-                { title: 'Experience Levels', href: '/experience-levels', icon: Award, tooltip: 'Manage experience levels' },
-                { title: 'Education Levels', href: '/education-levels', icon: GraduationCap, tooltip: 'Manage education level requirements' }
+              items.push(
+                { title: 'Job Categories', href: '/job-categories', icon: FolderKanban },
+                { title: 'Job Tags', href: '/job-tags', icon: Tags },
+                { title: 'Employment Types', href: '/employment-types', icon: Users },
+                { title: 'Experience Levels', href: '/experience-levels', icon: Award },
+                { title: 'Education Levels', href: '/education-levels', icon: GraduationCap },
               );
             }
             
             return {
-              title: menuTitle,
-              icon: cpt.slug === 'job' ? Briefcase : FileText,
-              items: baseItems,
+              title: cpt.slug === 'job' ? 'Job Board' : capitalizedName,
+              items,
             };
           });
 
-        // Insert dynamic menus after Posts section
-        const newMenuItems = [
-          baseMenuItems[0], // Posts
+        setMenuItems([
+          baseMenuItems[0], // Overview
+          baseMenuItems[1], // Content
           ...dynamicMenus,
-          baseMenuItems[1], // Management
-          baseMenuItems[2], // Settings
-        ];
-        setMenuItems(newMenuItems);
+          baseMenuItems[2], // Management
+          baseMenuItems[3], // Settings
+        ]);
       }
     } catch (error) {
       console.error('Error fetching custom post types:', error);
@@ -142,51 +151,35 @@ export function AppSidebar() {
   };
 
   return (
-    <TooltipProvider>
-      <Sidebar>
-        <SidebarHeader className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <FileText className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div>
-              <h2 className="font-semibold">TugasCMS</h2>
-              <p className="text-sm text-muted-foreground">Content Management</p>
-            </div>
+    <Sidebar>
+      <SidebarHeader className="px-4 py-4">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+            <FileText className="h-4 w-4 text-primary-foreground" />
           </div>
-        </SidebarHeader>
+          <span className="font-semibold text-lg">TugasCMS</span>
+        </Link>
+      </SidebarHeader>
+
+      <SidebarSeparator />
 
       <SidebarContent>
         {menuItems.map((group) => (
           <SidebarGroup key={group.title}>
-            <SidebarGroupLabel className="flex items-center gap-2">
-              <group.icon className="w-4 h-4" />
-              {group.title}
-            </SidebarGroupLabel>
+            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item: any) => {
+                {group.items.map((item) => {
                   const ItemIcon = item.icon;
-                  const isActive = pathname === item.href || 
-                                 (item.href === '/posts' && pathname?.startsWith('/posts'));
+                  const active = isRouteActive(pathname, item.href);
                   return (
                     <SidebarMenuItem key={item.href}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <SidebarMenuButton 
-                            asChild
-                            isActive={isActive}
-                          >
-                            <Link href={item.href}>
-                              {ItemIcon && <ItemIcon className="w-4 h-4" />}
-                              {item.title}
-                            </Link>
-                          </SidebarMenuButton>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>{item.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <SidebarMenuButton asChild isActive={active}>
+                        <Link href={item.href}>
+                          {ItemIcon && <ItemIcon className="h-4 w-4" />}
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 })}
@@ -196,31 +189,9 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent">
-          <Avatar className="w-8 h-8">
-            <AvatarImage src={user?.imageUrl} />
-            <AvatarFallback>
-              <User className="w-4 h-4" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.fullName || 'User'}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</p>
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={() => signOut()}>
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Sign out</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+      <SidebarFooter className="px-4 py-3">
+        <p className="text-xs text-muted-foreground">TugasCMS v1.0</p>
       </SidebarFooter>
-      </Sidebar>
-    </TooltipProvider>
+    </Sidebar>
   );
 }

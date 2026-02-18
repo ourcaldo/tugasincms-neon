@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const cacheKey = 'robots:txt'
     
@@ -35,7 +36,7 @@ Allow: /lowongan-kerja/
 Allow: /artikel/
 
 # Sitemaps (served via Nexjob middleware)
-Sitemap: https://nexjob.tech/sitemap.xml
+Sitemap: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://nexjob.tech'}/sitemap.xml
 
 # Disallow admin and private areas
 Disallow: /admin/
@@ -53,7 +54,7 @@ Crawl-delay: 1`
 
       // Cache for 1 hour
       try {
-        await setCachedData(cacheKey, robotsTxt, 3600)
+        await setCachedData(cacheKey, robotsTxt, API_CACHE_TTL)
       } catch (e) {
         console.warn('Failed to cache robots.txt:', e)
       }
@@ -73,7 +74,7 @@ Crawl-delay: 1`
     // Fallback robots.txt with shorter cache
     const fallbackRobots = `User-agent: *
 Allow: /
-Sitemap: https://nexjob.tech/sitemap.xml
+Sitemap: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://nexjob.tech'}/sitemap.xml
 Crawl-delay: 1`
     
     return new NextResponse(fallbackRobots, {

@@ -4,6 +4,7 @@ import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { mapPostsFromDB, mapPostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { INTERNAL_CACHE_TTL } from '@/lib/constants'
 import { postSchema } from '@/lib/validation'
 import { invalidateSitemaps } from '@/lib/sitemap'
 
@@ -30,295 +31,54 @@ export async function GET(request: NextRequest) {
       return successResponse(cachedData, true)
     }
     
-    // Build WHERE conditions dynamically
-    let countQuery, postsQuery
+    // Build WHERE conditions dynamically using NULL-parameter pattern
+    const searchPattern = search ? `%${search}%` : null
+    const statusFilter = status || null
+    const categoryFilter = category || null
+
+    const countResult = await sql`
+      SELECT COUNT(DISTINCT p.id)::int as count
+      FROM posts p
+      WHERE p.author_id = ${userId}
+        AND p.post_type = 'post'
+        AND (${searchPattern}::text IS NULL OR p.title ILIKE ${searchPattern})
+        AND (${statusFilter}::text IS NULL OR p.status = ${statusFilter})
+        AND (${categoryFilter}::text IS NULL OR EXISTS (
+          SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${categoryFilter}::uuid
+        ))
+    `
+
+    const posts = await sql`
+      SELECT 
+        p.*,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
+          FILTER (WHERE c.id IS NOT NULL),
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
+          FILTER (WHERE t.id IS NOT NULL),
+          '[]'::json
+        ) as tags
+      FROM posts p
+      LEFT JOIN post_categories pc ON p.id = pc.post_id
+      LEFT JOIN categories c ON pc.category_id = c.id
+      LEFT JOIN post_tags pt ON p.id = pt.post_id
+      LEFT JOIN tags t ON pt.tag_id = t.id
+      WHERE p.author_id = ${userId}
+        AND p.post_type = 'post'
+        AND (${searchPattern}::text IS NULL OR p.title ILIKE ${searchPattern})
+        AND (${statusFilter}::text IS NULL OR p.status = ${statusFilter})
+        AND (${categoryFilter}::text IS NULL OR EXISTS (
+          SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${categoryFilter}::uuid
+        ))
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
     
-    if (category && search && status) {
-      // All filters
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (category && search) {
-      // Category + search
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (category && status) {
-      // Category + status
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.status = ${status}
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (search && status) {
-      // Search + status
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-          AND p.status = ${status}
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (category) {
-      // Category only
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND EXISTS (SELECT 1 FROM post_categories WHERE post_id = p.id AND category_id = ${category})
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (search) {
-      // Search only
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.title ILIKE ${`%${search}%`}
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else if (status) {
-      // Status only
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.status = ${status}
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-          AND p.status = ${status}
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    } else {
-      // No filters (author only)
-      countQuery = sql`
-        SELECT COUNT(DISTINCT p.id)::int as count
-        FROM posts p
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-      `
-      postsQuery = sql`
-        SELECT 
-          p.*,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', c.id, 'name', c.name, 'slug', c.slug, 'description', c.description)) 
-            FILTER (WHERE c.id IS NOT NULL),
-            '[]'::json
-          ) as categories,
-          COALESCE(
-            json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name, 'slug', t.slug))
-            FILTER (WHERE t.id IS NOT NULL),
-            '[]'::json
-          ) as tags
-        FROM posts p
-        LEFT JOIN post_categories pc ON p.id = pc.post_id
-        LEFT JOIN categories c ON pc.category_id = c.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.author_id = ${userId}
-          AND p.post_type = 'post'
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `
-    }
-    
-    const countResult = await countQuery
     const total = countResult[0].count
-    
-    const posts = await postsQuery
     
     const postsWithRelations = mapPostsFromDB((posts || []) as any)
     
@@ -329,7 +89,7 @@ export async function GET(request: NextRequest) {
       limit
     }
     
-    await setCachedData(cacheKey, responseData, 300)
+    await setCachedData(cacheKey, responseData, INTERNAL_CACHE_TTL)
     
     return successResponse(responseData, false)
   } catch (error) {

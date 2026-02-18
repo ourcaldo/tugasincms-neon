@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDebounce } from '../../hooks/use-debounce';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
@@ -10,8 +11,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { Checkbox } from '../ui/checkbox';
 import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Trash2, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
+import { LoadingState } from '../ui/loading-state';
+import { EmptyState } from '../ui/empty-state';
 import { useApiClient } from '../../lib/api-client';
 import { toast } from 'sonner';
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog';
 
 interface JobPost {
   id: string;
@@ -49,7 +53,7 @@ interface JobPostsListProps {
 
 export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }: JobPostsListProps) {
   const [posts, setPosts] = useState<JobPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalPosts, setTotalPosts] = useState(0);
@@ -61,14 +65,17 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     experience_level: undefined,
     job_category: undefined,
   });
-  const [jobCategories, setJobCategories] = useState<Array<{ id: string; name: string; }>>([]);
+  const [_jobCategories, setJobCategories] = useState<Array<{ id: string; name: string; }>>([]);
   const [employmentTypes, setEmploymentTypes] = useState<Array<{ id: string; name: string; slug: string; }>>([]);
   const [experienceLevels, setExperienceLevels] = useState<Array<{ id: string; name: string; slug: string; }>>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const apiClient = useApiClient();
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   useEffect(() => {
     fetchPosts();
-  }, [currentPage, filters.search, filters.status, filters.employment_type, filters.experience_level, filters.job_category]);
+  }, [currentPage, debouncedSearch, filters.status, filters.employment_type, filters.experience_level, filters.job_category]);
 
   useEffect(() => {
     fetchJobCategories();
@@ -78,7 +85,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
 
   const fetchPosts = async () => {
     try {
-      setLoading(true);
+      setFetchLoading(true);
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -101,7 +108,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       setPosts([]);
       setTotalPosts(0);
     } finally {
-      setLoading(false);
+      setFetchLoading(false);
     }
   };
 
@@ -138,19 +145,22 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     }
   };
 
-  const handleDelete = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this job post? This action cannot be undone.')) {
-      return;
-    }
+  const handleDelete = (postId: string) => {
+    setDeleteTarget(postId);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await apiClient.delete(`/job-posts/${postId}`);
+      await apiClient.delete(`/job-posts/${deleteTarget}`);
       toast.success('Job post deleted successfully');
       await fetchPosts();
-      onDeletePost(postId);
+      onDeletePost(deleteTarget);
     } catch (error) {
       console.error('Error deleting job post:', error);
       toast.error('Failed to delete job post');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -172,13 +182,12 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     setSelectedPosts(newSelected);
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedPosts.size === 0) return;
-    
-    if (!confirm(`Are you sure you want to delete ${selectedPosts.size} selected job post(s)? This action cannot be undone.`)) {
-      return;
-    }
-    
+    setBulkDeleteOpen(true);
+  };
+
+  const confirmBulkDelete = async () => {
     try {
       const postIds = Array.from(selectedPosts);
       await apiClient.post('/job-posts/bulk-delete', { postIds });
@@ -190,6 +199,8 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     } catch (error) {
       console.error('Error bulk deleting job posts:', error);
       toast.error('Failed to delete job posts');
+    } finally {
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -222,7 +233,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Job Posts</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Job Posts</h1>
             <p className="text-muted-foreground">
               Manage your job postings
             </p>
@@ -311,7 +322,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       </Card>
 
       {selectedPosts.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedPosts.size} job post(s) selected
           </p>
@@ -335,10 +346,21 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
 
       <Card>
         <CardContent className="p-0">
+          {fetchLoading && displayPosts.length === 0 ? (
+            <LoadingState message="Loading job posts..." />
+          ) : displayPosts.length === 0 ? (
+            <EmptyState
+              icon={Briefcase}
+              title="No job posts found"
+              description="Get started by creating your first job post."
+              action={{ label: 'Create Your First Job Post', onClick: onCreatePost }}
+            />
+          ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead className="w-10">
                   <Checkbox
                     checked={displayPosts.length > 0 && selectedPosts.size === displayPosts.length}
                     onCheckedChange={handleSelectAll}
@@ -434,26 +456,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
             </TableBody>
           </Table>
 
-          {displayPosts.length === 0 && (
-            <div className="text-center py-12">
-              <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No job posts found</p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button onClick={onCreatePost}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Job Post
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Start posting job opportunities</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          )}
-
-          {displayPosts.length > 0 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t">
+          <div className="flex items-center justify-between px-6 py-4 border-t">
               <div className="text-sm text-muted-foreground">
                 Showing {startIndex + 1} to {endIndex} of {totalPosts} job posts
               </div>
@@ -499,10 +502,28 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
                 </Button>
               </div>
             </div>
+          </>
           )}
         </CardContent>
       </Card>
       </div>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Job Post?"
+        description="This action cannot be undone. This will permanently delete this job post."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Job Posts?"
+        description={`This action cannot be undone. This will permanently delete ${selectedPosts.size} selected job post(s).`}
+      />
     </TooltipProvider>
   );
 }

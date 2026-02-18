@@ -11,7 +11,7 @@ const jobCategorySchema = z.object({
   description: z.string().max(500).optional()
 })
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const userId = await getUserIdFromClerk()
     if (!userId) {
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
 
     return successResponse(categories || [], false)
   } catch (error) {
+    console.error('Failed to fetch job categories:', error)
     return errorResponse('Failed to fetch job categories')
   }
 }
@@ -63,8 +64,9 @@ export async function POST(request: NextRequest) {
     await invalidateJobCaches()
 
     return successResponse(result[0], false, 201)
-  } catch (error: any) {
-    if (error?.code === '23505') {
+  } catch (error: unknown) {
+    console.error('Failed to create job category:', error)
+    if (error instanceof Error && 'code' in error && (error as Record<string, unknown>).code === '23505') {
       return validationErrorResponse('A job category with this slug already exists')
     }
     return errorResponse('Failed to create job category')

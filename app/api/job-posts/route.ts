@@ -5,68 +5,13 @@ import { successResponse, errorResponse, unauthorizedResponse, validationErrorRe
 import { invalidateSitemaps } from '@/lib/sitemap'
 import { invalidateJobCaches } from '@/lib/cache'
 import { z } from 'zod'
+import { jobPostSchema } from '@/lib/validation'
 import {
   processJobCategoriesInput,
   processJobTagsInput,
   processJobSkillsInput,
   ensureSlugWithUUID,
 } from '@/lib/job-utils'
-
-const jobPostSchema = z.object({
-  title: z.string().min(1, "Title is required").max(500, "Title must not exceed 500 characters"),
-  content: z.string().min(1, "Content is required"),
-  excerpt: z.string().max(1000, "Excerpt must not exceed 1000 characters").optional(),
-  slug: z.string().max(200, "Slug must not exceed 200 characters").optional().or(z.literal("")),
-  featured_image: z.string().url("Featured image must be a valid URL").optional().or(z.literal("")),
-  publish_date: z.string().datetime("Publish date must be a valid ISO datetime").optional().or(z.literal("")),
-  status: z.enum(['draft', 'published', 'scheduled'], {
-    message: "Status must be one of: draft, published, scheduled"
-  }),
-  seo_title: z.string().max(200, "SEO title must not exceed 200 characters").optional(),
-  meta_description: z.string().max(500, "Meta description must not exceed 500 characters").optional(),
-  focus_keyword: z.string().max(100, "Focus keyword must not exceed 100 characters").optional(),
-  
-  // Job-specific fields
-  job_company_name: z.string().max(200, "Company name must not exceed 200 characters").optional(),
-  job_company_logo: z.string().url("Company logo must be a valid URL").optional().or(z.literal("")),
-  job_company_website: z.string().url("Company website must be a valid URL").optional().or(z.literal("")),
-  job_employment_type_id: z.string().uuid("job_employment_type_id must be a valid UUID").optional().or(z.literal("")),
-  job_experience_level_id: z.string().uuid("job_experience_level_id must be a valid UUID").optional().or(z.literal("")),
-  job_education_level_id: z.string().uuid("job_education_level_id must be a valid UUID").optional().or(z.literal("")),
-  job_salary_min: z.number().int("Minimum salary must be an integer").min(10000, "Minimum salary must be at least 10,000 (5 digits)").optional(),
-  job_salary_max: z.number().int("Maximum salary must be an integer").min(10000, "Maximum salary must be at least 10,000 (5 digits)").optional(),
-  job_salary_currency: z.string().max(10, "Currency code must not exceed 10 characters").optional(),
-  job_salary_period: z.string().max(50, "Salary period must not exceed 50 characters").optional(),
-  job_is_salary_negotiable: z.boolean().optional(),
-  job_province_id: z.string().max(2, "Province ID must not exceed 2 characters").optional(),
-  job_regency_id: z.string().max(4, "Regency ID must not exceed 4 characters").optional(),
-  job_district_id: z.string().max(6, "District ID must not exceed 6 characters").optional(),
-  job_village_id: z.string().max(10, "Village ID must not exceed 10 characters").optional(),
-  job_address_detail: z.string().optional(),
-  job_is_remote: z.boolean().optional(),
-  job_is_hybrid: z.boolean().optional(),
-  job_application_email: z.string().email("Application email must be a valid email address").max(200).optional().or(z.literal("")),
-  job_application_url: z.string().url("Application URL must be a valid URL").max(500).optional().or(z.literal("")),
-  job_application_deadline: z.string().datetime("Application deadline must be a valid ISO datetime").optional().or(z.literal("")),
-  job_skills: z.union([z.array(z.string()), z.string()]).optional(),
-  job_benefits: z.union([z.array(z.string()), z.string()]).optional(),
-  job_requirements: z.string().optional(),
-  job_responsibilities: z.string().optional(),
-  
-  // Relations - can be UUIDs, names, or comma-separated strings
-  job_categories: z.union([z.array(z.string()), z.string()]).optional(),
-  job_tags: z.union([z.array(z.string()), z.string()]).optional()
-}).refine((data: any) => {
-  // Validate salary range: max must be greater than min when both are provided
-  if (data.job_salary_min !== undefined && data.job_salary_max !== undefined && 
-      data.job_salary_min !== null && data.job_salary_max !== null) {
-    return data.job_salary_max > data.job_salary_min;
-  }
-  return true;
-}, {
-  message: "Maximum salary must be greater than minimum salary",
-  path: ["job_salary_max"]
-})
 
 export async function GET(request: NextRequest) {
   try {
@@ -239,18 +184,16 @@ export async function POST(request: NextRequest) {
       )
     `
     
-    // Add categories
+    // Add categories (batch insert)
     if (categoryIds.length > 0) {
-      for (const catId of categoryIds) {
-        await sql`INSERT INTO job_post_categories (job_post_id, category_id) VALUES (${postId}, ${catId})`
-      }
+      await sql`INSERT INTO job_post_categories (job_post_id, category_id)
+        SELECT ${postId}, unnest(${categoryIds}::uuid[])`
     }
     
-    // Add tags
+    // Add tags (batch insert)
     if (tagIds.length > 0) {
-      for (const tagId of tagIds) {
-        await sql`INSERT INTO job_post_tags (job_post_id, tag_id) VALUES (${postId}, ${tagId})`
-      }
+      await sql`INSERT INTO job_post_tags (job_post_id, tag_id)
+        SELECT ${postId}, unnest(${tagIds}::uuid[])`
     }
     
     // Fetch the complete job post
@@ -297,9 +240,9 @@ export async function POST(request: NextRequest) {
     await invalidateJobCaches()
     
     return successResponse(fullPost[0], false, 201)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating job post:', error)
-    if (error?.code === '23505') {
+    if (error instanceof Error && 'code' in error && (error as Record<string, unknown>).code === '23505') {
       return validationErrorResponse('A job post with this slug already exists')
     }
     return errorResponse('Failed to create job post')

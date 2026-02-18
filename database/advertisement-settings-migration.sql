@@ -40,8 +40,9 @@ CREATE TRIGGER update_advertisement_settings_updated_at
     BEFORE UPDATE ON advertisement_settings 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default advertisement settings
+-- Insert default advertisement settings (idempotent: uses fixed UUID)
 INSERT INTO advertisement_settings (
+  id,
   popup_ad_enabled,
   popup_ad_url,
   popup_ad_load_settings,
@@ -53,6 +54,7 @@ INSERT INTO advertisement_settings (
   single_bottom_ad_code,
   single_middle_ad_code
 ) VALUES (
+  '00000000-0000-0000-0000-000000000001',
   false,
   '',
   '[]'::jsonb,
@@ -63,7 +65,7 @@ INSERT INTO advertisement_settings (
   '',
   '',
   ''
-) ON CONFLICT DO NOTHING;
+) ON CONFLICT (id) DO NOTHING;
 
 
 

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { mapPostsFromDB } from '@/lib/post-mapper'
@@ -24,12 +25,24 @@ export async function GET(request: NextRequest) {
       return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
     }
     
-    const cacheKey = 'api:public:posts:all'
+    // H-8: Add pagination instead of hardcoded LIMIT 500
+    const { searchParams } = new URL(request.url)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1)
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '50') || 1), 100)
+    const offset = (page - 1) * limit
+    
+    const cacheKey = `api:public:posts:${page}:${limit}`
     
     const cachedPosts = await getCachedData(cacheKey)
     if (cachedPosts) {
       return setCorsHeaders(successResponse(cachedPosts, true), origin)
     }
+    
+    const countResult = await sql`
+      SELECT COUNT(*)::int as count FROM posts 
+      WHERE status = 'published' AND post_type = 'post'
+    `
+    const total = countResult[0].count
     
     const publishedPosts = await sql`
       SELECT 
@@ -53,14 +66,27 @@ export async function GET(request: NextRequest) {
         AND p.post_type = 'post'
       GROUP BY p.id
       ORDER BY p.publish_date DESC
-      LIMIT 500
+      LIMIT ${limit} OFFSET ${offset}
     `
     
     const postsWithRelations = mapPostsFromDB(publishedPosts as any || [])
+    const totalPages = Math.ceil(total / limit)
     
-    await setCachedData(cacheKey, postsWithRelations, 3600)
+    const responseData = {
+      posts: postsWithRelations,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      }
+    }
     
-    return setCorsHeaders(successResponse(postsWithRelations, false), origin)
+    await setCachedData(cacheKey, responseData, API_CACHE_TTL)
+    
+    return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {
     console.error('Error fetching published posts:', error)
     return setCorsHeaders(errorResponse('Failed to fetch posts'), origin)
@@ -118,26 +144,13 @@ export async function POST(request: NextRequest) {
     
     const categoryIds: string[] = []
     
-    if (categories && typeof categories === 'string' && categories.trim()) {
-      const categoryNames = categories.split(',').map((name: string) => name.trim()).filter(Boolean)
-      
-      for (const categoryName of categoryNames) {
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      for (const catId of categories) {
         const existingCategory = await sql`
-          SELECT id FROM categories WHERE name = ${categoryName}
+          SELECT id FROM categories WHERE id = ${catId}
         `
-        
         if (existingCategory.length > 0) {
           categoryIds.push(existingCategory[0].id)
-        } else {
-          const newCategory = await sql`
-            INSERT INTO categories (name, slug)
-            VALUES (${categoryName}, ${categoryName.toLowerCase().replace(/\s+/g, '-')})
-            RETURNING id
-          `
-          
-          if (newCategory.length > 0) {
-            categoryIds.push(newCategory[0].id)
-          }
         }
       }
       
@@ -148,27 +161,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    if (tags && typeof tags === 'string' && tags.trim()) {
-      const tagNames = tags.split(',').map((name: string) => name.trim()).filter(Boolean)
-      const tagIds = []
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      const tagIds: string[] = []
       
-      for (const tagName of tagNames) {
+      for (const tagId of tags) {
         const existingTag = await sql`
-          SELECT id FROM tags WHERE name = ${tagName}
+          SELECT id FROM tags WHERE id = ${tagId}
         `
-        
         if (existingTag.length > 0) {
           tagIds.push(existingTag[0].id)
-        } else {
-          const newTag = await sql`
-            INSERT INTO tags (name, slug)
-            VALUES (${tagName}, ${tagName.toLowerCase().replace(/\s+/g, '-')})
-            RETURNING id
-          `
-          
-          if (newTag.length > 0) {
-            tagIds.push(newTag[0].id)
-          }
         }
       }
       

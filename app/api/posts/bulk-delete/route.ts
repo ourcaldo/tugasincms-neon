@@ -4,6 +4,12 @@ import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { deleteCachedData } from '@/lib/cache'
 import { invalidateSitemaps } from '@/lib/sitemap'
+import { z } from 'zod'
+
+// M-20: Validate UUID format for bulk delete IDs
+const bulkDeleteSchema = z.object({
+  postIds: z.array(z.string().uuid('Invalid post ID format')).min(1, 'postIds must be a non-empty array'),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,11 +19,13 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { postIds } = body
+    const validation = bulkDeleteSchema.safeParse(body)
     
-    if (!postIds || !Array.isArray(postIds) || postIds.length === 0) {
-      return validationErrorResponse('postIds must be a non-empty array')
+    if (!validation.success) {
+      return validationErrorResponse(validation.error.issues[0].message)
     }
+    
+    const { postIds } = validation.data
     
     const ownedPosts = await sql`
       SELECT id, status FROM posts

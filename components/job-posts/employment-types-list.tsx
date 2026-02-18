@@ -9,10 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Briefcase } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, Briefcase, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 import { Checkbox } from '../ui/checkbox'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface EmploymentType {
   id: string
@@ -23,7 +26,8 @@ interface EmploymentType {
 
 export function EmploymentTypesList() {
   const [types, setTypes] = useState<EmploymentType[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalTypes, setTotalTypes] = useState(0)
@@ -35,6 +39,9 @@ export function EmploymentTypesList() {
     slug: '',
   })
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -43,7 +50,7 @@ export function EmploymentTypesList() {
 
   const fetchTypes = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: EmploymentType[] }>('/job-data/employment-types')
       const typesData = response.data || []
       setTypes(typesData)
@@ -54,7 +61,7 @@ export function EmploymentTypesList() {
       setTypes([])
       setTotalTypes(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -65,7 +72,7 @@ export function EmploymentTypesList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: EmploymentType }>('/job-data/employment-types', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -80,7 +87,7 @@ export function EmploymentTypesList() {
       console.error('Error creating employment type:', error)
       toast.error('Failed to create employment type')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -91,7 +98,7 @@ export function EmploymentTypesList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: EmploymentType }>(`/job-data/employment-types/${editingType.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -106,19 +113,20 @@ export function EmploymentTypesList() {
       console.error('Error updating employment type:', error)
       toast.error('Failed to update employment type')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteType = async (typeId: string) => {
-    if (!confirm('Are you sure you want to delete this employment type? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteType = (typeId: string) => {
+    setDeleteTarget(typeId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/job-data/employment-types/${typeId}`)
-      const newTypes = types.filter(type => type.id !== typeId)
+      setMutationLoading(true)
+      await apiClient.delete(`/job-data/employment-types/${deleteTarget}`)
+      const newTypes = types.filter(type => type.id !== deleteTarget)
       setTypes(newTypes)
       setTotalTypes(newTypes.length)
 
@@ -132,19 +140,20 @@ export function EmploymentTypesList() {
       console.error('Error deleting employment type:', error)
       toast.error('Failed to delete employment type')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedTypes.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedTypes.size} selected employment types? This action cannot be undone.`)) {
-      return;
-    }
+    setBulkDeleteOpen(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true);
-      await Promise.all(Array.from(selectedTypes).map(id => apiClient.delete(`/job-data/employment-types/${id}`)));
+      setMutationLoading(true);
+      await apiClient.post('/job-data/employment-types/bulk-delete', { ids: Array.from(selectedTypes) });
 
       const newTypes = types.filter(type => !selectedTypes.has(type.id));
       setTypes(newTypes);
@@ -161,7 +170,8 @@ export function EmploymentTypesList() {
       console.error('Error deleting employment types:', error);
       toast.error('Failed to delete selected employment types');
     } finally {
-      setLoading(false);
+      setMutationLoading(false);
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -185,13 +195,18 @@ export function EmploymentTypesList() {
     setFormData({ name: '', slug: '' })
   }
 
-  const paginatedTypes = types.slice(
+  const filteredTypes = types.filter(type =>
+    type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    type.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedTypes = filteredTypes.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
 
   const isAllCurrentPageSelected = selectedTypes.size === paginatedTypes.length && paginatedTypes.length > 0;
-  const isAllDataSelected = selectedTypes.size === totalTypes && totalTypes > 0;
+  const isAllDataSelected = selectedTypes.size === filteredTypes.length && filteredTypes.length > 0;
 
   const handleSelectAll = () => {
     if (isAllDataSelected) {
@@ -214,10 +229,10 @@ export function EmploymentTypesList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Employment Types</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Employment Types</h1>
           <p className="text-muted-foreground mt-1">Manage job employment types</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -254,7 +269,7 @@ export function EmploymentTypesList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateType} disabled={loading}>
+              <Button onClick={handleCreateType} disabled={mutationLoading}>
                 Create Employment Type
               </Button>
             </DialogFooter>
@@ -262,8 +277,18 @@ export function EmploymentTypesList() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search employment types..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {selectedTypes.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedTypes.size} employment type{selectedTypes.size === 1 ? '' : 's'} selected
           </p>
@@ -272,7 +297,7 @@ export function EmploymentTypesList() {
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button
@@ -288,7 +313,7 @@ export function EmploymentTypesList() {
               size="sm"
               onClick={handleSelectAll}
             >
-              Select all {totalTypes} data
+              Select all {filteredTypes.length} data
             </Button>
           )}
         </div>
@@ -296,19 +321,15 @@ export function EmploymentTypesList() {
 
       <Card>
         <CardContent className="p-0">
-          {loading && types.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading employment types...</p>
-            </div>
+          {fetchLoading && types.length === 0 ? (
+            <LoadingState message="Loading employment types..." />
           ) : types.length === 0 ? (
-            <div className="text-center py-12">
-              <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No employment types yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Employment Type
-              </Button>
-            </div>
+            <EmptyState
+              icon={Briefcase}
+              title="No employment types yet"
+              description="Manage job employment types."
+              action={{ label: 'Create Your First Employment Type', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -367,10 +388,10 @@ export function EmploymentTypesList() {
                 </TableBody>
               </Table>
 
-              {totalTypes > itemsPerPage && (
+              {filteredTypes.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalTypes)} of {totalTypes} employment types
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTypes.length)} of {filteredTypes.length} employment types
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -382,9 +403,9 @@ export function EmploymentTypesList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalTypes / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredTypes.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalTypes / itemsPerPage)
+                          const totalPages = Math.ceil(filteredTypes.length / itemsPerPage)
                           return page === 1 ||
                                  page === totalPages ||
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -408,8 +429,8 @@ export function EmploymentTypesList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalTypes / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalTypes / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTypes.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredTypes.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -448,12 +469,27 @@ export function EmploymentTypesList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateType} disabled={loading}>
+            <Button onClick={handleUpdateType} disabled={mutationLoading}>
               Update Employment Type
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Employment Type"
+        description="Are you sure you want to delete this employment type? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Employment Types"
+        description={`Are you sure you want to delete ${selectedTypes.size} selected employment types? This action cannot be undone.`}
+      />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { unauthorizedResponse, errorResponse } from './response'
 import { setCorsHeaders, handleCorsPreflightRequest } from './cors'
+import { createHash } from 'crypto'
 
 export interface ApiToken {
   id: string
@@ -14,13 +15,25 @@ export interface ApiToken {
   created_at: string
 }
 
+/**
+ * Hash a raw API token with SHA-256 for storage/comparison.
+ * C-2: Tokens are stored hashed so a DB breach doesn't expose them.
+ */
+export function hashToken(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex')
+}
+
 export const verifyApiToken = async (token: string): Promise<ApiToken | null> => {
   if (!token) return null
   
   try {
+    const tokenHash = hashToken(token)
+    
+    // C-2: Compare hashed token; H-2: select only needed columns
     const result = await sql`
-      SELECT * FROM api_tokens
-      WHERE token = ${token}
+      SELECT id, user_id, name, expires_at, last_used_at, created_at
+      FROM api_tokens
+      WHERE token = ${tokenHash}
       LIMIT 1
     `
     
@@ -32,11 +45,15 @@ export const verifyApiToken = async (token: string): Promise<ApiToken | null> =>
       return null
     }
     
-    await sql`
-      UPDATE api_tokens
-      SET last_used_at = ${new Date().toISOString()}
-      WHERE id = ${apiToken.id}
-    `
+    // M-7: Throttle last_used_at writes — only update if >1 minute stale
+    const lastUsed = apiToken.last_used_at ? new Date(apiToken.last_used_at).getTime() : 0
+    if (Date.now() - lastUsed > 60_000) {
+      await sql`
+        UPDATE api_tokens
+        SET last_used_at = ${new Date().toISOString()}
+        WHERE id = ${apiToken.id}
+      `
+    }
     
     return apiToken
   } catch (error) {
@@ -58,7 +75,9 @@ export const getUserIdFromClerk = async (): Promise<string | null> => {
 export const extractBearerToken = (request: NextRequest): string | null => {
   const authHeader = request.headers.get('authorization')
   if (!authHeader) return null
-  return authHeader.replace('Bearer ', '')
+  // H-1: Verify scheme is actually Bearer, not just any auth header
+  if (!authHeader.startsWith('Bearer ')) return null
+  return authHeader.slice(7)
 }
 
 // ── Auth Wrappers ───────────────────────────────────────────────────────
@@ -103,7 +122,7 @@ export function withClerkAuth(
 export function withApiTokenAuth(
   handler: (request: NextRequest, token: ApiToken, origin: string | null) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, context?: any) => {
+  return async (request: NextRequest, _context?: any) => {
     const origin = request.headers.get('origin')
     try {
       const bearerToken = extractBearerToken(request)

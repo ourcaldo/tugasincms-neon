@@ -13,7 +13,7 @@ export function useToast() {
     if (variant === 'destructive') {
       sonnerToast.error(message)
     } else {
-      sonnerToast.success(message)
+      sonnerToast.info(message)
     }
   }
 

@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimitMiddleware } from '@/lib/rate-limit'
+import { ensureTrailingSlash } from '@/lib/url-utils'
 import { randomUUID } from 'crypto'
 
 // Force Node.js runtime because ioredis doesn't work in Edge Runtime
@@ -13,35 +14,13 @@ const isPublicRoute = createRouteMatcher([
   '/api/v1(.*)',
 ])
 
-// Helper function to normalize URLs with trailing slash
-function normalizeUrl(url: string): string {
-  const urlObj = new URL(url)
-
-  if (
-    urlObj.pathname === '/' ||
-    /\.[a-zA-Z0-9]+$/.test(urlObj.pathname) ||
-    urlObj.pathname.startsWith('/api/') ||
-    urlObj.search ||
-    urlObj.hash
-  ) {
-    return url
-  }
-
-  if (!urlObj.pathname.endsWith('/')) {
-    urlObj.pathname += '/'
-    return urlObj.toString()
-  }
-
-  return url
-}
-
 export default clerkMiddleware(async (auth, request: NextRequest) => {
   const url = request.nextUrl.clone()
   const requestId = request.headers.get('x-request-id') || randomUUID()
   const start = Date.now()
 
-  // Apply rate limiting to all /api/v1 routes
-  if (url.pathname.startsWith('/api/v1')) {
+  // Apply rate limiting to all /api/v1 routes (H-5: skip OPTIONS preflight)
+  if (url.pathname.startsWith('/api/v1') && request.method !== 'OPTIONS') {
     const rateLimitResponse = await rateLimitMiddleware(request)
     if (rateLimitResponse) {
       rateLimitResponse.headers.set('X-Request-ID', requestId)
@@ -65,7 +44,7 @@ export default clerkMiddleware(async (auth, request: NextRequest) => {
 
   // Handle trailing slash normalization for non-API routes
   if (!url.pathname.startsWith('/api/')) {
-    const normalizedUrl = normalizeUrl(request.url)
+    const normalizedUrl = ensureTrailingSlash(request.url)
 
     if (normalizedUrl !== request.url) {
       const redirect = NextResponse.redirect(normalizedUrl, 301)

@@ -8,8 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { Loader2, Search, FileText, BarChart3, Globe, RefreshCw } from 'lucide-react'
 
 interface SeoSettings {
@@ -65,7 +64,6 @@ export default function SeoSettingsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const { toast } = useToast()
 
   useEffect(() => {
     fetchSettings()
@@ -80,16 +78,17 @@ export default function SeoSettingsPage() {
       }
 
       const data = await response.json()
-      if (data.success) {
-        setSettings(data.data)
+      if (data.success && data.data) {
+        setSettings(prev => ({
+          ...prev,
+          ...Object.fromEntries(
+            Object.entries(data.data).filter(([, v]) => v !== null && v !== undefined)
+          ),
+        }))
       }
     } catch (error) {
       console.error('Error fetching SEO settings:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load SEO settings. Using defaults.',
-        variant: 'destructive'
-      })
+      toast.error('Failed to load SEO settings. Using defaults.')
     } finally {
       setLoading(false)
     }
@@ -113,20 +112,18 @@ export default function SeoSettingsPage() {
       }
 
       const data = await response.json()
-      if (data.success) {
-        setSettings(data.data)
-        toast({
-          title: 'Success',
-          description: 'SEO settings saved successfully!'
-        })
+      if (data.success && data.data) {
+        setSettings(prev => ({
+          ...prev,
+          ...Object.fromEntries(
+            Object.entries(data.data).filter(([, v]) => v !== null && v !== undefined)
+          ),
+        }))
+        toast.success('SEO settings saved successfully!')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving SEO settings:', error)
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to save SEO settings',
-        variant: 'destructive'
-      })
+      toast.error(error instanceof Error ? error.message : 'Failed to save SEO settings')
     } finally {
       setSaving(false)
     }
@@ -137,10 +134,7 @@ export default function SeoSettingsPage() {
       ...prev,
       robots_txt: defaultRobotsTxt
     }))
-    toast({
-      title: 'Reset',
-      description: 'Robots.txt content reset to default'
-    })
+    toast.info('Robots.txt content reset to default')
   }
 
   const handleInputChange = (field: keyof SeoSettings, value: any) => {
@@ -276,13 +270,13 @@ export default function SeoSettingsPage() {
             <Label htmlFor="meta-title">Default Meta Title</Label>
             <Input
               id="meta-title"
-              value={settings.default_meta_title}
+              value={settings.default_meta_title ?? ''}
               onChange={(e) => handleInputChange('default_meta_title', e.target.value)}
               placeholder="Your Site Title"
               maxLength={200}
             />
             <p className="text-sm text-muted-foreground">
-              {settings.default_meta_title.length}/200 characters
+              {(settings.default_meta_title ?? '').length}/200 characters
             </p>
           </div>
 
@@ -290,14 +284,14 @@ export default function SeoSettingsPage() {
             <Label htmlFor="meta-description">Default Meta Description</Label>
             <Textarea
               id="meta-description"
-              value={settings.default_meta_description}
+              value={settings.default_meta_description ?? ''}
               onChange={(e) => handleInputChange('default_meta_description', e.target.value)}
               placeholder="A brief description of your site..."
               maxLength={500}
               rows={3}
             />
             <p className="text-sm text-muted-foreground">
-              {settings.default_meta_description.length}/500 characters
+              {(settings.default_meta_description ?? '').length}/500 characters
             </p>
           </div>
 
@@ -306,7 +300,7 @@ export default function SeoSettingsPage() {
             <Input
               id="og-image"
               type="url"
-              value={settings.default_og_image}
+              value={settings.default_og_image ?? ''}
               onChange={(e) => handleInputChange('default_og_image', e.target.value)}
               placeholder="https://example.com/og-image.jpg"
             />
@@ -333,7 +327,7 @@ export default function SeoSettingsPage() {
             <Label htmlFor="ga-id">Google Analytics ID</Label>
             <Input
               id="ga-id"
-              value={settings.google_analytics_id}
+              value={settings.google_analytics_id ?? ''}
               onChange={(e) => handleInputChange('google_analytics_id', e.target.value)}
               placeholder="G-XXXXXXXXXX or UA-XXXXXXXXX-X"
               maxLength={50}
@@ -347,7 +341,7 @@ export default function SeoSettingsPage() {
             <Label htmlFor="gtm-id">Google Tag Manager ID</Label>
             <Input
               id="gtm-id"
-              value={settings.google_tag_manager_id}
+              value={settings.google_tag_manager_id ?? ''}
               onChange={(e) => handleInputChange('google_tag_manager_id', e.target.value)}
               placeholder="GTM-XXXXXXX"
               maxLength={50}

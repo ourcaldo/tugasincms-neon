@@ -25,12 +25,26 @@ export async function PUT(
     
     const { name, slug, description } = validation.data
     
+    // H-7: Check slug uniqueness before updating
+    if (slug) {
+      const slugExists = await sql`
+        SELECT id FROM categories WHERE slug = ${slug} AND id != ${id}
+      `
+      if (slugExists.length > 0) {
+        return validationErrorResponse('A category with this slug already exists')
+      }
+    }
+    
     const result = await sql`
       UPDATE categories
       SET name = ${name}, slug = ${slug}, description = ${description || null}, updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
     `
+    
+    if (!result || result.length === 0) {
+      return errorResponse('Category not found')
+    }
     
     const updatedCategory = result[0]
     
@@ -58,6 +72,13 @@ export async function DELETE(
     }
     
     const { id } = await params
+    
+    // H-11: Check if category exists before deleting
+    const existing = await sql`SELECT id FROM categories WHERE id = ${id}`
+    if (!existing || existing.length === 0) {
+      return errorResponse('Category not found')
+    }
+    
     await sql`
       DELETE FROM categories
       WHERE id = ${id}

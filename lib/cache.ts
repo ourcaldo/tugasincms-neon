@@ -39,7 +39,8 @@ export function getRedisClient(): Redis | null {
         },
         ...(useTLS && {
           tls: {
-            rejectUnauthorized: false,
+            // C-7: Enable certificate verification for TLS connections
+            rejectUnauthorized: true,
           },
         }),
         enableReadyCheck: false,
@@ -48,7 +49,7 @@ export function getRedisClient(): Redis | null {
 
       redisClient.on('connect', () => {
         redisAvailable = true
-        console.log('✅ Connected to Redis cache')
+        console.log('Connected to Redis cache')
       })
 
       redisClient.on('ready', () => {
@@ -85,10 +86,8 @@ export async function getCachedData<T>(key: string): Promise<T | null> {
   try {
     const cached = await client.get(key)
     if (cached) {
-      console.log(`✅ Cache HIT: ${key}`)
       return JSON.parse(cached)
     }
-    console.log(`❌ Cache MISS: ${key}`)
     return null
   } catch (error) {
     console.error(`Cache read error for key ${key}:`, error)
@@ -103,10 +102,8 @@ export async function setCachedData(key: string, data: any, ttl: number = CACHE_
   try {
     if (ttl === 0) {
       await client.set(key, JSON.stringify(data))
-      console.log(`💾 Cached: ${key} (No expiration)`)
     } else {
       await client.set(key, JSON.stringify(data), 'EX', ttl)
-      console.log(`💾 Cached: ${key} (TTL: ${ttl}s)`)
     }
     return true
   } catch (error) {
@@ -115,20 +112,30 @@ export async function setCachedData(key: string, data: any, ttl: number = CACHE_
   }
 }
 
+// H-3: Use SCAN instead of KEYS to avoid blocking Redis
+// M-8: Batch DEL in chunks of 100 to avoid arg-list limits
 export async function deleteCachedData(pattern: string): Promise<boolean> {
   const client = getRedisClient()
   if (!client) return false
 
   try {
     if (pattern.includes('*')) {
-      const keys = await client.keys(pattern)
-      if (keys.length > 0) {
-        await client.del(...keys)
-        console.log(`🗑️  Deleted ${keys.length} cache keys matching: ${pattern}`)
-      }
+      let cursor = '0'
+      let totalDeleted = 0
+      do {
+        const [nextCursor, keys] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
+        cursor = nextCursor
+        if (keys.length > 0) {
+          // Delete in batches of 100
+          for (let i = 0; i < keys.length; i += 100) {
+            const batch = keys.slice(i, i + 100)
+            await client.del(...batch)
+          }
+          totalDeleted += keys.length
+        }
+      } while (cursor !== '0')
     } else {
       await client.del(pattern)
-      console.log(`🗑️  Deleted cache key: ${pattern}`)
     }
     return true
   } catch (error) {

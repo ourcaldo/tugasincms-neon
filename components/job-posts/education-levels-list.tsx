@@ -9,10 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, GraduationCap } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, GraduationCap, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 import { Checkbox } from '../ui/checkbox'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface EducationLevel {
   id: string
@@ -23,7 +26,8 @@ interface EducationLevel {
 
 export function EducationLevelsList() {
   const [types, setTypes] = useState<EducationLevel[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalTypes, setTotalTypes] = useState(0)
@@ -35,6 +39,9 @@ export function EducationLevelsList() {
     slug: '',
   })
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -43,7 +50,7 @@ export function EducationLevelsList() {
 
   const fetchTypes = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: EducationLevel[] }>('/job-data/education-levels')
       const typesData = response.data || []
       setTypes(typesData)
@@ -54,7 +61,7 @@ export function EducationLevelsList() {
       setTypes([])
       setTotalTypes(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -65,7 +72,7 @@ export function EducationLevelsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: EducationLevel }>('/job-data/education-levels', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -80,7 +87,7 @@ export function EducationLevelsList() {
       console.error('Error creating education level:', error)
       toast.error('Failed to create education level')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -91,7 +98,7 @@ export function EducationLevelsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: EducationLevel }>(`/job-data/education-levels/${editingType.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -106,19 +113,20 @@ export function EducationLevelsList() {
       console.error('Error updating education level:', error)
       toast.error('Failed to update education level')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteType = async (typeId: string) => {
-    if (!confirm('Are you sure you want to delete this education level? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteType = (typeId: string) => {
+    setDeleteTarget(typeId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/job-data/education-levels/${typeId}`)
-      const newTypes = types.filter(type => type.id !== typeId)
+      setMutationLoading(true)
+      await apiClient.delete(`/job-data/education-levels/${deleteTarget}`)
+      const newTypes = types.filter(type => type.id !== deleteTarget)
       setTypes(newTypes)
       setTotalTypes(newTypes.length)
 
@@ -132,19 +140,20 @@ export function EducationLevelsList() {
       console.error('Error deleting education level:', error)
       toast.error('Failed to delete education level')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedTypes.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedTypes.size} selected education levels? This action cannot be undone.`)) {
-      return;
-    }
+    setBulkDeleteOpen(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true);
-      await Promise.all(Array.from(selectedTypes).map(id => apiClient.delete(`/job-data/education-levels/${id}`)));
+      setMutationLoading(true);
+      await apiClient.post('/job-data/education-levels/bulk-delete', { ids: Array.from(selectedTypes) });
 
       const newTypes = types.filter(type => !selectedTypes.has(type.id));
       setTypes(newTypes);
@@ -161,7 +170,8 @@ export function EducationLevelsList() {
       console.error('Error deleting education levels:', error);
       toast.error('Failed to delete selected education levels');
     } finally {
-      setLoading(false);
+      setMutationLoading(false);
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -185,13 +195,18 @@ export function EducationLevelsList() {
     setFormData({ name: '', slug: '' })
   }
 
-  const paginatedTypes = types.slice(
+  const filteredTypes = types.filter(type =>
+    type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    type.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedTypes = filteredTypes.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
 
   const isAllCurrentPageSelected = paginatedTypes.length > 0 && paginatedTypes.every(type => selectedTypes.has(type.id));
-  const isAllDataSelected = selectedTypes.size === totalTypes && totalTypes > 0;
+  const isAllDataSelected = selectedTypes.size === filteredTypes.length && filteredTypes.length > 0;
 
   const handleSelectAll = () => {
     if (isAllCurrentPageSelected) {
@@ -226,10 +241,10 @@ export function EducationLevelsList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Education Levels</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Education Levels</h1>
           <p className="text-muted-foreground mt-1">Manage job education levels</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -266,7 +281,7 @@ export function EducationLevelsList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateType} disabled={loading}>
+              <Button onClick={handleCreateType} disabled={mutationLoading}>
                 Create Education Level
               </Button>
             </DialogFooter>
@@ -274,8 +289,18 @@ export function EducationLevelsList() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search education levels..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {selectedTypes.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedTypes.size} education level{selectedTypes.size === 1 ? '' : 's'} selected
           </p>
@@ -284,7 +309,7 @@ export function EducationLevelsList() {
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button
@@ -300,7 +325,7 @@ export function EducationLevelsList() {
               size="sm"
               onClick={handleSelectAllData}
             >
-              Select all {totalTypes} data
+              Select all {filteredTypes.length} data
             </Button>
           )}
         </div>
@@ -308,19 +333,15 @@ export function EducationLevelsList() {
 
       <Card>
         <CardContent className="p-0">
-          {loading && types.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading education levels...</p>
-            </div>
+          {fetchLoading && types.length === 0 ? (
+            <LoadingState message="Loading education levels..." />
           ) : types.length === 0 ? (
-            <div className="text-center py-12">
-              <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No education levels yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Education Level
-              </Button>
-            </div>
+            <EmptyState
+              icon={GraduationCap}
+              title="No education levels yet"
+              description="Manage job education levels."
+              action={{ label: 'Create Your First Education Level', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -379,10 +400,10 @@ export function EducationLevelsList() {
                 </TableBody>
               </Table>
 
-              {totalTypes > itemsPerPage && (
+              {filteredTypes.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalTypes)} of {totalTypes} education levels
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTypes.length)} of {filteredTypes.length} education levels
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -394,9 +415,9 @@ export function EducationLevelsList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalTypes / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredTypes.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalTypes / itemsPerPage)
+                          const totalPages = Math.ceil(filteredTypes.length / itemsPerPage)
                           return page === 1 ||
                                  page === totalPages ||
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -420,8 +441,8 @@ export function EducationLevelsList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalTypes / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalTypes / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTypes.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredTypes.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -460,12 +481,27 @@ export function EducationLevelsList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateType} disabled={loading}>
+            <Button onClick={handleUpdateType} disabled={mutationLoading}>
               Update Education Level
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Education Level"
+        description="Are you sure you want to delete this education level? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Education Levels"
+        description={`Are you sure you want to delete ${selectedTypes.size} selected education levels? This action cannot be undone.`}
+      />
     </div>
   )
 }

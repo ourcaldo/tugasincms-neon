@@ -4,6 +4,7 @@ import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { mapPostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { INTERNAL_CACHE_TTL } from '@/lib/constants'
 import { updatePostSchema } from '@/lib/validation'
 import { invalidateSitemaps } from '@/lib/sitemap'
 
@@ -53,7 +54,7 @@ export async function GET(
     
     const mappedPost = mapPostFromDB(post[0] as any)
     
-    await setCachedData(cacheKey, mappedPost, 300)
+    await setCachedData(cacheKey, mappedPost, INTERNAL_CACHE_TTL)
     
     return successResponse(mappedPost, false)
   } catch (error) {
@@ -112,18 +113,22 @@ export async function PUT(
       WHERE id = ${id}
     `
     
-    await sql`DELETE FROM post_categories WHERE post_id = ${id}`
-    await sql`DELETE FROM post_tags WHERE post_id = ${id}`
-    
-    if (categories && categories.length > 0) {
-      for (const catId of categories) {
-        await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${id}, ${catId})`
+    // C-4: Only delete associations if the field was explicitly provided
+    if (categories !== undefined) {
+      await sql`DELETE FROM post_categories WHERE post_id = ${id}`
+      if (categories && categories.length > 0) {
+        for (const catId of categories) {
+          await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${id}, ${catId})`
+        }
       }
     }
     
-    if (tags && tags.length > 0) {
-      for (const tagId of tags) {
-        await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
+    if (tags !== undefined) {
+      await sql`DELETE FROM post_tags WHERE post_id = ${id}`
+      if (tags && tags.length > 0) {
+        for (const tagId of tags) {
+          await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
+        }
       }
     }
     

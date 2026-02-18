@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { UserSync } from '@/components/user-sync'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,9 @@ export default async function DashboardLayoutWrapper({
   return (
     <div className="min-h-screen bg-background">
       <UserSync />
-      <DashboardLayout>{children}</DashboardLayout>
+      <DashboardLayout>
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </DashboardLayout>
     </div>
   )
 }

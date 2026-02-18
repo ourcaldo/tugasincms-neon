@@ -60,7 +60,7 @@ Allow: /lowongan-kerja/
 Allow: /artikel/
 
 # Sitemaps (served via Nexjob middleware)
-Sitemap: https://nexjob.tech/sitemap.xml
+Sitemap: ${process.env.NEXT_PUBLIC_SITE_URL || 'https://nexjob.tech'}/sitemap.xml
 
 # Disallow admin and private areas
 Disallow: /admin/
@@ -171,16 +171,16 @@ export async function PUT(request: NextRequest) {
       `
     }
     
-    // Clear robots.txt cache
+    // H-12: Invalidate robots.txt cache when settings are updated
     try {
-      // You might want to implement cache invalidation here
-      // await deleteCachedData('robots:txt')
+      const { deleteCachedData } = await import('@/lib/cache')
+      await deleteCachedData('robots:txt')
     } catch (e) {
       console.warn('Failed to clear robots.txt cache:', e)
     }
     
     return setCorsHeaders(successResponse(result[0], false), origin)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating robots.txt settings:', error)
     return setCorsHeaders(errorResponse('Failed to update robots.txt settings'), origin)
   }

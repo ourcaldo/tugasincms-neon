@@ -4,6 +4,19 @@ import { verifyApiToken, extractBearerToken, getUserIdFromClerk } from '@/lib/au
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
+// C-3: Sanitize ad codes to prevent stored XSS
+function sanitizeAdCode(code: string): string {
+  if (!code || typeof code !== 'string') return ''
+  return code
+    // Strip event handlers (onerror, onload, onclick, etc.)
+    .replace(/\bon\w+\s*=\s*(["'])[\s\S]*?\1/gi, '')
+    .replace(/\bon\w+\s*=\s*[^\s>]+/gi, '')
+    // Strip javascript: / vbscript: / data:text/html protocol URIs
+    .replace(/(?:javascript|vbscript|data\s*:\s*text\/html)\s*:/gi, 'about:blank')
+    // Strip <iframe> (common XSS vector; ad codes should use <ins> or <script src>)
+    .replace(/<\/?iframe[^>]*>/gi, '')
+}
+
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin')
   return handleCorsPreflightRequest(origin)
@@ -155,7 +168,7 @@ export async function PUT(request: NextRequest) {
     if (popup_ad.url && popup_ad.url.trim() !== '') {
       try {
         new URL(popup_ad.url)
-      } catch (e) {
+      } catch (_e) {
         return setCorsHeaders(errorResponse('popup_ad.url must be a valid URL'), origin)
       }
     }
@@ -187,11 +200,11 @@ export async function PUT(request: NextRequest) {
           ${JSON.stringify(popup_ad.load_settings || [])},
           ${popup_ad.max_executions || 0},
           ${popup_ad.device || 'all'},
-          ${ad_codes.sidebar_archive || ''},
-          ${ad_codes.sidebar_single || ''},
-          ${ad_codes.single_top || ''},
-          ${ad_codes.single_bottom || ''},
-          ${ad_codes.single_middle || ''}
+          ${sanitizeAdCode(ad_codes.sidebar_archive || '')},
+          ${sanitizeAdCode(ad_codes.sidebar_single || '')},
+          ${sanitizeAdCode(ad_codes.single_top || '')},
+          ${sanitizeAdCode(ad_codes.single_bottom || '')},
+          ${sanitizeAdCode(ad_codes.single_middle || '')}
         )
       `
     } else {
@@ -204,11 +217,11 @@ export async function PUT(request: NextRequest) {
           popup_ad_load_settings = ${JSON.stringify(popup_ad.load_settings || [])},
           popup_ad_max_executions = ${popup_ad.max_executions || 0},
           popup_ad_device = ${popup_ad.device || 'all'},
-          sidebar_archive_ad_code = ${ad_codes.sidebar_archive || ''},
-          sidebar_single_ad_code = ${ad_codes.sidebar_single || ''},
-          single_top_ad_code = ${ad_codes.single_top || ''},
-          single_bottom_ad_code = ${ad_codes.single_bottom || ''},
-          single_middle_ad_code = ${ad_codes.single_middle || ''},
+          sidebar_archive_ad_code = ${sanitizeAdCode(ad_codes.sidebar_archive || '')},
+          sidebar_single_ad_code = ${sanitizeAdCode(ad_codes.sidebar_single || '')},
+          single_top_ad_code = ${sanitizeAdCode(ad_codes.single_top || '')},
+          single_bottom_ad_code = ${sanitizeAdCode(ad_codes.single_bottom || '')},
+          single_middle_ad_code = ${sanitizeAdCode(ad_codes.single_middle || '')},
           updated_at = now()
         WHERE id = ${settingId}
       `

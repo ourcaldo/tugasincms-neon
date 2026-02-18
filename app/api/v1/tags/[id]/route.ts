@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/lib/response'
 import { mapPostsFromDB, MappedPost } from '@/lib/post-mapper'
@@ -50,19 +51,18 @@ export async function GET(
       return setCorsHeaders(notFoundResponse('Tag not found'), origin)
     }
     
+    // M-15: Count only published posts to match data query filter
     const countResult = await sql`
-      SELECT COUNT(*)::int as count FROM post_tags WHERE tag_id = ${tag[0].id}
+      SELECT COUNT(*)::int as count
+      FROM post_tags pt_filter
+      JOIN posts p_filter ON pt_filter.post_id = p_filter.id
+      WHERE pt_filter.tag_id = ${tag[0].id} AND p_filter.status = 'published'
     `
     const count = countResult[0].count
     
-    const postTags = await sql`
-      SELECT post_id FROM post_tags WHERE tag_id = ${tag[0].id}
-    `
-    
-    const postIds = (postTags || []).map((pt: any) => pt.post_id)
-    
+    // M-16: Use subquery instead of fetching all post_ids into memory
     let postsData: MappedPost[] = []
-    if (postIds.length > 0) {
+    if (count > 0) {
       const posts = await sql`
         SELECT 
           p.*,
@@ -81,7 +81,8 @@ export async function GET(
         LEFT JOIN categories c ON pc.category_id = c.id
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
-        WHERE p.id = ANY(${postIds}) AND p.status = 'published'
+        WHERE p.id IN (SELECT post_id FROM post_tags WHERE tag_id = ${tag[0].id})
+          AND p.status = 'published'
         GROUP BY p.id
         ORDER BY p.publish_date DESC
         LIMIT ${limit} OFFSET ${offset}
@@ -112,7 +113,7 @@ export async function GET(
       }
     }
     
-    await setCachedData(cacheKey, responseData, 3600)
+    await setCachedData(cacheKey, responseData, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {

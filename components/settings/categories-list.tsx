@@ -4,16 +4,19 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, FolderOpen } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, FolderOpen, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
 import { Textarea } from '../ui/textarea'
 import { Checkbox } from '../ui/checkbox'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface Category {
   id: string
@@ -26,7 +29,8 @@ interface Category {
 
 export function CategoriesList() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalCategories, setTotalCategories] = useState(0)
@@ -39,6 +43,9 @@ export function CategoriesList() {
     description: '',
   })
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -47,7 +54,7 @@ export function CategoriesList() {
 
   const fetchCategories = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: Category[] }>('/categories')
       const categoriesData = response.data || []
       setCategories(categoriesData)
@@ -58,7 +65,7 @@ export function CategoriesList() {
       setCategories([])
       setTotalCategories(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -69,7 +76,7 @@ export function CategoriesList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: Category }>('/categories', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -85,7 +92,7 @@ export function CategoriesList() {
       console.error('Error creating category:', error)
       toast.error('Failed to create category')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -96,7 +103,7 @@ export function CategoriesList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: Category }>(`/categories/${editingCategory.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -112,19 +119,20 @@ export function CategoriesList() {
       console.error('Error updating category:', error)
       toast.error('Failed to update category')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteCategory = (categoryId: string) => {
+    setDeleteTarget(categoryId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/categories/${categoryId}`)
-      const newCategories = categories.filter(cat => cat.id !== categoryId)
+      setMutationLoading(true)
+      await apiClient.delete(`/categories/${deleteTarget}`)
+      const newCategories = categories.filter(cat => cat.id !== deleteTarget)
       setCategories(newCategories)
       setTotalCategories(newCategories.length)
 
@@ -138,19 +146,20 @@ export function CategoriesList() {
       console.error('Error deleting category:', error)
       toast.error('Failed to delete category')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedCategories.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedCategories.size} selected categories? This action cannot be undone.`)) {
-      return;
-    }
+    setBulkDeleteOpen(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true);
-      await Promise.all(Array.from(selectedCategories).map(id => apiClient.delete(`/categories/${id}`)));
+      setMutationLoading(true);
+      await apiClient.post('/categories/bulk-delete', { ids: Array.from(selectedCategories) });
 
       const newCategories = categories.filter(cat => !selectedCategories.has(cat.id));
       setCategories(newCategories);
@@ -167,7 +176,8 @@ export function CategoriesList() {
       console.error('Error deleting categories:', error);
       toast.error('Failed to delete selected categories');
     } finally {
-      setLoading(false);
+      setMutationLoading(false);
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -192,13 +202,18 @@ export function CategoriesList() {
     setFormData({ name: '', slug: '', description: '' })
   }
 
-  const paginatedCategories = categories.slice(
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    cat.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedCategories = filteredCategories.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
 
   const isAllCurrentPageSelected = selectedCategories.size === paginatedCategories.length && paginatedCategories.length > 0;
-  const isAllDataSelected = selectedCategories.size === totalCategories && totalCategories > 0;
+  const isAllDataSelected = selectedCategories.size === filteredCategories.length && filteredCategories.length > 0;
 
   const handleSelectAll = () => {
     if (isAllDataSelected) {
@@ -222,10 +237,10 @@ export function CategoriesList() {
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Categories</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
           <p className="text-muted-foreground mt-1">Organize your content with categories</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -272,7 +287,7 @@ export function CategoriesList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateCategory} disabled={loading}>
+              <Button onClick={handleCreateCategory} disabled={mutationLoading}>
                 Create Category
               </Button>
             </DialogFooter>
@@ -280,9 +295,20 @@ export function CategoriesList() {
         </Dialog>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search categories..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {/* Bulk Actions */}
       {selectedCategories.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedCategories.size} categor{selectedCategories.size === 1 ? 'y' : 'ies'} selected
           </p>
@@ -291,7 +317,7 @@ export function CategoriesList() {
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button
@@ -307,7 +333,7 @@ export function CategoriesList() {
               size="sm"
               onClick={handleSelectAll}
             >
-              Select all {totalCategories} data
+              Select all {filteredCategories.length} data
             </Button>
           )}
         </div>
@@ -315,19 +341,15 @@ export function CategoriesList() {
 
       <Card>
         <CardContent className="p-0">
-          {loading && categories.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading categories...</p>
-            </div>
+          {fetchLoading && categories.length === 0 ? (
+            <LoadingState message="Loading categories..." />
           ) : categories.length === 0 ? (
-            <div className="text-center py-12">
-              <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No categories yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Category
-              </Button>
-            </div>
+            <EmptyState
+              icon={FolderOpen}
+              title="No categories yet"
+              description="Organize your content with categories."
+              action={{ label: 'Create Your First Category', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -390,10 +412,10 @@ export function CategoriesList() {
                 </TableBody>
               </Table>
 
-              {totalCategories > itemsPerPage && (
+              {filteredCategories.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCategories)} of {totalCategories} categories
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredCategories.length)} of {filteredCategories.length} categories
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -405,9 +427,9 @@ export function CategoriesList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalCategories / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredCategories.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalCategories / itemsPerPage)
+                          const totalPages = Math.ceil(filteredCategories.length / itemsPerPage)
                           return page === 1 ||
                                  page === totalPages ||
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -431,8 +453,8 @@ export function CategoriesList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalCategories / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalCategories / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredCategories.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredCategories.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -481,12 +503,27 @@ export function CategoriesList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateCategory} disabled={loading}>
+            <Button onClick={handleUpdateCategory} disabled={mutationLoading}>
               Update Category
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Category"
+        description="Are you sure you want to delete this category? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Categories"
+        description={`Are you sure you want to delete ${selectedCategories.size} selected categories? This action cannot be undone.`}
+      />
     </div>
   )
 }

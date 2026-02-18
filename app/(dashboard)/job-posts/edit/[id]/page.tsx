@@ -4,8 +4,6 @@ import { useRouter, useParams } from 'next/navigation'
 import { JobPostEditor } from '@/components/job-posts/job-post-editor'
 import { toast } from 'sonner'
 
-export const dynamic = 'force-dynamic'
-
 export default function EditJobPostPage() {
   const router = useRouter()
   const params = useParams()
@@ -24,13 +22,11 @@ export default function EditJobPostPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <JobPostEditor
-        postId={postId}
-        onSave={handleSave}
-        onPreview={handlePreview}
-        onPublish={handlePublish}
-      />
-    </div>
+    <JobPostEditor
+      postId={postId}
+      onSave={handleSave}
+      onPreview={handlePreview}
+      onPublish={handlePublish}
+    />
   )
 }

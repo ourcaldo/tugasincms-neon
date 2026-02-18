@@ -44,8 +44,9 @@ CREATE TRIGGER update_robots_settings_updated_at
     BEFORE UPDATE ON robots_settings 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default robots.txt settings
-INSERT INTO robots_settings (robots_txt) VALUES (
+-- Insert default robots.txt settings (idempotent: uses fixed UUID)
+INSERT INTO robots_settings (id, robots_txt) VALUES (
+  '00000000-0000-0000-0000-000000000002',
   'User-agent: *
 Allow: /
 
@@ -70,4 +71,4 @@ Disallow: /search?
 
 # Crawl delay for politeness
 Crawl-delay: 1'
-) ON CONFLICT DO NOTHING;
+) ON CONFLICT (id) DO NOTHING;

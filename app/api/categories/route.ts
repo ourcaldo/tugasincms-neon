@@ -3,9 +3,10 @@ import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
+import { TAXONOMY_CACHE_TTL } from '@/lib/constants'
 import { categorySchema } from '@/lib/validation'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const userId = await getUserIdFromClerk()
     if (!userId) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       ORDER BY name
     `
     
-    await setCachedData(cacheKey, categories || [], 600)
+    await setCachedData(cacheKey, categories || [], TAXONOMY_CACHE_TTL)
     
     return successResponse(categories || [], false)
   } catch (error) {

@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const user = result[0]
     
     return successResponse(user, false, 200)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to upsert profile:', error)
     return errorResponse('Failed to create profile')
   }

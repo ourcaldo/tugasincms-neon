@@ -33,7 +33,7 @@ export async function GET(
     }
     
     return successResponse(user, false)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching profile:', error)
     return errorResponse('Failed to fetch profile')
   }

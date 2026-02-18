@@ -1,10 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { JobPostsList } from '@/components/job-posts/job-posts-list'
-
-export const dynamic = 'force-dynamic'
 
 interface JobPost {
   id: string
@@ -37,22 +34,20 @@ export default function JobPostsPage() {
   }
 
   const handleViewPost = (post: JobPost) => {
-    // For now, redirect to edit - can add preview later
-    router.push(`/job-posts/edit/${post.id}`)
+    // H-19: Open in new tab for viewing, not edit
+    window.open(`/job-posts/${post.id}`, '_blank')
   }
 
-  const handleDeletePost = (postId: string) => {
+  const handleDeletePost = (_postId: string) => {
     // Handled by the list component
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <JobPostsList
-        onCreatePost={handleCreatePost}
-        onEditPost={handleEditPost}
-        onViewPost={handleViewPost}
-        onDeletePost={handleDeletePost}
-      />
-    </div>
+    <JobPostsList
+      onCreatePost={handleCreatePost}
+      onEditPost={handleEditPost}
+      onViewPost={handleViewPost}
+      onDeletePost={handleDeletePost}
+    />
   )
 }

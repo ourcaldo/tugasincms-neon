@@ -47,8 +47,9 @@ export async function PUT(
     }
 
     return successResponse(result[0], false)
-  } catch (error: any) {
-    if (error?.code === '23505') {
+  } catch (error: unknown) {
+    console.error('Failed to update experience level:', error)
+    if (error instanceof Error && 'code' in error && (error as Record<string, unknown>).code === '23505') {
       return validationErrorResponse('An experience level with this slug already exists')
     }
     return errorResponse('Failed to update experience level')
@@ -74,6 +75,7 @@ export async function DELETE(
 
     return new NextResponse(null, { status: 204 })
   } catch (error) {
+    console.error('Failed to delete experience level:', error)
     return errorResponse('Failed to delete experience level')
   }
 }

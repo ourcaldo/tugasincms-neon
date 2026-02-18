@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDebounce } from '../../hooks/use-debounce';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
@@ -8,12 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Checkbox } from '../ui/checkbox';
-import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Loader2, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Edit, Trash, Eye, Calendar, Trash2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { LoadingState } from '../ui/loading-state';
+import { EmptyState } from '../ui/empty-state';
 import { Post, PostFilters, Category } from '../../types';
-import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { useApiClient } from '../../lib/api-client';
 import { toast } from 'sonner';
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog';
 
 interface PostsListProps {
   onCreatePost: () => void;
@@ -24,22 +27,26 @@ interface PostsListProps {
 
 export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }: PostsListProps) {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const [mutationLoading, setMutationLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalPosts, setTotalPosts] = useState(0);
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Category[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filters, setFilters] = useState<PostFilters>({
     search: '',
     status: undefined,
     category: undefined,
   });
   const apiClient = useApiClient();
+  const debouncedSearch = useDebounce(filters.search, 300);
 
   useEffect(() => {
     fetchPosts();
-  }, [currentPage, filters.search, filters.status, filters.category]);
+  }, [currentPage, debouncedSearch, filters.status, filters.category]);
 
   useEffect(() => {
     fetchCategories();
@@ -47,7 +54,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   const fetchPosts = async () => {
     try {
-      setLoading(true);
+      setFetchLoading(true);
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -68,7 +75,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       setPosts([]);
       setTotalPosts(0);
     } finally {
-      setLoading(false);
+      setFetchLoading(false);
     }
   };
 
@@ -84,14 +91,21 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   };
 
   const handleDelete = async (postId: string) => {
+    setDeleteTarget(postId);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await apiClient.delete(`/posts/${postId}`);
+      await apiClient.delete(`/posts/${deleteTarget}`);
       toast.success('Post deleted successfully');
       await fetchPosts();
-      onDeletePost(postId);
+      onDeletePost(deleteTarget);
     } catch (error) {
       console.error('Error deleting post:', error);
       toast.error('Failed to delete post');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -115,7 +129,10 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   const handleBulkDelete = async () => {
     if (selectedPosts.size === 0) return;
-    
+    setBulkDeleteOpen(true);
+  };
+
+  const confirmBulkDelete = async () => {
     try {
       const postIds = Array.from(selectedPosts);
       await apiClient.post('/posts/bulk-delete', { postIds });
@@ -127,6 +144,8 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     } catch (error) {
       console.error('Error bulk deleting posts:', error);
       toast.error('Failed to delete posts');
+    } finally {
+      setBulkDeleteOpen(false);
     }
   };
 
@@ -159,7 +178,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1>Posts</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Posts</h1>
             <p className="text-muted-foreground">
               Manage your blog posts and content
             </p>
@@ -236,7 +255,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
       {/* Bulk Actions */}
       {selectedPosts.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedPosts.size} post(s) selected
           </p>
@@ -261,10 +280,21 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       {/* Posts Table */}
       <Card>
         <CardContent className="p-0">
+          {fetchLoading && displayPosts.length === 0 ? (
+            <LoadingState message="Loading posts..." />
+          ) : displayPosts.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No posts found"
+              description="Get started by creating your first post."
+              action={{ label: 'Create Your First Post', onClick: onCreatePost }}
+            />
+          ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead className="w-10">
                   <Checkbox
                     checked={displayPosts.length > 0 && selectedPosts.size === displayPosts.length}
                     onCheckedChange={handleSelectAll}
@@ -366,25 +396,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
             </TableBody>
           </Table>
 
-          {displayPosts.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">No posts found</p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button onClick={onCreatePost}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Post
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Start creating content for your blog</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          )}
-
-          {displayPosts.length > 0 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t">
+          <div className="flex items-center justify-between px-6 py-4 border-t">
               <div className="text-sm text-muted-foreground">
                 Showing {startIndex + 1} to {endIndex} of {totalPosts} posts
               </div>
@@ -430,9 +442,24 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
                 </Button>
               </div>
             </div>
+          </>
           )}
         </CardContent>
       </Card>
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={confirmDelete}
+        title="Delete Post?"
+        description="This action cannot be undone. This will permanently delete this post."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Posts?"
+        description={`This action cannot be undone. This will permanently delete ${selectedPosts.size} selected post(s).`}
+      />
       </div>
     </TooltipProvider>
   );

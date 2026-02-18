@@ -9,9 +9,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { useToast } from '@/hooks/use-toast'
-import { Loader2, Save, RotateCcw, Eye, Trash2, AlertCircle } from 'lucide-react'
+import { toast } from 'sonner'
+import { Loader2, Save, RotateCcw, Trash2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
+import { PageHeader } from '@/components/layout/page-header'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface PopupAdSettings {
   enabled: boolean
@@ -56,7 +59,6 @@ export default function AdvertisementSettingsPage() {
   const [settings, setSettings] = useState<AdvertisementSettings>(defaultSettings)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const { toast } = useToast()
 
   useEffect(() => {
     fetchSettings()
@@ -65,20 +67,12 @@ export default function AdvertisementSettingsPage() {
   const fetchSettings = async () => {
     try {
       const response = await fetch('/api/v1/settings/advertisements')
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch settings')
-      }
-      
+      if (!response.ok) throw new Error('Failed to fetch settings')
       const result = await response.json()
       setSettings(result.data || defaultSettings)
     } catch (error) {
       console.error('Failed to fetch settings:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load advertisement settings',
-        variant: 'destructive'
-      })
+      toast.error('Failed to load advertisement settings')
     } finally {
       setLoading(false)
     }
@@ -89,36 +83,24 @@ export default function AdvertisementSettingsPage() {
     try {
       const response = await fetch('/api/v1/settings/advertisements', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(settings)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
       })
-      
-      if (!response.ok) {
-        throw new Error('Failed to save settings')
-      }
-      
-      toast({
-        title: 'Success',
-        description: 'Advertisement settings saved successfully'
-      })
+      if (!response.ok) throw new Error('Failed to save settings')
+      toast.success('Advertisement settings saved successfully')
     } catch (error) {
       console.error('Error saving settings:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to save settings',
-        variant: 'destructive'
-      })
+      toast.error('Failed to save settings')
     } finally {
       setSaving(false)
     }
   }
 
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+
   const resetToDefaults = () => {
-    if (confirm('Are you sure you want to reset all advertisement settings to defaults?')) {
-      setSettings(defaultSettings)
-    }
+    setSettings(defaultSettings)
+    setResetDialogOpen(false)
   }
 
   const updatePopupAd = (field: keyof PopupAdSettings, value: any) => {
@@ -146,21 +128,15 @@ export default function AdvertisementSettingsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    )
+    return <LoadingState message="Loading advertisement settings..." />
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Advertisement Settings</h1>
-        <p className="text-muted-foreground">
-          Manage popup advertisements and ad codes for your website
-        </p>
-      </div>
+      <PageHeader
+        title="Advertisement Settings"
+        description="Manage popup advertisements and ad codes for your website"
+      />
 
       {/* Popup Advertisement Settings */}
       <Card>
@@ -321,7 +297,7 @@ export default function AdvertisementSettingsPage() {
             </>
           )}
         </Button>
-        <Button variant="outline" onClick={resetToDefaults}>
+        <Button variant="outline" onClick={() => setResetDialogOpen(true)}>
           <RotateCcw className="w-4 h-4 mr-2" />
           Reset to Defaults
         </Button>
@@ -334,6 +310,15 @@ export default function AdvertisementSettingsPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      <ConfirmDeleteDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        onConfirm={resetToDefaults}
+        title="Reset to Defaults?"
+        description="This will reset all advertisement settings to their default values. Unsaved changes will be lost."
+        confirmLabel="Reset"
+      />
     </div>
   )
 }

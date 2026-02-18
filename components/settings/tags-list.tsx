@@ -4,15 +4,18 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { Plus, MoreHorizontal, Trash, Edit, Tag } from 'lucide-react'
+import { Plus, MoreHorizontal, Trash, Trash2, Edit, Tag, Search } from 'lucide-react'
+import { LoadingState } from '../ui/loading-state'
+import { EmptyState } from '../ui/empty-state'
 import { Checkbox } from '../ui/checkbox'
 import { toast } from 'sonner'
 import { useApiClient } from '../../lib/api-client'
+import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
 
 interface TagItem {
   id: string
@@ -24,7 +27,8 @@ interface TagItem {
 
 export function TagsList() {
   const [tags, setTags] = useState<TagItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchLoading, setFetchLoading] = useState(true)
+  const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
   const [totalTags, setTotalTags] = useState(0)
@@ -36,7 +40,10 @@ export function TagsList() {
     slug: '',
   })
   const apiClient = useApiClient()
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   useEffect(() => {
     fetchTags()
@@ -44,7 +51,7 @@ export function TagsList() {
 
   const fetchTags = async () => {
     try {
-      setLoading(true)
+      setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: TagItem[] }>('/tags')
       const tagsData = response.data || []
       setTags(tagsData)
@@ -55,7 +62,7 @@ export function TagsList() {
       setTags([])
       setTotalTags(0)
     } finally {
-      setLoading(false)
+      setFetchLoading(false)
     }
   }
 
@@ -66,7 +73,7 @@ export function TagsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.post<{ success: boolean; data: TagItem }>('/tags', {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -81,7 +88,7 @@ export function TagsList() {
       console.error('Error creating tag:', error)
       toast.error('Failed to create tag')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
@@ -92,7 +99,7 @@ export function TagsList() {
     }
 
     try {
-      setLoading(true)
+      setMutationLoading(true)
       const response = await apiClient.put<{ success: boolean; data: TagItem }>(`/tags/${editingTag.id}`, {
         name: formData.name.trim(),
         slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -107,19 +114,20 @@ export function TagsList() {
       console.error('Error updating tag:', error)
       toast.error('Failed to update tag')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
     }
   }
 
-  const handleDeleteTag = async (tagId: string) => {
-    if (!confirm('Are you sure you want to delete this tag? This action cannot be undone.')) {
-      return
-    }
+  const handleDeleteTag = (tagId: string) => {
+    setDeleteTarget(tagId)
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      setLoading(true)
-      await apiClient.delete(`/tags/${tagId}`)
-      const newTags = tags.filter(tag => tag.id !== tagId)
+      setMutationLoading(true)
+      await apiClient.delete(`/tags/${deleteTarget}`)
+      const newTags = tags.filter(tag => tag.id !== deleteTarget)
       setTags(newTags)
       setTotalTags(newTags.length)
 
@@ -133,20 +141,20 @@ export function TagsList() {
       console.error('Error deleting tag:', error)
       toast.error('Failed to delete tag')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setDeleteTarget(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedTags.size === 0) return
+    setBulkDeleteOpen(true)
+  }
 
-    if (!confirm(`Are you sure you want to delete ${selectedTags.size} selected tag(s)? This action cannot be undone.`)) {
-      return
-    }
-
+  const confirmBulkDelete = async () => {
     try {
-      setLoading(true)
-      await Promise.all(Array.from(selectedTags).map(id => apiClient.delete(`/tags/${id}`)))
+      setMutationLoading(true)
+      await apiClient.post('/tags/bulk-delete', { ids: Array.from(selectedTags) })
       const newTags = tags.filter(tag => !selectedTags.has(tag.id))
       setTags(newTags)
       setTotalTags(newTags.length)
@@ -162,7 +170,8 @@ export function TagsList() {
       console.error('Error deleting tags:', error)
       toast.error('Failed to delete selected tags')
     } finally {
-      setLoading(false)
+      setMutationLoading(false)
+      setBulkDeleteOpen(false)
     }
   }
 
@@ -207,7 +216,12 @@ export function TagsList() {
     }
   }
 
-  const paginatedTags = tags.slice(
+  const filteredTags = tags.filter(tag =>
+    tag.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    tag.slug.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const paginatedTags = filteredTags.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
@@ -236,10 +250,10 @@ export function TagsList() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Tags</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Tags</h1>
           <p className="text-muted-foreground mt-1">Label your content with tags for better organization</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -276,7 +290,7 @@ export function TagsList() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeCreateDialog}>Cancel</Button>
-              <Button onClick={handleCreateTag} disabled={loading}>
+              <Button onClick={handleCreateTag} disabled={mutationLoading}>
                 Create Tag
               </Button>
             </DialogFooter>
@@ -284,27 +298,29 @@ export function TagsList() {
         </Dialog>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search tags..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          className="pl-10"
+        />
+      </div>
+
       {/* Bulk Actions */}
       {selectedTags.size > 0 && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-4 bg-muted rounded-lg">
           <p className="text-sm">
             {selectedTags.size} tag{selectedTags.size === 1 ? '' : 's'} selected
           </p>
-          {selectedTags.size < tags.length && (
-            <Button 
-              variant="secondary" 
-              size="sm"
-              onClick={handleSelectAllData}
-            >
-              Select All {tags.length} Tags
-            </Button>
-          )}
           <Button 
             variant="destructive" 
             size="sm"
             onClick={handleBulkDelete}
           >
-            <Trash className="w-4 h-4 mr-2" />
+            <Trash2 className="w-4 h-4 mr-2" />
             Delete Selected
           </Button>
           <Button 
@@ -314,24 +330,29 @@ export function TagsList() {
           >
             Clear Selection
           </Button>
+          {selectedTags.size < tags.length && (
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={handleSelectAllData}
+            >
+              Select All {tags.length} Tags
+            </Button>
+          )}
         </div>
       )}
 
       <Card>
         <CardContent className="p-0">
-          {loading && tags.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading tags...</p>
-            </div>
+          {fetchLoading && tags.length === 0 ? (
+            <LoadingState message="Loading tags..." />
           ) : tags.length === 0 ? (
-            <div className="text-center py-12">
-              <Tag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No tags yet</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Tag
-              </Button>
-            </div>
+            <EmptyState
+              icon={Tag}
+              title="No tags yet"
+              description="Label your content with tags for better organization."
+              action={{ label: 'Create Your First Tag', onClick: () => setIsCreateDialogOpen(true) }}
+            />
           ) : (
             <>
               <Table>
@@ -390,10 +411,10 @@ export function TagsList() {
                 </TableBody>
               </Table>
 
-              {totalTags > itemsPerPage && (
+              {filteredTags.length > itemsPerPage && (
                 <div className="flex items-center justify-between px-6 py-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalTags)} of {totalTags} tags
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTags.length)} of {filteredTags.length} tags
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -405,9 +426,9 @@ export function TagsList() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(totalTags / itemsPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredTags.length / itemsPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(totalTags / itemsPerPage)
+                          const totalPages = Math.ceil(filteredTags.length / itemsPerPage)
                           return page === 1 || 
                                  page === totalPages || 
                                  (page >= currentPage - 1 && page <= currentPage + 1)
@@ -431,8 +452,8 @@ export function TagsList() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalTags / itemsPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(totalTags / itemsPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredTags.length / itemsPerPage), prev + 1))}
+                      disabled={currentPage === Math.ceil(filteredTags.length / itemsPerPage)}
                     >
                       Next
                     </Button>
@@ -471,12 +492,27 @@ export function TagsList() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog}>Cancel</Button>
-            <Button onClick={handleUpdateTag} disabled={loading}>
+            <Button onClick={handleUpdateTag} disabled={mutationLoading}>
               Update Tag
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="Delete Tag"
+        description="Are you sure you want to delete this tag? This action cannot be undone."
+      />
+      <ConfirmDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={confirmBulkDelete}
+        title="Delete Selected Tags"
+        description={`Are you sure you want to delete ${selectedTags.size} selected tag(s)? This action cannot be undone.`}
+      />
     </div>
   )
 }

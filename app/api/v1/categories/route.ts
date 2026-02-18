@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getCachedData, setCachedData } from '@/lib/cache'
+import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
@@ -47,29 +48,27 @@ export async function GET(request: NextRequest) {
     const count = countResult[0].count
     
     const categories = await sql`
-      SELECT * FROM categories
+      SELECT c.*, COALESCE(pc_count.count, 0)::int as post_count
+      FROM categories c
+      LEFT JOIN (
+        SELECT category_id, COUNT(*) as count
+        FROM post_categories
+        GROUP BY category_id
+      ) pc_count ON c.id = pc_count.category_id
       WHERE ${whereClause}
-      ORDER BY name ASC
+      ORDER BY c.name ASC
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    const categoriesWithCounts = await Promise.all(
-      (categories || []).map(async (category: any) => {
-        const postCountResult = await sql`
-          SELECT COUNT(*)::int as count FROM post_categories WHERE category_id = ${category.id}
-        `
-        
-        return {
-          id: category.id,
-          name: category.name,
-          slug: category.slug,
-          description: category.description,
-          postCount: postCountResult[0].count,
-          createdAt: category.created_at,
-          updatedAt: category.updated_at,
-        }
-      })
-    )
+    const categoriesWithCounts = (categories || []).map((category: any) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      postCount: category.post_count,
+      createdAt: category.created_at,
+      updatedAt: category.updated_at,
+    }))
     
     const totalPages = Math.ceil(count / limit)
     
@@ -85,7 +84,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    await setCachedData(cacheKey, responseData, 3600)
+    await setCachedData(cacheKey, responseData, API_CACHE_TTL)
     
     return setCorsHeaders(successResponse(responseData, false), origin)
   } catch (error) {

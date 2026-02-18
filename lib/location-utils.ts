@@ -24,7 +24,6 @@ export async function resolveLocationHierarchy(
   let canonicalDistrictId: string | null = null
   let canonicalVillageId: string | null = null
 
-  try {
     if (village_id) {
       const villageResult = await sql`
         SELECT v.id, v.district_id, d.regency_id, r.province_id
@@ -122,9 +121,6 @@ export async function resolveLocationHierarchy(
       district_id: canonicalDistrictId,
       village_id: canonicalVillageId,
     }
-  } catch (error) {
-    throw error
-  }
 }
 
 export async function findProvinceByNameOrId(input: string): Promise<string | null> {

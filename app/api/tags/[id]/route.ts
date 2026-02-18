@@ -25,12 +25,26 @@ export async function PUT(
     
     const { name, slug } = validation.data
     
+    // H-7: Check slug uniqueness before updating
+    if (slug) {
+      const slugExists = await sql`
+        SELECT id FROM tags WHERE slug = ${slug} AND id != ${id}
+      `
+      if (slugExists.length > 0) {
+        return validationErrorResponse('A tag with this slug already exists')
+      }
+    }
+    
     const result = await sql`
       UPDATE tags
       SET name = ${name}, slug = ${slug}, updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
     `
+    
+    if (!result || result.length === 0) {
+      return errorResponse('Tag not found')
+    }
     
     const updatedTag = result[0]
     
@@ -58,6 +72,13 @@ export async function DELETE(
     }
     
     const { id } = await params
+    
+    // H-11: Check if tag exists before deleting
+    const existing = await sql`SELECT id FROM tags WHERE id = ${id}`
+    if (!existing || existing.length === 0) {
+      return errorResponse('Tag not found')
+    }
+    
     await sql`
       DELETE FROM tags
       WHERE id = ${id}
