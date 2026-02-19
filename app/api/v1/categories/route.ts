@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    const categoriesWithCounts = (categories || []).map((category: any) => ({
+    const categoriesWithCounts = (categories || []).map((category) => ({
       id: category.id,
       name: category.name,
       slug: category.slug,

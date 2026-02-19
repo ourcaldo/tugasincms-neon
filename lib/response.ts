@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ensureTrailingSlash } from './url-utils'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string

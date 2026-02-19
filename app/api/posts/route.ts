@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
-import { mapPostsFromDB, mapPostFromDB } from '@/lib/post-mapper'
+import { mapPostsFromDB, mapPostFromDB, type PostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { INTERNAL_CACHE_TTL } from '@/lib/constants'
 import { postSchema } from '@/lib/validation'
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     
     const total = countResult[0].count
     
-    const postsWithRelations = mapPostsFromDB((posts || []) as any)
+    const postsWithRelations = mapPostsFromDB((posts || []) as PostFromDB[])
     
     const responseData = {
       posts: postsWithRelations,
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
       GROUP BY p.id
     `
     
-    return successResponse(mapPostFromDB(fullPost[0] as any), false, 201)
+    return successResponse(mapPostFromDB(fullPost[0] as PostFromDB), false, 201)
   } catch (error) {
     console.error('Error creating post:', error)
     return errorResponse('Failed to create post')

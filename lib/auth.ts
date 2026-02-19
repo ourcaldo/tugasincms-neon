@@ -91,15 +91,15 @@ export const extractBearerToken = (request: NextRequest): string | null => {
  *   export const GET = withClerkAuth(async (request, userId) => { ... })
  */
 export function withClerkAuth(
-  handler: (request: NextRequest, userId: string, context?: any) => Promise<NextResponse>
+  handler: (request: NextRequest, userId: string) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, context?: any) => {
+  return async (request: NextRequest) => {
     try {
       const userId = await getUserIdFromClerk()
       if (!userId) {
         return unauthorizedResponse('You must be logged in')
       }
-      return await handler(request, userId, context)
+      return await handler(request, userId)
     } catch (error) {
       console.error('Unhandled error in route handler:', error)
       return errorResponse('Internal server error')
@@ -122,7 +122,7 @@ export function withClerkAuth(
 export function withApiTokenAuth(
   handler: (request: NextRequest, token: ApiToken, origin: string | null) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, _context?: any) => {
+  return async (request: NextRequest) => {
     const origin = request.headers.get('origin')
     try {
       const bearerToken = extractBearerToken(request)

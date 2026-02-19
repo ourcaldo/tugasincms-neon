@@ -42,6 +42,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
       await Promise.allSettled(fetchers);
     };
     fetchAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cascading location: province → regencies
@@ -53,6 +54,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
       setDistricts([]);
       setVillages([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provinceId]);
 
   // Cascading location: regency → districts
@@ -63,6 +65,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
       setDistricts([]);
       setVillages([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regencyId]);
 
   // Cascading location: district → villages
@@ -72,12 +75,13 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
     } else {
       setVillages([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [districtId]);
 
   async function fetchData<T>(url: string, setter: React.Dispatch<React.SetStateAction<T[]>>) {
     try {
-      const result = await apiClient.get<any>(url);
-      const data = result.data || result;
+      const result = await apiClient.get<T[] | { data: T[] }>(url);
+      const data = 'data' in result && !Array.isArray(result) ? result.data : result;
       setter(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(`Error fetching ${url}:`, error);

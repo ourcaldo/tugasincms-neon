@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
-import { mapPagesFromDB, mapPageFromDB } from '@/lib/page-mapper'
+import { mapPagesFromDB, mapPageFromDB, type PageFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { INTERNAL_CACHE_TTL } from '@/lib/constants'
 import { pageSchema } from '@/lib/validation'
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     
     const total = countResult[0].count
     
-    const pagesWithRelations = mapPagesFromDB((pages || []) as any)
+    const pagesWithRelations = mapPagesFromDB((pages || []) as PageFromDB[])
     
     const responseData = {
       pages: pagesWithRelations,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
       GROUP BY p.id
     `
     
-    return successResponse(mapPageFromDB(fullPage[0] as any), false, 201)
+    return successResponse(mapPageFromDB(fullPage[0] as PageFromDB), false, 201)
   } catch (error) {
     console.error('Error creating page:', error)
     return errorResponse('Failed to create page')

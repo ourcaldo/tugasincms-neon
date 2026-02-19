@@ -8,7 +8,7 @@ import { JobFormData } from './types';
 interface AdditionalInfoTabProps {
   formData: JobFormData;
   setFormData: Dispatch<SetStateAction<JobFormData>>;
-  handleJobChange: (field: string, value: any) => void;
+  handleJobChange: (field: string, value: JobFormData['job'][keyof JobFormData['job']]) => void;
 }
 
 export function AdditionalInfoTab({

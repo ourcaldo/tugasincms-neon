@@ -49,7 +49,7 @@ export function getRedisClient(): Redis | null {
 
       redisClient.on('connect', () => {
         redisAvailable = true
-        console.log('Connected to Redis cache')
+        console.warn('Connected to Redis cache')
       })
 
       redisClient.on('ready', () => {
@@ -63,7 +63,7 @@ export function getRedisClient(): Redis | null {
 
       redisClient.on('close', () => {
         redisAvailable = false
-        console.log('Redis connection closed')
+        console.warn('Redis connection closed')
       })
 
       redisClient.on('end', () => {
@@ -95,7 +95,7 @@ export async function getCachedData<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function setCachedData(key: string, data: any, ttl: number = CACHE_TTL): Promise<boolean> {
+export async function setCachedData(key: string, data: unknown, ttl: number = CACHE_TTL): Promise<boolean> {
   const client = getRedisClient()
   if (!client) return false
 
@@ -121,7 +121,6 @@ export async function deleteCachedData(pattern: string): Promise<boolean> {
   try {
     if (pattern.includes('*')) {
       let cursor = '0'
-      let totalDeleted = 0
       do {
         const [nextCursor, keys] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100)
         cursor = nextCursor
@@ -131,7 +130,6 @@ export async function deleteCachedData(pattern: string): Promise<boolean> {
             const batch = keys.slice(i, i + 100)
             await client.del(...batch)
           }
-          totalDeleted += keys.length
         }
       } while (cursor !== '0')
     } else {

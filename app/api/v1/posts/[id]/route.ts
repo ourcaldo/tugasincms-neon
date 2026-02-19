@@ -4,7 +4,7 @@ import { getCachedData, setCachedData } from '@/lib/cache'
 import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse } from '@/lib/response'
-import { mapPostFromDB } from '@/lib/post-mapper'
+import { mapPostFromDB, PostFromDB } from '@/lib/post-mapper'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
 export async function OPTIONS(request: NextRequest) {
@@ -63,7 +63,7 @@ export async function GET(
       return setCorsHeaders(notFoundResponse('Post not found'), origin)
     }
     
-    const postWithRelations = mapPostFromDB(post[0] as any)
+    const postWithRelations = mapPostFromDB(post[0] as PostFromDB)
     
     await setCachedData(cacheKey, postWithRelations, API_CACHE_TTL)
     

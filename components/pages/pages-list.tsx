@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { TooltipProvider } from '../ui/tooltip';
 import { Checkbox } from '../ui/checkbox';
 import { Search, Plus, MoreHorizontal, Edit, Trash2, Eye, File } from 'lucide-react';
 import { format } from 'date-fns';
@@ -49,7 +49,6 @@ interface PagesListProps {
 export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }: PagesListProps) {
   const [pages, setPages] = useState<Page[]>([]);
   const [fetchLoading, setFetchLoading] = useState(true);
-  const [mutationLoading, setMutationLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
@@ -67,10 +66,12 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
 
   useEffect(() => {
     fetchPages();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, debouncedSearch, filters.status, filters.category]);
 
   useEffect(() => {
     fetchCategories();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPages = async () => {
@@ -86,7 +87,7 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
       if (filters.status && filters.status !== 'all') params.append('status', filters.status);
       if (filters.category && filters.category !== 'all') params.append('category', filters.category);
       
-      const response = await apiClient.get<any>(`/pages?${params.toString()}`);
+      const response = await apiClient.get<{ pages?: Page[]; total?: number; data?: { pages: Page[]; total: number } }>(`/pages?${params.toString()}`);
       const data = response?.data || response;
       setPages(Array.isArray(data.pages) ? data.pages : []);
       setTotalPages(data.total || 0);
@@ -102,7 +103,7 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
 
   const fetchCategories = async () => {
     try {
-      const response = await apiClient.get<any>('/categories');
+      const response = await apiClient.get<{ data?: Category[] }>('/categories');
       const categoriesData = response?.data || response || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {

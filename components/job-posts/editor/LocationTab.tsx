@@ -8,7 +8,7 @@ import { JobFormData, LocationData } from './types';
 
 interface LocationTabProps {
   formData: JobFormData;
-  handleJobChange: (field: string, value: any) => void;
+  handleJobChange: (field: string, value: JobFormData['job'][keyof JobFormData['job']]) => void;
   provinces: LocationData[];
   regencies: LocationData[];
   districts: LocationData[];

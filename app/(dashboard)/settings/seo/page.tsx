@@ -139,7 +139,7 @@ export default function SeoSettingsPage() {
     toast.info('Robots.txt content reset to default')
   }
 
-  const handleInputChange = (field: keyof SeoSettings, value: any) => {
+  const handleInputChange = (field: keyof SeoSettings, value: SeoSettings[keyof SeoSettings]) => {
     setSettings(prev => ({
       ...prev,
       [field]: value
@@ -264,7 +264,7 @@ export default function SeoSettingsPage() {
             Default Meta Tags
           </CardTitle>
           <CardDescription>
-            Set default meta tags for pages that don't have custom SEO settings
+            Set default meta tags for pages that don&apos;t have custom SEO settings
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

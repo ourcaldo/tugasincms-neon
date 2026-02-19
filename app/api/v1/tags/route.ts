@@ -46,7 +46,7 @@ export const GET = withApiTokenAuth(async (request: NextRequest, validToken: Api
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    const tagsWithCounts = (tags || []).map((tag: any) => ({
+    const tagsWithCounts = (tags || []).map((tag) => ({
       id: tag.id,
       name: tag.name,
       slug: tag.slug,

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
     }
     
-    console.log('Generating sitemaps...')
+    console.warn('Generating sitemaps...')
     const sitemaps = await generateAllSitemaps()
     
     const responseData = {

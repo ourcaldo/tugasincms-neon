@@ -28,7 +28,6 @@ interface PostsListProps {
 export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }: PostsListProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [fetchLoading, setFetchLoading] = useState(true);
-  const [mutationLoading, setMutationLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalPosts, setTotalPosts] = useState(0);
@@ -46,10 +45,12 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   useEffect(() => {
     fetchPosts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, debouncedSearch, filters.status, filters.category]);
 
   useEffect(() => {
     fetchCategories();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPosts = async () => {
@@ -65,7 +66,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       if (filters.status) params.append('status', filters.status);
       if (filters.category) params.append('category', filters.category);
       
-      const response = await apiClient.get<any>(`/posts?${params.toString()}`);
+      const response = await apiClient.get<{ posts?: Post[]; total?: number; data?: { posts: Post[]; total: number } }>(`/posts?${params.toString()}`);
       const data = response?.data || response;
       setPosts(Array.isArray(data.posts) ? data.posts : []);
       setTotalPosts(data.total || 0);
@@ -81,7 +82,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
 
   const fetchCategories = async () => {
     try {
-      const response = await apiClient.get<any>('/categories');
+      const response = await apiClient.get<{ data?: Category[] }>('/categories');
       const categoriesData = response?.data || response || [];
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {

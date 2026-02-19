@@ -35,14 +35,14 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse('No pages found or you do not own these pages')
     }
 
-    const ownedPageIds = ownedPages.map((p: Record<string, any>) => p.id)
+    const ownedPageIds = ownedPages.map((p: Record<string, unknown>) => p.id)
 
     await sql`DELETE FROM pages WHERE id = ANY(${ownedPageIds}) AND author_id = ${userId}`
 
     await deleteCachedData('api:pages:*')
     await deleteCachedData('api:v1:pages:*')
 
-    const hadPublishedPages = ownedPages.some((p: Record<string, any>) => p.status === 'published')
+    const hadPublishedPages = ownedPages.some((p: Record<string, unknown>) => p.status === 'published')
     if (hadPublishedPages) {
       await invalidateSitemaps()
     }

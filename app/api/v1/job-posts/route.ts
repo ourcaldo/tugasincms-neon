@@ -10,7 +10,6 @@ import {
 import { setCorsHeaders, handleCorsPreflightRequest } from "@/lib/cors";
 import { getCachedData, setCachedData, invalidateJobCaches } from "@/lib/cache";
 import { API_CACHE_TTL } from "@/lib/constants";
-import { z } from "zod";
 import { jobPostSchema } from "@/lib/validation";
 import {
   processJobCategoriesInput,
@@ -29,7 +28,7 @@ import {
   findVillageByNameOrId
 } from "@/lib/location-utils";
 
-async function normalizeJobPostPayload(body: any): Promise<any> {
+async function normalizeJobPostPayload(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const normalized = { ...body };
 
   const originalProvinceInput = normalized.job_province_id;
@@ -108,39 +107,39 @@ async function normalizeJobPostPayload(body: any): Promise<any> {
   }
 
   if (normalized.job_employment_type_id && normalized.job_employment_type_id !== '') {
-    normalized.job_employment_type_id = await findEmploymentTypeByNameOrSlug(normalized.job_employment_type_id);
+    normalized.job_employment_type_id = await findEmploymentTypeByNameOrSlug(normalized.job_employment_type_id as string);
   }
 
   if (normalized.job_experience_level_id && normalized.job_experience_level_id !== '') {
-    normalized.job_experience_level_id = await findExperienceLevelByNameOrSlug(normalized.job_experience_level_id);
+    normalized.job_experience_level_id = await findExperienceLevelByNameOrSlug(normalized.job_experience_level_id as string);
   }
 
   if (normalized.job_education_level_id && normalized.job_education_level_id !== '') {
-    normalized.job_education_level_id = await findEducationLevelByNameOrSlug(normalized.job_education_level_id);
+    normalized.job_education_level_id = await findEducationLevelByNameOrSlug(normalized.job_education_level_id as string);
   }
 
   if (normalized.job_province_id && normalized.job_province_id !== '') {
-    normalized.job_province_id = await findProvinceByNameOrId(normalized.job_province_id);
+    normalized.job_province_id = await findProvinceByNameOrId(normalized.job_province_id as string);
   }
 
   if (normalized.job_regency_id && normalized.job_regency_id !== '') {
-    normalized.job_regency_id = await findRegencyByNameOrId(normalized.job_regency_id, originalProvinceInput);
+    normalized.job_regency_id = await findRegencyByNameOrId(normalized.job_regency_id as string, originalProvinceInput as string | undefined);
   }
 
   if (normalized.job_district_id && normalized.job_district_id !== '') {
-    normalized.job_district_id = await findDistrictByNameOrId(normalized.job_district_id, originalRegencyInput, originalProvinceInput);
+    normalized.job_district_id = await findDistrictByNameOrId(normalized.job_district_id as string, originalRegencyInput as string | undefined, originalProvinceInput as string | undefined);
   }
 
   if (normalized.job_village_id && normalized.job_village_id !== '') {
-    normalized.job_village_id = await findVillageByNameOrId(normalized.job_village_id, originalDistrictInput, originalRegencyInput, originalProvinceInput);
+    normalized.job_village_id = await findVillageByNameOrId(normalized.job_village_id as string, originalDistrictInput as string | undefined, originalRegencyInput as string | undefined, originalProvinceInput as string | undefined);
   }
 
   if (normalized.job_province_id || normalized.job_regency_id || normalized.job_district_id || normalized.job_village_id) {
     const resolvedLocation = await resolveLocationHierarchy({
-      province_id: normalized.job_province_id || null,
-      regency_id: normalized.job_regency_id || null,
-      district_id: normalized.job_district_id || null,
-      village_id: normalized.job_village_id || null,
+      province_id: (normalized.job_province_id || null) as string | null,
+      regency_id: (normalized.job_regency_id || null) as string | null,
+      district_id: (normalized.job_district_id || null) as string | null,
+      village_id: (normalized.job_village_id || null) as string | null,
     });
 
     normalized.job_province_id = resolvedLocation.province_id || normalized.job_province_id;
@@ -477,7 +476,7 @@ export async function POST(request: NextRequest) {
     const validation = jobPostSchema.safeParse(normalizedBody);
 
     if (!validation.success) {
-      const errors = validation.error.issues.map((issue: any) => ({
+      const errors = validation.error.issues.map((issue) => ({
         field: issue.path.join('.'),
         message: issue.message,
       }));

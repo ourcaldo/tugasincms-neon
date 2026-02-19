@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type SetStateAction } from 'react';
 import { Button } from '../ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -11,12 +11,12 @@ import { LocationTab } from './editor/LocationTab';
 import { ApplicationTab } from './editor/ApplicationTab';
 import { AdditionalInfoTab } from './editor/AdditionalInfoTab';
 import { SEOTab } from './editor/SEOTab';
-import type { JobPostEditorProps } from './editor/types';
+import type { JobPostEditorProps, JobCategory, JobTag } from './editor/types';
 
 export function JobPostEditor({ postId, onSave, onPreview, onPublish: _onPublish }: JobPostEditorProps) {
   // Refs to break circular dependency between useJobPostForm ↔ useJobPostData
-  const setCategoriesRef = useRef<(v: any) => void>(() => {});
-  const setTagsRef = useRef<(v: any) => void>(() => {});
+  const setCategoriesRef = useRef<(v: SetStateAction<JobCategory[]>) => void>(() => {});
+  const setTagsRef = useRef<(v: SetStateAction<JobTag[]>) => void>(() => {});
 
   const form = useJobPostForm({
     postId,

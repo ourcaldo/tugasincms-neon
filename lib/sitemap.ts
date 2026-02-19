@@ -143,17 +143,17 @@ export async function generateBlogSitemaps(baseUrl?: string, cmsBaseUrl?: string
     WHERE p.status = 'published'
       AND (p.post_type = 'post' OR p.post_type IS NULL)
     ORDER BY p.updated_at DESC
-  `
+  ` as Array<{ id: string; slug: string; updated_at: string; category_slug: string }>
   
   // Group posts by id to get only the first category for each post
   const uniquePosts = new Map()
-  posts.forEach((post: any) => {
+  posts.forEach((post: { id: string; slug: string; updated_at: string; category_slug: string }) => {
     if (!uniquePosts.has(post.id)) {
       uniquePosts.set(post.id, post)
     }
   })
   
-  const blogUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: any) => {
+  const blogUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: { id: string; slug: string; updated_at: string; category_slug: string }) => {
     return {
       loc: `${url}/blog/${post.category_slug}/${post.slug}/`,
       lastmod: new Date(post.updated_at).toISOString(),
@@ -187,9 +187,9 @@ export async function generateJobCategorySitemap(baseUrl?: string): Promise<stri
       jc.updated_at
     FROM job_categories jc
     ORDER BY jc.name ASC
-  `
+  ` as Array<{ slug: string; updated_at: string | null }>
   
-  const categoryUrls: SitemapUrl[] = categories.map((category: any) => {
+  const categoryUrls: SitemapUrl[] = categories.map((category: { slug: string; updated_at: string | null }) => {
     return {
       loc: `${url}/lowongan-kerja/${category.slug}/`,
       lastmod: category.updated_at ? new Date(category.updated_at).toISOString() : new Date().toISOString(),
@@ -221,7 +221,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?:
       r.province_id
     FROM reg_regencies r
     ORDER BY r.name ASC
-  `
+  ` as Array<{ id: string; name: string; province_id: string }>
   
   // Group regencies by province_id
   const regenciesByProvince = new Map<string, typeof allRegencies>()
@@ -248,7 +248,7 @@ export async function generateJobLocationSitemaps(baseUrl?: string, cmsBaseUrl?:
         priority: 0.7
       })
       
-      regencies.forEach((regency: any) => {
+      regencies.forEach((regency: { id: string; name: string; province_id: string }) => {
         const regencySlug = createLocationSlug(regency.name)
         locationUrls.push({
           loc: `${url}/lowongan-kerja/lokasi/${provinceSlug}/${regencySlug}/`,
@@ -292,16 +292,16 @@ export async function generateJobSitemaps(baseUrl?: string, cmsBaseUrl?: string)
     LEFT JOIN job_categories jc ON jpc.category_id = jc.id
     WHERE jp.status = 'published'
     ORDER BY jp.updated_at DESC
-  `
+  ` as Array<{ id: string; slug: string; updated_at: string; category_slug: string }>
   
   const uniquePosts = new Map()
-  posts.forEach((post: any) => {
+  posts.forEach((post: { id: string; slug: string; updated_at: string; category_slug: string }) => {
     if (!uniquePosts.has(post.id)) {
       uniquePosts.set(post.id, post)
     }
   })
   
-  const jobUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: any) => {
+  const jobUrls: SitemapUrl[] = Array.from(uniquePosts.values()).map((post: { id: string; slug: string; updated_at: string; category_slug: string }) => {
     const postSlug = post.slug && post.slug.trim() !== '' ? post.slug : post.id
     return {
       loc: `${url}/jobs/${post.category_slug}/${postSlug}/`,
@@ -351,7 +351,7 @@ export interface GeneratedSitemaps {
   info: SitemapInfo[]
 }
 
-export async function generateAllSitemaps(requestHost?: string): Promise<GeneratedSitemaps> {
+export async function generateAllSitemaps(): Promise<GeneratedSitemaps> {
   const sitemapHost = getSitemapHost()
   const cmsHost = getCmsHost()
   const TTL = SITEMAP_CACHE_TTL
@@ -463,7 +463,7 @@ export async function generateAllSitemaps(requestHost?: string): Promise<Generat
 
   try { await setCachedData('sitemaps:info', sitemapInfo, TTL) } catch (e) { console.warn('Sitemap cache write failed:', e) }
 
-  console.log(`Sitemaps generated successfully (cached: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
+  console.warn(`Sitemaps generated successfully (cached: ${TTL}s) using CMS host: ${cmsHost}, Sitemap host: ${sitemapHost}`)
   
   return {
     root: rootSitemap,

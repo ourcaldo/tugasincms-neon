@@ -32,7 +32,7 @@ export function ExperienceLevelsList() {
   const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
-  const [totalLevels, setTotalLevels] = useState(0)
+  const [, setTotalLevels] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingLevel, setEditingLevel] = useState<ExperienceLevel | null>(null)
@@ -50,6 +50,7 @@ export function ExperienceLevelsList() {
 
   useEffect(() => {
     fetchLevels()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchLevels = async () => {

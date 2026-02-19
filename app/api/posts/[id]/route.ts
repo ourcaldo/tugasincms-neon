@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
-import { mapPostFromDB } from '@/lib/post-mapper'
+import { mapPostFromDB, type PostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { INTERNAL_CACHE_TTL } from '@/lib/constants'
 import { updatePostSchema } from '@/lib/validation'
@@ -52,7 +52,7 @@ export async function GET(
       return notFoundResponse('Post not found')
     }
     
-    const mappedPost = mapPostFromDB(post[0] as any)
+    const mappedPost = mapPostFromDB(post[0] as PostFromDB)
     
     await setCachedData(cacheKey, mappedPost, INTERNAL_CACHE_TTL)
     
@@ -163,7 +163,7 @@ export async function PUT(
       GROUP BY p.id
     `
     
-    return successResponse(mapPostFromDB(fullPost[0] as any), false)
+    return successResponse(mapPostFromDB(fullPost[0] as PostFromDB), false)
   } catch (error) {
     console.error('Error updating post:', error)
     return errorResponse('Failed to update post')

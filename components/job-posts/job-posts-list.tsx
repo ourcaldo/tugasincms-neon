@@ -65,7 +65,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     experience_level: undefined,
     job_category: undefined,
   });
-  const [_jobCategories, setJobCategories] = useState<Array<{ id: string; name: string; }>>([]);
+  const [, setJobCategories] = useState<Array<{ id: string; name: string; }>>([]);
   const [employmentTypes, setEmploymentTypes] = useState<Array<{ id: string; name: string; slug: string; }>>([]);
   const [experienceLevels, setExperienceLevels] = useState<Array<{ id: string; name: string; slug: string; }>>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -75,12 +75,14 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
 
   useEffect(() => {
     fetchPosts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, debouncedSearch, filters.status, filters.employment_type, filters.experience_level, filters.job_category]);
 
   useEffect(() => {
     fetchJobCategories();
     fetchEmploymentTypes();
     fetchExperienceLevels();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPosts = async () => {
@@ -98,7 +100,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       if (filters.experience_level) params.append('experience_level', filters.experience_level);
       if (filters.job_category) params.append('job_category', filters.job_category);
       
-      const response = await apiClient.get<any>(`/job-posts?${params.toString()}`);
+      const response = await apiClient.get<{ posts?: JobPost[]; total?: number; data?: { posts: JobPost[]; total: number } }>(`/job-posts?${params.toString()}`);
       const data = response?.data || response;
       setPosts(Array.isArray(data.posts) ? data.posts : Array.isArray(data) ? data : []);
       setTotalPosts(data.total || (Array.isArray(data) ? data.length : 0));
@@ -114,7 +116,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
 
   const fetchJobCategories = async () => {
     try {
-      const response = await apiClient.get<any>('/job-categories');
+      const response = await apiClient.get<{ data?: Array<{ id: string; name: string }> }>('/job-categories');
       const categoriesData = response?.data || response || [];
       setJobCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
@@ -125,7 +127,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
 
   const fetchEmploymentTypes = async () => {
     try {
-      const response = await apiClient.get<any>('/job-data/employment-types');
+      const response = await apiClient.get<{ data?: Array<{ id: string; name: string; slug: string }> }>('/job-data/employment-types');
       const types = response?.data || response || [];
       setEmploymentTypes(Array.isArray(types) ? types : []);
     } catch (error) {
@@ -136,7 +138,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
 
   const fetchExperienceLevels = async () => {
     try {
-      const response = await apiClient.get<any>('/job-data/experience-levels');
+      const response = await apiClient.get<{ data?: Array<{ id: string; name: string; slug: string }> }>('/job-data/experience-levels');
       const levels = response?.data || response || [];
       setExperienceLevels(Array.isArray(levels) ? levels : []);
     } catch (error) {

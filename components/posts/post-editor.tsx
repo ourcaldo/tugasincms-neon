@@ -53,7 +53,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
   const [newTag, setNewTag] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [_loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(!!postId && !post);
   const [categories, setCategories] = useState<Category[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -64,16 +64,18 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     if (postId && !post) {
       fetchPost();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   useEffect(() => {
     fetchCategories();
     fetchTags();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCategories = async () => {
     try {
-      const result = await apiClient.get<any>('/categories');
+      const result = await apiClient.get<{ data?: Category[] }>('/categories');
       const data = result.data || result;
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -84,7 +86,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
 
   const fetchTags = async () => {
     try {
-      const result = await apiClient.get<any>('/tags');
+      const result = await apiClient.get<{ data?: Tag[] }>('/tags');
       const data = result.data || result;
       setAllTags(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -97,7 +99,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     if (!postId) return;
     try {
       setLoading(true);
-      const result = await apiClient.get<any>(`/posts/${postId}`);
+      const result = await apiClient.get<Post & { data?: Post }>(`/posts/${postId}`);
       const data = result.data || result;
       
       setFormData({
@@ -154,8 +156,8 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     }));
   }, [formData.title, formData.excerpt]);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: string, value: unknown) => {
+    setFormData(prev => ({ ...prev, [field]: value }) as typeof prev);
   };
 
   const handleSEOChange = (field: string, value: string) => {
@@ -510,7 +512,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                     <Label htmlFor="slug">Slug</Label>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>The URL-friendly version of your post title (e.g., "my-awesome-post")</p>
+                    <p>The URL-friendly version of your post title (e.g., &quot;my-awesome-post&quot;)</p>
                   </TooltipContent>
                 </Tooltip>
                 <Input
@@ -628,7 +630,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
                       ))}
                     {!categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase()) && (
                       <div className="px-3 py-2 text-sm text-muted-foreground border-t">
-                        Press Enter or click Add to create "{newCategory}"
+                        Press Enter or click Add to create &quot;{newCategory}&quot;
                       </div>
                     )}
                   </div>

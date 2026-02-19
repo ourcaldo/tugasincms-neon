@@ -10,7 +10,7 @@ import { JobFormData, EmploymentType, ExperienceLevel, EducationLevel } from './
 
 interface JobDetailsTabProps {
   formData: JobFormData;
-  handleJobChange: (field: string, value: any) => void;
+  handleJobChange: (field: string, value: JobFormData['job'][keyof JobFormData['job']]) => void;
   handleCompanyLogoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   companyLogoUrl: string;
   setCompanyLogoUrl: (url: string) => void;

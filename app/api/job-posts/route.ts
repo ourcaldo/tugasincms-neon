@@ -4,7 +4,6 @@ import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
 import { invalidateSitemaps } from '@/lib/sitemap'
 import { invalidateJobCaches } from '@/lib/cache'
-import { z } from 'zod'
 import { jobPostSchema } from '@/lib/validation'
 import {
   processJobCategoriesInput,
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
     const validation = jobPostSchema.safeParse(body)
     
     if (!validation.success) {
-      const errors = validation.error.issues.map((issue: any) => ({
+      const errors = validation.error.issues.map((issue) => ({
         field: issue.path.join('.'),
         message: issue.message,
       }));

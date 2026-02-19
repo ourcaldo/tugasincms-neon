@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/database'
 import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse, notFoundResponse } from '@/lib/response'
-import { mapPageFromDB } from '@/lib/page-mapper'
+import { mapPageFromDB, type PageFromDB } from '@/lib/page-mapper'
 import { deleteCachedData } from '@/lib/cache'
 import { updatePageSchema } from '@/lib/validation'
 import { invalidateSitemaps } from '@/lib/sitemap'
@@ -45,7 +45,7 @@ export async function GET(
       return notFoundResponse('Page not found')
     }
     
-    return successResponse(mapPageFromDB(pageResult[0] as any))
+    return successResponse(mapPageFromDB(pageResult[0] as PageFromDB))
   } catch (error) {
     console.error('Error fetching page:', error)
     return errorResponse('Failed to fetch page')
@@ -151,7 +151,7 @@ export async function PUT(
       GROUP BY p.id
     `
     
-    return successResponse(mapPageFromDB(updatedPage[0] as any))
+    return successResponse(mapPageFromDB(updatedPage[0] as PageFromDB))
   } catch (error) {
     console.error('Error updating page:', error)
     return errorResponse('Failed to update page')

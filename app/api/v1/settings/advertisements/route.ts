@@ -168,7 +168,7 @@ export async function PUT(request: NextRequest) {
     if (popup_ad.url && popup_ad.url.trim() !== '') {
       try {
         new URL(popup_ad.url)
-      } catch (_e) {
+      } catch {
         return setCorsHeaders(errorResponse('popup_ad.url must be a valid URL'), origin)
       }
     }

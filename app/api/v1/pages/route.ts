@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
-import { mapPagesFromDB } from '@/lib/page-mapper'
+import { mapPagesFromDB, PageFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData } from '@/lib/cache'
 import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    const pagesWithRelations = mapPagesFromDB(pages as any || [])
+    const pagesWithRelations = mapPagesFromDB(pages as PageFromDB[] || [])
     
     const totalPages = Math.ceil(count / limit)
     

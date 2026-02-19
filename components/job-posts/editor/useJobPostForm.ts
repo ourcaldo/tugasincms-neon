@@ -53,7 +53,7 @@ const defaultFormData: JobFormData = {
 
 interface UseJobPostFormOptions {
   postId?: string;
-  onSave?: (post: any) => void;
+  onSave?: (post: Record<string, unknown>) => void;
   setJobCategories: Dispatch<SetStateAction<JobCategory[]>>;
   setJobTags: Dispatch<SetStateAction<JobTag[]>>;
 }
@@ -80,6 +80,7 @@ export function useJobPostForm({
     if (postId) {
       fetchJobPost();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
   // Auto-generate slug from title
@@ -113,8 +114,9 @@ export function useJobPostForm({
     if (!postId) return;
     try {
       setLoading(true);
-      const result = await apiClient.get<any>(`/job-posts/${postId}`);
-      const data = result.data || result;
+      const result = await apiClient.get<Record<string, unknown>>(`/job-posts/${postId}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: Record<string, any> = ((result.data as Record<string, unknown>) || result) as Record<string, any>;
 
       setFormData({
         title: data.title || '',
@@ -172,7 +174,7 @@ export function useJobPostForm({
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: JobFormData[keyof JobFormData]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -183,7 +185,7 @@ export function useJobPostForm({
     }));
   };
 
-  const handleJobChange = (field: string, value: any) => {
+  const handleJobChange = (field: string, value: JobFormData['job'][keyof JobFormData['job']]) => {
     setFormData(prev => ({
       ...prev,
       job: { ...prev.job, [field]: value },
@@ -294,7 +296,7 @@ export function useJobPostForm({
     }
   };
 
-  const buildJobPostData = (overrides: Record<string, any> = {}) => ({
+  const buildJobPostData = (overrides: Record<string, unknown> = {}) => ({
     title: formData.title,
     slug: formData.slug,
     content: formData.content,
@@ -351,11 +353,11 @@ export function useJobPostForm({
     return true;
   };
 
-  const submitJobPost = async (data: Record<string, any>) => {
+  const submitJobPost = async (data: Record<string, unknown>) => {
     const result = postId
-      ? await apiClient.put<any>(`/job-posts/${postId}`, data)
-      : await apiClient.post<any>('/job-posts', data);
-    return result.data || result;
+      ? await apiClient.put<Record<string, unknown>>(`/job-posts/${postId}`, data)
+      : await apiClient.post<Record<string, unknown>>('/job-posts', data);
+    return (result.data as Record<string, unknown>) || result;
   };
 
   const handleSave = async () => {

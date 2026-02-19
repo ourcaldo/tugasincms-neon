@@ -4,7 +4,6 @@ import { getUserIdFromClerk } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { invalidateSitemaps } from '@/lib/sitemap'
 import { invalidateJobCaches } from '@/lib/cache'
-import { z } from 'zod'
 import { updateJobPostSchema } from '@/lib/validation'
 import {
   processJobCategoriesInput,

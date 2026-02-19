@@ -103,7 +103,7 @@ export default function AdvertisementSettingsPage() {
     setResetDialogOpen(false)
   }
 
-  const updatePopupAd = (field: keyof PopupAdSettings, value: any) => {
+  const updatePopupAd = (field: keyof PopupAdSettings, value: PopupAdSettings[keyof PopupAdSettings]) => {
     setSettings(prev => ({
       ...prev,
       popup_ad: {

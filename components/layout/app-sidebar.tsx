@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   FileText,
   File,
-  Settings,
   LayoutDashboard,
   Briefcase,
   FolderKanban,

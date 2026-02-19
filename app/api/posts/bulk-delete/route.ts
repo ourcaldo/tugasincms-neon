@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse('No posts found or you do not own these posts')
     }
     
-    const ownedPostIds = ownedPosts.map((p: any) => p.id)
+    const ownedPostIds = ownedPosts.map((p: Record<string, unknown>) => p.id)
     
     await sql`DELETE FROM post_tags WHERE post_id = ANY(${ownedPostIds})`
     await sql`DELETE FROM post_categories WHERE post_id = ANY(${ownedPostIds})`
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     await deleteCachedData(`api:posts:user:${userId}`)
     await deleteCachedData('api:v1:posts:*')
     
-    const hadPublishedPosts = ownedPosts.some((p: any) => p.status === 'published')
+    const hadPublishedPosts = ownedPosts.some((p: Record<string, unknown>) => p.status === 'published')
     if (hadPublishedPosts) {
       await invalidateSitemaps()
     }

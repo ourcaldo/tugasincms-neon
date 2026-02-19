@@ -30,18 +30,19 @@ export function CustomPostTypesSettings() {
 
   useEffect(() => {
     fetchPostTypes()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchPostTypes = async () => {
     try {
-      const result = await apiClient.get<any>('/settings/custom-post-types')
+      const result = await apiClient.get<{ success: boolean; data: CustomPostType[]; error?: string }>('/settings/custom-post-types')
       
       if (result.success) {
         setPostTypes(result.data)
       } else {
         toast.error('Failed to fetch custom post types')
       }
-    } catch (_error) {
+    } catch {
       toast.error('Failed to fetch custom post types')
     } finally {
       setLoading(false)
@@ -57,7 +58,7 @@ export function CustomPostTypesSettings() {
     setUpdating(slug)
     
     try {
-      const result = await apiClient.put<any>(`/settings/custom-post-types/${slug}`, { is_enabled: !currentState })
+      const result = await apiClient.put<{ success: boolean; data: CustomPostType; error?: string }>(`/settings/custom-post-types/${slug}`, { is_enabled: !currentState })
 
       if (result.success) {
         setPostTypes(prev =>
@@ -69,7 +70,7 @@ export function CustomPostTypesSettings() {
       } else {
         toast.error(result.error || 'Failed to update custom post type')
       }
-    } catch (_error) {
+    } catch {
       toast.error('Failed to update custom post type')
     } finally {
       setUpdating(null)

@@ -34,7 +34,7 @@ export function ensureTrailingSlash(url: string): string {
     }
     
     return urlObj.toString()
-  } catch (error) {
+  } catch {
     // If URL parsing fails, return original
     return url
   }
@@ -65,7 +65,7 @@ export function removeTrailingSlash(url: string): string {
     }
     
     return urlObj.toString()
-  } catch (error) {
+  } catch {
     // If URL parsing fails, return original
     return url
   }
@@ -90,7 +90,7 @@ export function hasTrailingSlash(url: string): boolean {
   try {
     const urlObj = new URL(url, 'http://localhost')
     return urlObj.pathname.endsWith('/')
-  } catch (error) {
+  } catch {
     return url.endsWith('/')
   }
 }
@@ -139,7 +139,7 @@ export function isValidUrl(url: string, requireTrailingSlash: boolean = true): b
     // Check trailing slash requirement
     const hasSlash = urlObj.pathname.endsWith('/')
     return requireTrailingSlash ? hasSlash : !hasSlash
-  } catch (error) {
+  } catch {
     return false
   }
 }

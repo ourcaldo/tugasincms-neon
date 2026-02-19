@@ -17,7 +17,7 @@ import { JobFormData, JobCategory, JobTag } from './types';
 interface ContentTabProps {
   formData: JobFormData;
   setFormData: Dispatch<SetStateAction<JobFormData>>;
-  handleInputChange: (field: string, value: any) => void;
+  handleInputChange: (field: string, value: JobFormData[keyof JobFormData]) => void;
   handleImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   imageUrl: string;
   setImageUrl: (url: string) => void;
@@ -150,7 +150,7 @@ export function ContentTab({
             <Label>Status</Label>
             <Select
               value={formData.status}
-              onValueChange={(value: any) => handleInputChange('status', value)}
+              onValueChange={(value: string) => handleInputChange('status', value as JobFormData['status'])}
             >
               <SelectTrigger>
                 <SelectValue />

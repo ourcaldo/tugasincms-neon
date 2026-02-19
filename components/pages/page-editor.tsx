@@ -32,7 +32,7 @@ interface PageData {
   publishDate: Date;
   status: 'draft' | 'published' | 'scheduled';
   categories: Category[];
-  tags: any[];
+  tags: Tag[];
   template?: string;
   parentPageId?: string;
   menuOrder?: number;
@@ -90,27 +90,29 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     if (pageId && !page) {
       fetchPage();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageId]);
 
   useEffect(() => {
     fetchCategories();
     fetchTags();
     fetchPages();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCategories = async () => {
     try {
-      const result = await apiClient.get<any>('/categories');
+      const result = await apiClient.get<{ data?: Category[] }>('/categories');
       const data = result.data || result;
       setCategories(Array.isArray(data) ? data : []);
-    } catch (_error) {
+    } catch {
       setCategories([]);
     }
   };
 
   const fetchTags = async () => {
     try {
-      const result = await apiClient.get<any>('/tags');
+      const result = await apiClient.get<{ data?: Tag[] }>('/tags');
       const data = result.data || result;
       setAllTags(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -121,10 +123,10 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
 
   const fetchPages = async () => {
     try {
-      const result = await apiClient.get<any>('/pages');
+      const result = await apiClient.get<{ data?: { pages?: PageData[] } }>('/pages');
       const data = result.data?.pages || result.data || result;
       setPages(Array.isArray(data) ? data : []);
-    } catch (_error) {
+    } catch {
       setPages([]);
     }
   };
@@ -133,7 +135,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     if (!pageId) return;
     try {
       setLoading(true);
-      const result = await apiClient.get<any>(`/pages/${pageId}`);
+      const result = await apiClient.get<PageData & { data?: PageData }>(`/pages/${pageId}`);
       const data = result.data || result;
       
       setFormData({
@@ -157,7 +159,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
         },
       });
       setIsInitialLoad(false);
-    } catch (_error) {
+    } catch {
       toast.error('Failed to load page');
       setIsInitialLoad(false);
     } finally {
@@ -190,8 +192,8 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     }));
   }, [formData.title, formData.excerpt]);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: string, value: unknown) => {
+    setFormData(prev => ({ ...prev, [field]: value }) as PageData);
   };
 
   const handleSEOChange = (field: string, value: string) => {
@@ -226,7 +228,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
           categories: [...prev.categories, newCat]
         }));
         toast.success(`Category "${trimmedName}" created`);
-      } catch (_error) {
+      } catch {
         toast.error('Failed to create category');
       }
     }
@@ -346,7 +348,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
       }
       
       onSave(formData);
-    } catch (_error) {
+    } catch {
       toast.error('Failed to save page');
     } finally {
       setLoading(false);
@@ -394,7 +396,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
       toast.success('Page published successfully');
       onSave(publishData);
       if (onPublish) onPublish();
-    } catch (_error) {
+    } catch {
       toast.error('Failed to publish page');
     } finally {
       setLoading(false);
@@ -545,7 +547,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
                     <Label htmlFor="slug">Slug</Label>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>The URL-friendly version of your page title (e.g., "about-us")</p>
+                    <p>The URL-friendly version of your page title (e.g., &quot;about-us&quot;)</p>
                   </TooltipContent>
                 </Tooltip>
                 <Input
@@ -731,7 +733,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
                       ))}
                     {!categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase()) && (
                       <div className="px-3 py-2 text-sm text-muted-foreground border-t">
-                        Press Enter or click Add to create "{newCategory}"
+                        Press Enter or click Add to create &quot;{newCategory}&quot;
                       </div>
                     )}
                   </div>

@@ -55,7 +55,7 @@ export async function GET(
     let sitemapXml = await getCachedData(sitemapKey)
     
     if (!sitemapXml) {
-      console.log('Sitemap not found in cache, generating...')
+      console.warn('Sitemap not found in cache, generating...')
       const generated = await generateAllSitemaps()
       
       if (sitemapField) {

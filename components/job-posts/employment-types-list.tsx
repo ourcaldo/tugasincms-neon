@@ -30,7 +30,7 @@ export function EmploymentTypesList() {
   const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
-  const [totalTypes, setTotalTypes] = useState(0)
+  const [, setTotalTypes] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingType, setEditingType] = useState<EmploymentType | null>(null)
@@ -46,6 +46,7 @@ export function EmploymentTypesList() {
 
   useEffect(() => {
     fetchTypes()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchTypes = async () => {

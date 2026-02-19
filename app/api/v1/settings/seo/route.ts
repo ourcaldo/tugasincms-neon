@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
     const validation = robotsSettingsSchema.safeParse(body)
     
     if (!validation.success) {
-      const errors = validation.error.issues.map((issue: any) => ({
+      const errors = validation.error.issues.map((issue) => ({
         field: issue.path.join('.'),
         message: issue.message,
         code: issue.code

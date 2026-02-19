@@ -4,7 +4,7 @@ import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { API_CACHE_TTL } from '@/lib/constants'
 import { verifyApiToken, extractBearerToken } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
-import { mapPostsFromDB } from '@/lib/post-mapper'
+import { mapPostsFromDB, type PostFromDB } from '@/lib/post-mapper'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 import { publicPostSchema } from '@/lib/validation'
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       LIMIT ${limit} OFFSET ${offset}
     `
     
-    const postsWithRelations = mapPostsFromDB(publishedPosts as any || [])
+    const postsWithRelations = mapPostsFromDB((publishedPosts || []) as PostFromDB[])
     const totalPages = Math.ceil(total / limit)
     
     const responseData = {

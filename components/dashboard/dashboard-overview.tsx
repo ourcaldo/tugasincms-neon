@@ -50,49 +50,50 @@ export function DashboardOverview() {
 
   useEffect(() => {
     fetchDashboardData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchDashboardData = async () => {
     try {
       const [postsRes, pagesRes, jobPostsRes] = await Promise.all([
-        apiClient.get<any>('/posts?limit=5'),
-        apiClient.get<any>('/pages?limit=5'),
-        apiClient.get<any>('/job-posts?limit=5'),
+        apiClient.get<Record<string, unknown>>('/posts?limit=5'),
+        apiClient.get<Record<string, unknown>>('/pages?limit=5'),
+        apiClient.get<Record<string, unknown>>('/job-posts?limit=5'),
       ])
 
       const postsData = postsRes.data || postsRes
       const pagesData = pagesRes.data || pagesRes
       const jobPostsData = jobPostsRes.data || jobPostsRes
 
-      const posts = Array.isArray(postsData) ? postsData : postsData.posts || []
-      const pages = Array.isArray(pagesData) ? pagesData : pagesData.pages || []
-      const jobPosts = Array.isArray(jobPostsData) ? jobPostsData : jobPostsData.jobPosts || []
+      const posts: Record<string, unknown>[] = Array.isArray(postsData) ? postsData : ((postsData as Record<string, unknown>).posts as Record<string, unknown>[]) || []
+      const pages: Record<string, unknown>[] = Array.isArray(pagesData) ? pagesData : ((pagesData as Record<string, unknown>).pages as Record<string, unknown>[]) || []
+      const jobPosts: Record<string, unknown>[] = Array.isArray(jobPostsData) ? jobPostsData : ((jobPostsData as Record<string, unknown>).jobPosts as Record<string, unknown>[]) || []
 
-      const allItems = [
-        ...posts.map((p: any) => ({ ...p, type: 'post' as const })),
-        ...pages.map((p: any) => ({ ...p, type: 'page' as const })),
-        ...jobPosts.map((p: any) => ({ ...p, type: 'job-post' as const })),
+      const allItems: (Record<string, unknown> & { type: 'post' | 'page' | 'job-post' })[] = [
+        ...posts.map((p: Record<string, unknown>) => ({ ...p, type: 'post' as const })),
+        ...pages.map((p: Record<string, unknown>) => ({ ...p, type: 'page' as const })),
+        ...jobPosts.map((p: Record<string, unknown>) => ({ ...p, type: 'job-post' as const })),
       ]
 
       const published = allItems.filter((i) => i.status === 'published').length
       const draft = allItems.filter((i) => i.status === 'draft').length
 
       setStats({
-        totalPosts: postsData.total || posts.length,
-        totalPages: pagesData.total || pages.length,
-        totalJobPosts: jobPostsData.total || jobPosts.length,
+        totalPosts: (postsData as Record<string, unknown>).total as number || posts.length,
+        totalPages: (pagesData as Record<string, unknown>).total as number || pages.length,
+        totalJobPosts: (jobPostsData as Record<string, unknown>).total as number || jobPosts.length,
         publishedCount: published,
         draftCount: draft,
       })
 
       // Combine and sort by date
       const recent: RecentItem[] = allItems
-        .map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          status: item.status,
+        .map((item: Record<string, unknown> & { type: 'post' | 'page' | 'job-post' }) => ({
+          id: item.id as string,
+          title: item.title as string,
+          status: item.status as string,
           type: item.type,
-          updatedAt: item.updatedAt || item.updated_at || item.createdAt || item.created_at,
+          updatedAt: (item.updatedAt || item.updated_at || item.createdAt || item.created_at) as string,
         }))
         .sort((a: RecentItem, b: RecentItem) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()

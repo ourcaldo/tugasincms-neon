@@ -33,7 +33,7 @@ export function JobCategoriesList() {
   const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
-  const [totalCategories, setTotalCategories] = useState(0)
+  const [, setTotalCategories] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<JobCategory | null>(null)
@@ -50,6 +50,7 @@ export function JobCategoriesList() {
 
   useEffect(() => {
     fetchCategories()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchCategories = async () => {

@@ -6,7 +6,6 @@ import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 import { getCachedData, setCachedData, invalidateJobCaches } from '@/lib/cache'
 import { API_CACHE_TTL } from '@/lib/constants'
 import { invalidateSitemaps } from '@/lib/sitemap'
-import { z } from 'zod'
 import { updateJobPostSchema } from '@/lib/validation'
 import {
   processJobCategoriesInput,

@@ -82,7 +82,7 @@ export interface JobFormData {
 
 export interface JobPostEditorProps {
   postId?: string;
-  onSave?: (post: any) => void;
+  onSave?: (post: Record<string, unknown>) => void;
   onPreview?: () => void;
   onPublish?: () => void;
 }

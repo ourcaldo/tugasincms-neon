@@ -48,6 +48,7 @@ export function ApiTokens() {
     if (user?.id) {
       fetchTokens();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const fetchTokens = async () => {
@@ -177,7 +178,7 @@ export function ApiTokens() {
                       </Button>
                     </div>
                     <p className="text-sm text-amber-600 mt-2">
-                      ⚠️ Save this token now. You won't be able to see it again.
+                      ⚠️ Save this token now. You won&apos;t be able to see it again.
                     </p>
                   </div>
                   <Button onClick={handleCreateDialogClose} className="w-full">

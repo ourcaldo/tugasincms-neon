@@ -31,7 +31,7 @@ export function TagsList() {
   const [mutationLoading, setMutationLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
-  const [totalTags, setTotalTags] = useState(0)
+  const [, setTotalTags] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTag, setEditingTag] = useState<TagItem | null>(null)
@@ -47,6 +47,7 @@ export function TagsList() {
 
   useEffect(() => {
     fetchTags()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchTags = async () => {

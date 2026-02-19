@@ -10,7 +10,7 @@ import { JobFormData } from './types';
 
 interface ApplicationTabProps {
   formData: JobFormData;
-  handleJobChange: (field: string, value: any) => void;
+  handleJobChange: (field: string, value: JobFormData['job'][keyof JobFormData['job']]) => void;
   isDeadlineCalendarOpen: boolean;
   setIsDeadlineCalendarOpen: (open: boolean) => void;
 }
