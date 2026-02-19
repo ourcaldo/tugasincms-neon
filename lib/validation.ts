@@ -47,6 +47,55 @@ export const updateUserProfileSchema = z.object({
   name: z.string().max(200, 'Name is too long').optional(),
   bio: z.string().max(1000, 'Bio is too long').optional(),
   avatar: z.string().url('Invalid avatar URL').optional(),
+  phone: z.string().max(50, 'Phone number is too long').optional(),
+})
+
+// User preferences schema
+export const userPreferencesSchema = z.object({
+  newsletter_jobs: z.boolean().optional(),
+  newsletter_career: z.boolean().optional(),
+  notify_saved_job_updates: z.boolean().optional(),
+})
+
+// User skill schema
+export const userSkillSchema = z.object({
+  name: z.string().min(1, 'Skill name is required').max(100, 'Skill name is too long'),
+})
+
+export const userSkillsBatchSchema = z.object({
+  skills: z.array(z.string().min(1).max(100)).min(1, 'At least one skill is required').max(50, 'Maximum 50 skills'),
+})
+
+// User experience schema
+export const userExperienceSchema = z.object({
+  company_name: z.string().min(1, 'Company name is required').max(200, 'Company name is too long'),
+  company_logo: z.string().url('Invalid logo URL').optional().or(z.literal('')),
+  job_title: z.string().min(1, 'Job title is required').max(200, 'Job title is too long'),
+  location: z.string().max(200, 'Location is too long').optional(),
+  start_date: z.string().min(1, 'Start date is required'),
+  end_date: z.string().optional().nullable(),
+  is_current: z.boolean().optional(),
+  description: z.string().max(2000, 'Description is too long').optional(),
+})
+
+export const updateUserExperienceSchema = userExperienceSchema.partial()
+
+// User education schema
+export const userEducationSchema = z.object({
+  institution: z.string().min(1, 'Institution is required').max(200, 'Institution name is too long'),
+  degree: z.string().min(1, 'Degree is required').max(100, 'Degree is too long'),
+  field_of_study: z.string().max(200, 'Field of study is too long').optional(),
+  start_date: z.string().min(1, 'Start date is required'),
+  end_date: z.string().optional().nullable(),
+  is_current: z.boolean().optional(),
+  description: z.string().max(2000, 'Description is too long').optional(),
+})
+
+export const updateUserEducationSchema = userEducationSchema.partial()
+
+// Saved job schema
+export const savedJobSchema = z.object({
+  job_post_id: z.string().uuid('Invalid job post ID'),
 })
 
 export const publicPostSchema = z.object({
