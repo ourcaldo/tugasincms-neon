@@ -21,7 +21,7 @@ export default async function DashboardLayoutWrapper({
   // Only super_admin and admin can access the dashboard
   const role = await getUserRole(userId)
   if (role === 'user' || !role) {
-    redirect('/sign-in')
+    redirect('/access-denied')
   }
 
   return (

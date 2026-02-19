@@ -10,6 +10,7 @@ export const runtime = 'nodejs'
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/access-denied(.*)',
   '/api/public(.*)',
   '/api/v1(.*)',
   '/api/webhooks(.*)',
