@@ -45,3 +45,21 @@ export const sql: NeonQueryFunction<false, false> = new Proxy(function () {} as 
     return Reflect.get(getSql(), prop, receiver)
   },
 })
+
+/**
+ * Run a parameterised query with `$1`, `$2` placeholders (for dynamic WHERE clauses).
+ * Delegates to neon's `.query()` method under the hood.
+ *
+ * Usage:
+ *   const rows = await rawQuery('SELECT * FROM t WHERE id = $1', [id])
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function rawQuery<T = Record<string, any>>(
+  queryText: string,
+  params?: unknown[],
+): Promise<T[]> {
+  const client = getSql()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await (client as any).query(queryText, params)
+  return result as T[]
+}
