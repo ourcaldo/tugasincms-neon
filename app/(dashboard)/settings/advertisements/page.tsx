@@ -169,35 +169,32 @@ export default function AdvertisementSettingsPage() {
 
           <div className="space-y-3">
             <Label>Load Settings</Label>
+            <p className="text-sm text-muted-foreground">Choose which pages the popup ad will be active on</p>
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="load-all-pages"
-                  checked={settings.popup_ad.load_settings.includes('all_pages')}
-                  onCheckedChange={(checked) => {
-                    const current = settings.popup_ad.load_settings
-                    const updated = checked
-                      ? [...current, 'all_pages']
-                      : current.filter(s => s !== 'all_pages')
-                    updatePopupAd('load_settings', updated)
-                  }}
-                />
-                <Label htmlFor="load-all-pages">All Pages</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="load-single-articles"
-                  checked={settings.popup_ad.load_settings.includes('single_articles')}
-                  onCheckedChange={(checked) => {
-                    const current = settings.popup_ad.load_settings
-                    const updated = checked
-                      ? [...current, 'single_articles']
-                      : current.filter(s => s !== 'single_articles')
-                    updatePopupAd('load_settings', updated)
-                  }}
-                />
-                <Label htmlFor="load-single-articles">Single Articles</Label>
-              </div>
+              {[
+                { id: 'all_pages', label: 'All Pages', description: 'Active on every page of the site' },
+                { id: 'article_page', label: 'Article Pages', description: 'Article archive and single article pages' },
+                { id: 'job_post_page', label: 'Job Post Pages', description: 'Job listing archive, category, and location pages' },
+                { id: 'single_job_post', label: 'Single Job Post Detail', description: 'Individual job post detail pages' },
+              ].map(({ id, label, description }) => (
+                <div key={id} className="flex items-start space-x-2">
+                  <Checkbox
+                    id={`load-${id}`}
+                    checked={settings.popup_ad.load_settings.includes(id)}
+                    onCheckedChange={(checked) => {
+                      const current = settings.popup_ad.load_settings
+                      const updated = checked
+                        ? [...current, id]
+                        : current.filter(s => s !== id)
+                      updatePopupAd('load_settings', updated)
+                    }}
+                  />
+                  <div className="grid gap-0.5 leading-none">
+                    <Label htmlFor={`load-${id}`} className="cursor-pointer">{label}</Label>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

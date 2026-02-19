@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCachedData } from '@/lib/cache'
 import { generateAllSitemaps } from '@/lib/sitemap'
+import { verifyApiToken, extractBearerToken } from '@/lib/auth'
+import { unauthorizedResponse } from '@/lib/response'
+import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin')
+  return handleCorsPreflightRequest(origin)
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const origin = request.headers.get('origin')
+
   try {
+    // Auth check — same as other v1 routes
+    const token = extractBearerToken(request)
+    const validToken = await verifyApiToken(token || '')
+    if (!validToken) {
+      return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+    }
+
     const { path } = await params
     const filename = path.join('/')
     
