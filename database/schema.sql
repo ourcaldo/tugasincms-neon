@@ -518,7 +518,95 @@ CREATE INDEX idx_job_post_tags_job_post_id ON job_post_tags(job_post_id);
 CREATE INDEX idx_job_post_tags_tag_id ON job_post_tags(tag_id);
 
 -- ============================================================
--- 17. advertisement_settings (singleton config row)
+-- 17. user_skills
+-- ============================================================
+CREATE TABLE user_skills (
+  id          UUID NOT NULL DEFAULT gen_random_uuid(),
+  user_id     VARCHAR(255) NOT NULL,
+  name        VARCHAR(100) NOT NULL,
+  created_at  TIMESTAMP NOT NULL DEFAULT now(),
+  CONSTRAINT user_skills_pkey PRIMARY KEY (id),
+  CONSTRAINT user_skills_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT user_skills_user_name_unique UNIQUE (user_id, name)
+);
+
+CREATE INDEX idx_user_skills_user_id ON user_skills(user_id);
+
+-- ============================================================
+-- 18. user_experience
+-- ============================================================
+CREATE TABLE user_experience (
+  id              UUID NOT NULL DEFAULT gen_random_uuid(),
+  user_id         VARCHAR(255) NOT NULL,
+  company_name    VARCHAR(200) NOT NULL,
+  company_logo    TEXT,
+  job_title       VARCHAR(200) NOT NULL,
+  location        VARCHAR(200),
+  start_date      DATE NOT NULL,
+  end_date        DATE,
+  is_current      BOOLEAN NOT NULL DEFAULT false,
+  description     TEXT,
+  created_at      TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMP NOT NULL DEFAULT now(),
+  CONSTRAINT user_experience_pkey PRIMARY KEY (id),
+  CONSTRAINT user_experience_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_experience_user_id ON user_experience(user_id);
+
+CREATE TRIGGER trigger_user_experience_updated_at
+  BEFORE UPDATE ON user_experience
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- 19. user_education
+-- ============================================================
+CREATE TABLE user_education (
+  id              UUID NOT NULL DEFAULT gen_random_uuid(),
+  user_id         VARCHAR(255) NOT NULL,
+  institution     VARCHAR(200) NOT NULL,
+  degree          VARCHAR(100) NOT NULL,
+  field_of_study  VARCHAR(200),
+  start_date      DATE NOT NULL,
+  end_date        DATE,
+  is_current      BOOLEAN NOT NULL DEFAULT false,
+  description     TEXT,
+  created_at      TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMP NOT NULL DEFAULT now(),
+  CONSTRAINT user_education_pkey PRIMARY KEY (id),
+  CONSTRAINT user_education_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_education_user_id ON user_education(user_id);
+
+CREATE TRIGGER trigger_user_education_updated_at
+  BEFORE UPDATE ON user_education
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- 20. user_saved_jobs
+-- ============================================================
+CREATE TABLE user_saved_jobs (
+  id          UUID NOT NULL DEFAULT gen_random_uuid(),
+  user_id     VARCHAR(255) NOT NULL,
+  job_post_id UUID NOT NULL,
+  saved_at    TIMESTAMP NOT NULL DEFAULT now(),
+  CONSTRAINT user_saved_jobs_pkey PRIMARY KEY (id),
+  CONSTRAINT user_saved_jobs_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT user_saved_jobs_job_post_id_fkey FOREIGN KEY (job_post_id)
+    REFERENCES job_posts(id) ON DELETE CASCADE,
+  CONSTRAINT user_saved_jobs_user_job_unique UNIQUE (user_id, job_post_id)
+);
+
+CREATE INDEX idx_user_saved_jobs_user_id ON user_saved_jobs(user_id);
+CREATE INDEX idx_user_saved_jobs_job_post_id ON user_saved_jobs(job_post_id);
+
+-- ============================================================
+-- 21. advertisement_settings (singleton config row)
 -- ============================================================
 CREATE TABLE advertisement_settings (
   id                        UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -548,7 +636,7 @@ CREATE TRIGGER update_advertisement_settings_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
--- 18. robots_settings (singleton config row)
+-- 22. robots_settings (singleton config row)
 -- ============================================================
 CREATE TABLE robots_settings (
   id            UUID NOT NULL DEFAULT gen_random_uuid(),
