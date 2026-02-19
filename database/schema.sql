@@ -60,6 +60,7 @@ CREATE TABLE users (
   bio           TEXT,
   avatar        TEXT,
   phone         VARCHAR(50),
+  preferences   JSONB NOT NULL DEFAULT '{"newsletter_jobs":true,"newsletter_career":true,"notify_saved_job_updates":true}'::jsonb,
   role          VARCHAR(50) NOT NULL DEFAULT 'user',
   created_at    TIMESTAMP NOT NULL DEFAULT now(),
   updated_at    TIMESTAMP NOT NULL DEFAULT now(),
