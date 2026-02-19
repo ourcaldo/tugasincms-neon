@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { getUserIdFromClerk } from '@/lib/auth'
+import { getUserIdFromClerk, getUserRole } from '@/lib/auth'
 import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from '@/lib/response'
 
 export async function GET(
@@ -11,6 +11,11 @@ export async function GET(
     const currentUserId = await getUserIdFromClerk()
     if (!currentUserId) {
       return unauthorizedResponse('You must be logged in')
+    }
+
+    const role = await getUserRole(currentUserId)
+    if (role !== 'super_admin') {
+      return forbiddenResponse('Only super admins can manage API tokens')
     }
     
     const { userId } = await params

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { getUserIdFromClerk } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
+import { getUserIdFromClerk, getUserRole } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, notFoundResponse, validationErrorResponse } from '@/lib/response'
 import { z } from 'zod'
 
 const toggleCPTSchema = z.object({
@@ -16,6 +16,11 @@ export async function PUT(
     const userId = await getUserIdFromClerk()
     if (!userId) {
       return unauthorizedResponse('You must be logged in')
+    }
+
+    const role = await getUserRole(userId)
+    if (role !== 'super_admin') {
+      return forbiddenResponse('Only super admins can modify custom post types')
     }
 
     const { slug } = await params

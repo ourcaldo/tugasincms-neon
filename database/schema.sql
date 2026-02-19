@@ -59,12 +59,17 @@ CREATE TABLE users (
   name          VARCHAR(255),
   bio           TEXT,
   avatar        TEXT,
+  phone         VARCHAR(50),
+  role          VARCHAR(50) NOT NULL DEFAULT 'user',
   created_at    TIMESTAMP NOT NULL DEFAULT now(),
   updated_at    TIMESTAMP NOT NULL DEFAULT now(),
   password      TEXT,
   CONSTRAINT users_pkey PRIMARY KEY (id),
-  CONSTRAINT users_email_key UNIQUE (email)
+  CONSTRAINT users_email_key UNIQUE (email),
+  CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'admin', 'user'))
 );
+
+CREATE INDEX idx_users_role ON users(role);
 
 CREATE TRIGGER trigger_users_updated_at
   BEFORE UPDATE ON users

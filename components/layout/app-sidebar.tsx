@@ -33,6 +33,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from '../ui/sidebar';
+import { useRole } from '@/components/role-provider';
 
 interface CustomPostType {
   slug: string;
@@ -44,6 +45,7 @@ interface MenuItem {
   title: string;
   href: string;
   icon?: LucideIcon;
+  superAdminOnly?: boolean;
 }
 
 interface MenuGroup {
@@ -77,10 +79,10 @@ const baseMenuItems: MenuGroup[] = [
     title: 'Settings',
     items: [
       { title: 'Profile', href: '/settings/profile', icon: User },
-      { title: 'API Tokens', href: '/settings/tokens', icon: Key },
-      { title: 'Custom Post Types', href: '/settings/custom-post-types', icon: FileText },
-      { title: 'Advertisements', href: '/settings/advertisements', icon: Megaphone },
-      { title: 'SEO & Robots', href: '/settings/seo', icon: Bot },
+      { title: 'API Tokens', href: '/settings/tokens', icon: Key, superAdminOnly: true },
+      { title: 'Custom Post Types', href: '/settings/custom-post-types', icon: FileText, superAdminOnly: true },
+      { title: 'Advertisements', href: '/settings/advertisements', icon: Megaphone, superAdminOnly: true },
+      { title: 'SEO & Robots', href: '/settings/seo', icon: Bot, superAdminOnly: true },
     ],
   },
 ];
@@ -96,11 +98,32 @@ function isRouteActive(pathname: string | null, href: string): boolean {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const [menuItems, setMenuItems] = useState<MenuGroup[]>(baseMenuItems);
+  const role = useRole();
+  const [menuItems, setMenuItems] = useState<MenuGroup[]>(() => {
+    // Initial state already filtered by role
+    if (role === 'super_admin') return baseMenuItems;
+    return baseMenuItems
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !item.superAdminOnly),
+      }))
+      .filter((group) => group.items.length > 0);
+  });
 
   useEffect(() => {
     fetchCustomPostTypes();
-  }, []);
+  }, [role]);
+
+  // Filter menu items based on role — admin only sees Profile in Settings
+  const filterByRole = (groups: MenuGroup[]): MenuGroup[] => {
+    if (role === 'super_admin') return groups;
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !item.superAdminOnly),
+      }))
+      .filter((group) => group.items.length > 0);
+  };
 
   const fetchCustomPostTypes = async () => {
     try {
@@ -136,13 +159,13 @@ export function AppSidebar() {
             };
           });
 
-        setMenuItems([
+        setMenuItems(filterByRole([
           baseMenuItems[0], // Overview
           baseMenuItems[1], // Content
           ...dynamicMenus,
           baseMenuItems[2], // Management
           baseMenuItems[3], // Settings
-        ]);
+        ]));
       }
     } catch (error) {
       console.error('Error fetching custom post types:', error);

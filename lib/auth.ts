@@ -72,6 +72,24 @@ export const getUserIdFromClerk = async (): Promise<string | null> => {
   }
 }
 
+export type UserRole = 'super_admin' | 'admin' | 'user'
+
+/**
+ * Get the role of a user from the database.
+ */
+export const getUserRole = async (userId: string): Promise<UserRole | null> => {
+  try {
+    const result = await sql`
+      SELECT role FROM users WHERE id = ${userId} LIMIT 1
+    `
+    const user = result[0] as { role: UserRole } | undefined
+    return user?.role ?? null
+  } catch (error) {
+    console.error('Error getting user role:', error)
+    return null
+  }
+}
+
 export const extractBearerToken = (request: NextRequest): string | null => {
   const authHeader = request.headers.get('authorization')
   if (!authHeader) return null
@@ -98,6 +116,36 @@ export function withClerkAuth(
       const userId = await getUserIdFromClerk()
       if (!userId) {
         return unauthorizedResponse('You must be logged in')
+      }
+      return await handler(request, userId)
+    } catch (error) {
+      console.error('Unhandled error in route handler:', error)
+      return errorResponse('Internal server error')
+    }
+  }
+}
+
+/**
+ * Wraps a CMS route handler with Clerk auth + role-based access control.
+ * Only allows users with one of the specified roles.
+ *
+ * Usage:
+ *   export const GET = withRoleAuth(['super_admin'], async (request, userId) => { ... })
+ *   export const POST = withRoleAuth(['super_admin', 'admin'], async (request, userId) => { ... })
+ */
+export function withRoleAuth(
+  allowedRoles: UserRole[],
+  handler: (request: NextRequest, userId: string) => Promise<NextResponse>
+) {
+  return async (request: NextRequest) => {
+    try {
+      const userId = await getUserIdFromClerk()
+      if (!userId) {
+        return unauthorizedResponse('You must be logged in')
+      }
+      const role = await getUserRole(userId)
+      if (!role || !allowedRoles.includes(role)) {
+        return unauthorizedResponse('You do not have permission to access this resource')
       }
       return await handler(request, userId)
     } catch (error) {

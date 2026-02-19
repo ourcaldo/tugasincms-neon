@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { verifyApiToken, extractBearerToken, getUserIdFromClerk } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { verifyApiToken, extractBearerToken, getUserIdFromClerk, getUserRole } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, validationErrorResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 import { z } from 'zod'
 
@@ -35,6 +35,12 @@ export async function GET(request: NextRequest) {
 
         if (!userId) {
           return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+        }
+
+        // Only super_admin can access SEO settings from dashboard
+        const role = await getUserRole(userId)
+        if (role !== 'super_admin') {
+          return setCorsHeaders(forbiddenResponse('Only super admins can access SEO settings'), origin)
         }
       } catch (authError) {
         console.error('Clerk authentication error:', authError)
@@ -117,6 +123,12 @@ export async function PUT(request: NextRequest) {
 
         if (!userId) {
           return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+        }
+
+        // Only super_admin can modify SEO settings from dashboard
+        const role = await getUserRole(userId)
+        if (role !== 'super_admin') {
+          return setCorsHeaders(forbiddenResponse('Only super admins can modify SEO settings'), origin)
         }
       } catch (authError) {
         console.error('Clerk authentication error:', authError)

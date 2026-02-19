@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { verifyApiToken, extractBearerToken, getUserIdFromClerk } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/response'
+import { verifyApiToken, extractBearerToken, getUserIdFromClerk, getUserRole } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse } from '@/lib/response'
 import { setCorsHeaders, handleCorsPreflightRequest } from '@/lib/cors'
 
 // C-3: Sanitize ad codes to prevent stored XSS
@@ -43,6 +43,12 @@ export async function GET(request: NextRequest) {
 
         if (!userId) {
           return setCorsHeaders(unauthorizedResponse('Authentication required'), origin)
+        }
+
+        // Only super_admin can access advertisement settings from dashboard
+        const role = await getUserRole(userId)
+        if (role !== 'super_admin') {
+          return setCorsHeaders(forbiddenResponse('Only super admins can access advertisement settings'), origin)
         }
       } catch (authError) {
         console.error('Clerk authentication error:', authError)
@@ -130,6 +136,11 @@ export async function PUT(request: NextRequest) {
         const userId = await getUserIdFromClerk()
 
         if (userId) {
+          // Only super_admin can modify advertisement settings from dashboard
+          const role = await getUserRole(userId)
+          if (role !== 'super_admin') {
+            return setCorsHeaders(forbiddenResponse('Only super admins can modify advertisement settings'), origin)
+          }
           isAuthenticated = true
         }
       } catch (authError) {

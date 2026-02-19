@@ -26,6 +26,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { useClerk } from '@clerk/nextjs'
+import { useRole } from '@/components/role-provider'
 
 const routeLabels: Record<string, string> = {
   posts: 'Posts',
@@ -76,6 +77,7 @@ export function DashboardHeader({ onOpenSearch }: DashboardHeaderProps) {
   const { user } = useUser()
   const { signOut } = useClerk()
   const { theme, setTheme } = useTheme()
+  const role = useRole()
 
   const crumbs = buildBreadcrumbs(pathname || '/')
 
@@ -160,9 +162,11 @@ export function DashboardHeader({ onOpenSearch }: DashboardHeaderProps) {
             <DropdownMenuItem asChild>
               <Link href="/settings/profile">Profile Settings</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings/tokens">API Tokens</Link>
-            </DropdownMenuItem>
+            {role === 'super_admin' && (
+              <DropdownMenuItem asChild>
+                <Link href="/settings/tokens">API Tokens</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => signOut()}>
               Sign out
