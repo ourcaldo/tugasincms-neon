@@ -28,7 +28,8 @@ function getCmsHost(): string {
     return `https://${replitDomain.split(',')[0]}`
   }
   
-  return 'http://localhost:5000'
+  const port = process.env.PORT || '5000'
+  return `http://localhost:${port}`
 }
 
 function getSitemapHost(): string {
@@ -45,7 +46,8 @@ function getSitemapHost(): string {
     return `https://${replitDomain.split(',')[0]}`
   }
   
-  return 'http://localhost:5000'
+  const port = process.env.PORT || '5000'
+  return `http://localhost:${port}`
 }
 
 function getBaseUrl(requestHost?: string): string {

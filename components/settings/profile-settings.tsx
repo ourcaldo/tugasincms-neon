@@ -73,7 +73,7 @@ export function ProfileSettings() {
 
           <Button
             variant="outline"
-            onClick={() => window.open('https://accounts.clerk.dev/user', '_blank')}
+            onClick={() => window.open(process.env.NEXT_PUBLIC_CLERK_ACCOUNT_URL || 'https://accounts.clerk.dev/user', '_blank')}
             className="w-full"
           >
             <ExternalLink className="w-4 h-4 mr-2" />

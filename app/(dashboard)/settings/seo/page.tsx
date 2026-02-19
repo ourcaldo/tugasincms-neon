@@ -24,6 +24,8 @@ interface SeoSettings {
   updated_at: string
 }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexjob.tech'
+
 const defaultRobotsTxt = `User-agent: *
 Allow: /
 
@@ -32,7 +34,7 @@ Allow: /lowongan-kerja/
 Allow: /artikel/
 
 # Sitemaps (served via Nexjob middleware)
-Sitemap: https://nexjob.tech/sitemap.xml
+Sitemap: ${SITE_URL}/sitemap.xml
 
 # Disallow admin and private areas
 Disallow: /admin/
@@ -196,7 +198,7 @@ export default function SeoSettingsPage() {
               className="min-h-[300px] font-mono text-sm"
             />
             <p className="text-sm text-muted-foreground">
-              This content will be served at <code className="bg-muted px-1 py-0.5 rounded">https://nexjob.tech/robots.txt</code>
+              This content will be served at <code className="bg-muted px-1 py-0.5 rounded">{SITE_URL}/robots.txt</code>
             </p>
           </div>
         </CardContent>

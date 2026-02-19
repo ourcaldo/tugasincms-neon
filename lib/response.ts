@@ -49,7 +49,7 @@ export function redirectResponse(url: string, status: number = 301): NextRespons
     absoluteUrl = new URL(ensureTrailingSlash(url)).toString()
   } catch {
     // Relative URL — prefix with base URL from env or fallback
-    const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://localhost:3000'
+    const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:5000'
     absoluteUrl = new URL(ensureTrailingSlash(url), base).toString()
   }
   return NextResponse.redirect(absoluteUrl, status)
