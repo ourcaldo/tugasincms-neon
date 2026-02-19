@@ -17,7 +17,41 @@ interface ClerkUserEvent {
   type: string
 }
 
+/**
+ * Insert an audit row into webhook_logs.
+ */
+async function logWebhookEvent(opts: {
+  eventType: string
+  eventId: string | null
+  clerkUserId: string | null
+  payload: string
+  status: 'success' | 'error'
+  errorMessage?: string | null
+  ipAddress: string | null
+  processingMs: number
+}) {
+  try {
+    await sql`
+      INSERT INTO webhook_logs
+        (event_type, event_id, source, status, clerk_user_id, payload, error_message, ip_address, processing_ms)
+      VALUES
+        (${opts.eventType}, ${opts.eventId}, 'clerk', ${opts.status},
+         ${opts.clerkUserId}, ${opts.payload}::jsonb, ${opts.errorMessage ?? null},
+         ${opts.ipAddress}, ${opts.processingMs})
+    `
+  } catch (logErr) {
+    // Never let audit logging break the webhook response
+    console.error('Failed to write webhook audit log:', logErr)
+  }
+}
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  const ipAddress =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    null
+
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
   if (!webhookSecret) {
     console.error('CLERK_WEBHOOK_SECRET is not set')
@@ -30,6 +64,17 @@ export async function POST(request: NextRequest) {
   const svixSignature = request.headers.get('svix-signature')
 
   if (!svixId || !svixTimestamp || !svixSignature) {
+    // Log failed attempt (missing headers)
+    await logWebhookEvent({
+      eventType: 'unknown',
+      eventId: svixId,
+      clerkUserId: null,
+      payload: '{}',
+      status: 'error',
+      errorMessage: 'Missing Svix headers',
+      ipAddress,
+      processingMs: Date.now() - startTime,
+    })
     return NextResponse.json({ error: 'Missing Svix headers' }, { status: 400 })
   }
 
@@ -47,6 +92,16 @@ export async function POST(request: NextRequest) {
     }) as ClerkUserEvent
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
+    await logWebhookEvent({
+      eventType: 'unknown',
+      eventId: svixId,
+      clerkUserId: null,
+      payload: body,
+      status: 'error',
+      errorMessage: `Signature verification failed: ${err instanceof Error ? err.message : String(err)}`,
+      ipAddress,
+      processingMs: Date.now() - startTime,
+    })
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -85,13 +140,37 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        // Ignore other event types
+        // Ignore other event types but still log them
         break
     }
+
+    // Log successful processing
+    await logWebhookEvent({
+      eventType: type,
+      eventId: svixId,
+      clerkUserId: data.id || null,
+      payload: body,
+      status: 'success',
+      ipAddress,
+      processingMs: Date.now() - startTime,
+    })
 
     return NextResponse.json({ received: true }, { status: 200 })
   } catch (error) {
     console.error(`Webhook error processing ${type}:`, error)
+
+    // Log failure
+    await logWebhookEvent({
+      eventType: type,
+      eventId: svixId,
+      clerkUserId: data.id || null,
+      payload: body,
+      status: 'error',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      ipAddress,
+      processingMs: Date.now() - startTime,
+    })
+
     return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 })
   }
 }

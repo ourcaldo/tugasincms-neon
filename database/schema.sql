@@ -670,6 +670,30 @@ CREATE TRIGGER update_robots_settings_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
+-- 23. webhook_logs (audit trail for incoming webhooks)
+-- ============================================================
+CREATE TABLE webhook_logs (
+  id              UUID NOT NULL DEFAULT gen_random_uuid(),
+  event_type      VARCHAR(100) NOT NULL,
+  event_id        VARCHAR(255),
+  source          VARCHAR(50)  DEFAULT 'clerk',
+  status          VARCHAR(20)  DEFAULT 'success',
+  clerk_user_id   VARCHAR(255),
+  payload         JSONB,
+  error_message   TEXT,
+  ip_address      VARCHAR(45),
+  processing_ms   INTEGER,
+  created_at      TIMESTAMPTZ  DEFAULT NOW(),
+  CONSTRAINT webhook_logs_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_webhook_logs_event_type    ON webhook_logs(event_type);
+CREATE INDEX idx_webhook_logs_source        ON webhook_logs(source);
+CREATE INDEX idx_webhook_logs_status        ON webhook_logs(status);
+CREATE INDEX idx_webhook_logs_clerk_user_id ON webhook_logs(clerk_user_id);
+CREATE INDEX idx_webhook_logs_created_at    ON webhook_logs(created_at DESC);
+
+-- ============================================================
 -- Seed data: lookup tables
 -- ============================================================
 

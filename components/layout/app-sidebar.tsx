@@ -18,6 +18,7 @@ import {
   Key,
   Megaphone,
   Bot,
+  Webhook,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -83,6 +84,7 @@ const baseMenuItems: MenuGroup[] = [
       { title: 'Custom Post Types', href: '/settings/custom-post-types', icon: FileText, superAdminOnly: true },
       { title: 'Advertisements', href: '/settings/advertisements', icon: Megaphone, superAdminOnly: true },
       { title: 'SEO & Robots', href: '/settings/seo', icon: Bot, superAdminOnly: true },
+      { title: 'Webhook Logs', href: '/settings/webhook-logs', icon: Webhook, superAdminOnly: true },
     ],
   },
 ];

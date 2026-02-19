@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Settings, User, FileText, Megaphone, Bot } from 'lucide-react'
+import { Settings, User, FileText, Megaphone, Bot, Webhook } from 'lucide-react'
 import Link from 'next/link'
 
 const settingsPages = [
@@ -28,6 +28,12 @@ const settingsPages = [
     description: 'Configure robots.txt file for search engine crawlers',
     href: '/settings/robots',
     icon: Bot,
+  },
+  {
+    title: 'Webhook Logs',
+    description: 'View audit trail of incoming Clerk webhook events',
+    href: '/settings/webhook-logs',
+    icon: Webhook,
   },
 ]
 
