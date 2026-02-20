@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { getUserIdFromClerk } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { getUserIdFromClerk, getUserRole } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, validationErrorResponse } from '@/lib/response'
 import { mapPostsFromDB, mapPostFromDB, type PostFromDB } from '@/lib/post-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { INTERNAL_CACHE_TTL } from '@/lib/constants'
@@ -105,6 +105,12 @@ export async function POST(request: NextRequest) {
       return unauthorizedResponse('You must be logged in')
     }
     
+    // H-4: Enforce role — only admins and super_admins can create posts
+    const role = await getUserRole(userId)
+    if (!role || !['super_admin', 'admin'].includes(role)) {
+      return forbiddenResponse('You do not have permission to create posts')
+    }
+    
     const body = await request.json()
     
     const validation = postSchema.safeParse(body)
@@ -130,19 +136,19 @@ export async function POST(request: NextRequest) {
     const newPost = postResult[0]
     
     if (categories && categories.length > 0) {
-      for (const catId of categories) {
-        await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${newPost.id}, ${catId})`
-      }
+      await sql`INSERT INTO post_categories (post_id, category_id)
+        SELECT ${newPost.id}, unnest(${categories}::uuid[])
+        ON CONFLICT DO NOTHING`
     }
     
     if (tags && tags.length > 0) {
-      for (const tagId of tags) {
-        await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${newPost.id}, ${tagId})`
-      }
+      await sql`INSERT INTO post_tags (post_id, tag_id)
+        SELECT ${newPost.id}, unnest(${tags}::uuid[])
+        ON CONFLICT DO NOTHING`
     }
     
     await deleteCachedData('api:public:posts:*')
-    await deleteCachedData(`api:posts:user:${userId}`)
+    await deleteCachedData(`api:posts:user:${userId}:*`)
     await deleteCachedData('api:v1:posts:*')
     
     if (status === 'published') {

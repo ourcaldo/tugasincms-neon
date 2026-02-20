@@ -4,13 +4,14 @@ import {
   successResponse,
   errorResponse,
   notFoundResponse,
+  forbiddenResponse,
 } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
 
 export { apiTokenOptions as OPTIONS }
 
 // DELETE /api/v1/users/[clerkId]/skills/[skillId] — Delete a single skill
-export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
+export const DELETE = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -19,6 +20,11 @@ export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId || !skillId) {
       return setCorsHeaders(errorResponse('User ID and Skill ID are required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const result = await sql`

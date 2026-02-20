@@ -5,6 +5,7 @@ import {
   errorResponse,
   notFoundResponse,
   validationErrorResponse,
+  forbiddenResponse,
 } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
 import { savedJobSchema } from '@/lib/validation'
@@ -12,7 +13,7 @@ import { savedJobSchema } from '@/lib/validation'
 export { apiTokenOptions as OPTIONS }
 
 // GET /api/v1/users/[clerkId]/saved-jobs — List saved jobs with job post details
-export const GET = withApiTokenAuth(async (request, _token, origin) => {
+export const GET = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -20,6 +21,11 @@ export const GET = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId) {
       return setCorsHeaders(errorResponse('User ID is required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     // Pagination
@@ -89,7 +95,7 @@ export const GET = withApiTokenAuth(async (request, _token, origin) => {
 })
 
 // POST /api/v1/users/[clerkId]/saved-jobs — Save a job
-export const POST = withApiTokenAuth(async (request, _token, origin) => {
+export const POST = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -97,6 +103,11 @@ export const POST = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId) {
       return setCorsHeaders(errorResponse('User ID is required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const body = await request.json()

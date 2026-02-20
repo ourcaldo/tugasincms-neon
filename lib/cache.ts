@@ -44,7 +44,7 @@ export function getRedisClient(): Redis | null {
           },
         }),
         enableReadyCheck: false,
-        lazyConnect: true,
+        lazyConnect: false,
       })
 
       redisClient.on('connect', () => {

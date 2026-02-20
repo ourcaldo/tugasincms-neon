@@ -64,7 +64,7 @@ CREATE TABLE users (
   role          VARCHAR(50) NOT NULL DEFAULT 'user',
   created_at    TIMESTAMP NOT NULL DEFAULT now(),
   updated_at    TIMESTAMP NOT NULL DEFAULT now(),
-  password      TEXT,
+  -- C-5: password column removed — auth handled entirely by Clerk
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_email_key UNIQUE (email),
   CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'admin', 'user'))
@@ -771,7 +771,7 @@ COMMIT;
 --
 -- 2. Create your first admin user manually or via the CMS
 --    sign-up flow. The users.id should match your auth
---    provider's user ID (e.g., Appwrite user ID).
+--    provider's user ID (e.g., Clerk user ID).
 --
 -- 3. Generate an API token via the CMS Settings > API Tokens
 --    page, or insert one manually:

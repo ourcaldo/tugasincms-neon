@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -60,20 +60,7 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
   const apiClient = useApiClient();
   const { user } = useUser();
 
-  useEffect(() => {
-    if (postId && !post) {
-      fetchPost();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
-
-  useEffect(() => {
-    fetchCategories();
-    fetchTags();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const result = await apiClient.get<{ data?: Category[] }>('/categories');
       const data = result.data || result;
@@ -82,9 +69,9 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
       console.error('Error fetching categories:', error);
       setCategories([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchTags = async () => {
+  const fetchTags = useCallback(async () => {
     try {
       const result = await apiClient.get<{ data?: Tag[] }>('/tags');
       const data = result.data || result;
@@ -93,9 +80,9 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
       console.error('Error fetching tags:', error);
       setAllTags([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchPost = async () => {
+  const fetchPost = useCallback(async () => {
     if (!postId) return;
     try {
       setLoading(true);
@@ -127,12 +114,25 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiClient, postId]);
+
+  useEffect(() => {
+    if (postId && !post) {
+      fetchPost();
+    }
+  }, [postId, post, fetchPost]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchTags();
+  }, [fetchCategories, fetchTags]);
 
   // Auto-generate slug from title
   useEffect(() => {
     if (!post && formData.title) {
       const slug = formData.title
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
@@ -144,17 +144,22 @@ export function PostEditor({ post, postId, onSave, onPreview, onPublish }: PostE
     }
   }, [formData.title, post]);
 
-  // Auto-fill SEO fields
+  // M-8: Auto-fill SEO fields only on new post creation (not on every title change)
+  const [seoAutoFilled, setSeoAutoFilled] = useState(false);
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      seo: {
-        ...prev.seo,
-        title: prev.seo.title || prev.title,
-        metaDescription: prev.seo.metaDescription || prev.excerpt,
-      }
-    }));
-  }, [formData.title, formData.excerpt]);
+    if (seoAutoFilled || post) return; // Skip for existing posts or already auto-filled
+    if (formData.title || formData.excerpt) {
+      setFormData(prev => ({
+        ...prev,
+        seo: {
+          ...prev.seo,
+          title: prev.seo.title || prev.title,
+          metaDescription: prev.seo.metaDescription || prev.excerpt,
+        }
+      }));
+      setSeoAutoFilled(true);
+    }
+  }, [formData.title, formData.excerpt, seoAutoFilled, post]);
 
   const handleInputChange = (field: string, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }) as typeof prev);

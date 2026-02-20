@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApiClient } from '../../../lib/api-client';
 import {
   JobCategory,
@@ -28,6 +28,17 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
 
   const apiClient = useApiClient();
 
+  const fetchData = useCallback(async <T>(url: string, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+    try {
+      const result = await apiClient.get<T[] | { data: T[] }>(url);
+      const data = 'data' in result && !Array.isArray(result) ? result.data : result;
+      setter(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(`Error fetching ${url}:`, error);
+      setter([]);
+    }
+  }, [apiClient]);
+
   // Fetch all reference data on mount
   useEffect(() => {
     const fetchAll = async () => {
@@ -42,8 +53,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
       await Promise.allSettled(fetchers);
     };
     fetchAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchData]);
 
   // Cascading location: province → regencies
   useEffect(() => {
@@ -54,8 +64,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
       setDistricts([]);
       setVillages([]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provinceId]);
+  }, [provinceId, fetchData]);
 
   // Cascading location: regency → districts
   useEffect(() => {
@@ -65,8 +74,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
       setDistricts([]);
       setVillages([]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regencyId]);
+  }, [regencyId, fetchData]);
 
   // Cascading location: district → villages
   useEffect(() => {
@@ -75,19 +83,7 @@ export function useJobPostData({ provinceId, regencyId, districtId }: UseJobPost
     } else {
       setVillages([]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [districtId]);
-
-  async function fetchData<T>(url: string, setter: React.Dispatch<React.SetStateAction<T[]>>) {
-    try {
-      const result = await apiClient.get<T[] | { data: T[] }>(url);
-      const data = 'data' in result && !Array.isArray(result) ? result.data : result;
-      setter(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(`Error fetching ${url}:`, error);
-      setter([]);
-    }
-  }
+  }, [districtId, fetchData]);
 
   return {
     jobCategories,

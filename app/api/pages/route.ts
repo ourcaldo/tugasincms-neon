@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
-import { getUserIdFromClerk } from '@/lib/auth'
-import { successResponse, errorResponse, unauthorizedResponse, validationErrorResponse } from '@/lib/response'
+import { getUserIdFromClerk, getUserRole } from '@/lib/auth'
+import { successResponse, errorResponse, unauthorizedResponse, forbiddenResponse, validationErrorResponse } from '@/lib/response'
 import { mapPagesFromDB, mapPageFromDB, type PageFromDB } from '@/lib/page-mapper'
 import { getCachedData, setCachedData, deleteCachedData } from '@/lib/cache'
 import { INTERNAL_CACHE_TTL } from '@/lib/constants'
@@ -103,6 +103,12 @@ export async function POST(request: NextRequest) {
       return unauthorizedResponse('You must be logged in')
     }
     
+    // H-4: Enforce role — only admins and super_admins can create pages
+    const role = await getUserRole(userId)
+    if (!role || !['super_admin', 'admin'].includes(role)) {
+      return forbiddenResponse('You do not have permission to create pages')
+    }
+    
     const body = await request.json()
     
     const validation = pageSchema.safeParse(body)
@@ -129,18 +135,18 @@ export async function POST(request: NextRequest) {
     const newPage = pageResult[0]
     
     if (categories && categories.length > 0) {
-      for (const catId of categories) {
-        await sql`INSERT INTO page_categories (page_id, category_id) VALUES (${newPage.id}, ${catId})`
-      }
+      await sql`INSERT INTO page_categories (page_id, category_id)
+        SELECT ${newPage.id}, unnest(${categories}::uuid[])
+        ON CONFLICT DO NOTHING`
     }
     
     if (tags && tags.length > 0) {
-      for (const tagId of tags) {
-        await sql`INSERT INTO page_tags (page_id, tag_id) VALUES (${newPage.id}, ${tagId})`
-      }
+      await sql`INSERT INTO page_tags (page_id, tag_id)
+        SELECT ${newPage.id}, unnest(${tags}::uuid[])
+        ON CONFLICT DO NOTHING`
     }
     
-    await deleteCachedData(`api:pages:user:${userId}`)
+    await deleteCachedData(`api:pages:user:${userId}:*`)
     await deleteCachedData('api:v1:pages:*')
     
     if (status === 'published') {

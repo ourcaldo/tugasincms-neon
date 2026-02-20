@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -48,12 +48,7 @@ export function ExperienceLevelsList() {
   const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
-  useEffect(() => {
-    fetchLevels()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchLevels = async () => {
+  const fetchLevels = useCallback(async () => {
     try {
       setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: ExperienceLevel[] }>('/job-data/experience-levels')
@@ -68,7 +63,11 @@ export function ExperienceLevelsList() {
     } finally {
       setFetchLoading(false)
     }
-  }
+  }, [apiClient])
+
+  useEffect(() => {
+    fetchLevels()
+  }, [fetchLevels])
 
   const handleCreateLevel = async () => {
     if (!formData.name.trim()) {

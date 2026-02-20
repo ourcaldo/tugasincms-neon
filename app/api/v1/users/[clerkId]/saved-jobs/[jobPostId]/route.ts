@@ -4,13 +4,14 @@ import {
   successResponse,
   errorResponse,
   notFoundResponse,
+  forbiddenResponse,
 } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
 
 export { apiTokenOptions as OPTIONS }
 
 // DELETE /api/v1/users/[clerkId]/saved-jobs/[jobPostId] — Unsave a job
-export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
+export const DELETE = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -19,6 +20,11 @@ export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId || !jobPostId) {
       return setCorsHeaders(errorResponse('User ID and Job Post ID are required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const result = await sql`
@@ -38,7 +44,7 @@ export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
 })
 
 // GET /api/v1/users/[clerkId]/saved-jobs/[jobPostId] — Check if a job is saved
-export const GET = withApiTokenAuth(async (request, _token, origin) => {
+export const GET = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -47,6 +53,11 @@ export const GET = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId || !jobPostId) {
       return setCorsHeaders(errorResponse('User ID and Job Post ID are required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const result = await sql`

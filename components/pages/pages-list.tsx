@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDebounce } from '../../hooks/use-debounce';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -64,17 +64,7 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
   const apiClient = useApiClient();
   const debouncedSearch = useDebounce(filters.search, 300);
 
-  useEffect(() => {
-    fetchPages();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, debouncedSearch, filters.status, filters.category]);
-
-  useEffect(() => {
-    fetchCategories();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchPages = async () => {
+  const fetchPages = useCallback(async () => {
     try {
       setFetchLoading(true);
       
@@ -83,7 +73,7 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
         limit: itemsPerPage.toString(),
       });
       
-      if (filters.search) params.append('search', filters.search);
+      if (debouncedSearch) params.append('search', debouncedSearch);
       if (filters.status && filters.status !== 'all') params.append('status', filters.status);
       if (filters.category && filters.category !== 'all') params.append('category', filters.category);
       
@@ -99,9 +89,9 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
     } finally {
       setFetchLoading(false);
     }
-  };
+  }, [apiClient, currentPage, itemsPerPage, debouncedSearch, filters.status, filters.category]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await apiClient.get<{ data?: Category[] }>('/categories');
       const categoriesData = response?.data || response || [];
@@ -110,7 +100,15 @@ export function PagesList({ onCreatePage, onEditPage, onViewPage, onDeletePage }
       console.error('Error fetching categories:', error);
       setCategories([]);
     }
-  };
+  }, [apiClient]);
+
+  useEffect(() => {
+    fetchPages();
+  }, [fetchPages]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const handleDelete = async (pageId: string) => {
     setDeleteTarget(pageId);

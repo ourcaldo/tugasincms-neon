@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -48,12 +48,7 @@ export function JobCategoriesList() {
   const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
-  useEffect(() => {
-    fetchCategories()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: JobCategory[] }>('/job-categories')
@@ -68,7 +63,11 @@ export function JobCategoriesList() {
     } finally {
       setFetchLoading(false)
     }
-  }
+  }, [apiClient])
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   const handleCreateCategory = async () => {
     if (!formData.name.trim()) {

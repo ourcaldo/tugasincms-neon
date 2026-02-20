@@ -5,6 +5,7 @@ import {
   errorResponse,
   notFoundResponse,
   validationErrorResponse,
+  forbiddenResponse,
 } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
 import { userPreferencesSchema } from '@/lib/validation'
@@ -12,7 +13,7 @@ import { userPreferencesSchema } from '@/lib/validation'
 export { apiTokenOptions as OPTIONS }
 
 // PUT /api/v1/users/[clerkId]/preferences — Update user notification preferences
-export const PUT = withApiTokenAuth(async (request, _token, origin) => {
+export const PUT = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -21,6 +22,11 @@ export const PUT = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId) {
       return setCorsHeaders(errorResponse('User ID is required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const body = await request.json()

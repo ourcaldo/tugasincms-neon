@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDebounce } from '../../hooks/use-debounce';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -73,19 +73,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
   const apiClient = useApiClient();
   const debouncedSearch = useDebounce(filters.search, 300);
 
-  useEffect(() => {
-    fetchPosts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, debouncedSearch, filters.status, filters.employment_type, filters.experience_level, filters.job_category]);
-
-  useEffect(() => {
-    fetchJobCategories();
-    fetchEmploymentTypes();
-    fetchExperienceLevels();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setFetchLoading(true);
       
@@ -94,7 +82,7 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
         limit: itemsPerPage.toString(),
       });
       
-      if (filters.search) params.append('search', filters.search);
+      if (debouncedSearch) params.append('search', debouncedSearch);
       if (filters.status) params.append('status', filters.status);
       if (filters.employment_type) params.append('employment_type', filters.employment_type);
       if (filters.experience_level) params.append('experience_level', filters.experience_level);
@@ -112,9 +100,9 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
     } finally {
       setFetchLoading(false);
     }
-  };
+  }, [apiClient, currentPage, itemsPerPage, debouncedSearch, filters.status, filters.employment_type, filters.experience_level, filters.job_category]);
 
-  const fetchJobCategories = async () => {
+  const fetchJobCategories = useCallback(async () => {
     try {
       const response = await apiClient.get<{ data?: Array<{ id: string; name: string }> }>('/job-categories');
       const categoriesData = response?.data || response || [];
@@ -123,9 +111,9 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       console.error('Error fetching job categories:', error);
       setJobCategories([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchEmploymentTypes = async () => {
+  const fetchEmploymentTypes = useCallback(async () => {
     try {
       const response = await apiClient.get<{ data?: Array<{ id: string; name: string; slug: string }> }>('/job-data/employment-types');
       const types = response?.data || response || [];
@@ -134,9 +122,9 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       console.error('Error fetching employment types:', error);
       setEmploymentTypes([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchExperienceLevels = async () => {
+  const fetchExperienceLevels = useCallback(async () => {
     try {
       const response = await apiClient.get<{ data?: Array<{ id: string; name: string; slug: string }> }>('/job-data/experience-levels');
       const levels = response?.data || response || [];
@@ -145,7 +133,17 @@ export function JobPostsList({ onCreatePost, onEditPost, onViewPost, onDeletePos
       console.error('Error fetching experience levels:', error);
       setExperienceLevels([]);
     }
-  };
+  }, [apiClient]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  useEffect(() => {
+    fetchJobCategories();
+    fetchEmploymentTypes();
+    fetchExperienceLevels();
+  }, [fetchJobCategories, fetchEmploymentTypes, fetchExperienceLevels]);
 
   const handleDelete = (postId: string) => {
     setDeleteTarget(postId);

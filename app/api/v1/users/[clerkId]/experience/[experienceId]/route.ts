@@ -5,6 +5,7 @@ import {
   errorResponse,
   notFoundResponse,
   validationErrorResponse,
+  forbiddenResponse,
 } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
 import { updateUserExperienceSchema } from '@/lib/validation'
@@ -12,7 +13,7 @@ import { updateUserExperienceSchema } from '@/lib/validation'
 export { apiTokenOptions as OPTIONS }
 
 // GET /api/v1/users/[clerkId]/experience/[experienceId] — Get single experience
-export const GET = withApiTokenAuth(async (request, _token, origin) => {
+export const GET = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -21,6 +22,11 @@ export const GET = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId || !experienceId) {
       return setCorsHeaders(errorResponse('User ID and Experience ID are required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const result = await sql`
@@ -43,7 +49,7 @@ export const GET = withApiTokenAuth(async (request, _token, origin) => {
 })
 
 // PUT /api/v1/users/[clerkId]/experience/[experienceId] — Update experience
-export const PUT = withApiTokenAuth(async (request, _token, origin) => {
+export const PUT = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -52,6 +58,11 @@ export const PUT = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId || !experienceId) {
       return setCorsHeaders(errorResponse('User ID and Experience ID are required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const body = await request.json()
@@ -96,7 +107,7 @@ export const PUT = withApiTokenAuth(async (request, _token, origin) => {
 })
 
 // DELETE /api/v1/users/[clerkId]/experience/[experienceId] — Delete experience
-export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
+export const DELETE = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const segments = url.pathname.split('/').filter(Boolean)
@@ -105,6 +116,11 @@ export const DELETE = withApiTokenAuth(async (request, _token, origin) => {
 
     if (!clerkId || !experienceId) {
       return setCorsHeaders(errorResponse('User ID and Experience ID are required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const result = await sql`

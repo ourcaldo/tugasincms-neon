@@ -9,29 +9,32 @@ const isAppwriteConfigured = () => {
   );
 };
 
-// Only initialize client if Appwrite is configured
+// M-4: Lazy initialization — only create client when first needed
 let client: Client | null = null;
 let storage: Storage | null = null;
 
-if (isAppwriteConfigured()) {
-  client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
-  
-  storage = new Storage(client);
+function getStorage(): Storage | null {
+  if (!isAppwriteConfigured()) return null;
+  if (!storage) {
+    client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+    storage = new Storage(client);
+  }
+  return storage;
 }
 
 export { storage };
 
 export const uploadImage = async (file: File): Promise<string> => {
-  // If Appwrite is not configured, return a placeholder or throw a specific error
-  if (!isAppwriteConfigured() || !storage) {
+  const store = getStorage();
+  if (!store) {
     throw new Error('APPWRITE_NOT_CONFIGURED');
   }
 
   try {
     const fileId = ID.unique();
-    const response = await storage.createFile({
+    const response = await store.createFile({
       bucketId: process.env.NEXT_PUBLIC_BUCKET_ID || '',
       fileId: fileId,
       file: file
@@ -45,14 +48,14 @@ export const uploadImage = async (file: File): Promise<string> => {
 };
 
 export const deleteImage = async (fileId: string): Promise<void> => {
-  if (!isAppwriteConfigured() || !storage) {
-    // If Appwrite is not configured, silently ignore delete requests
+  const store = getStorage();
+  if (!store) {
     console.warn('Appwrite not configured, skipping image deletion');
     return;
   }
 
   try {
-    await storage.deleteFile({
+    await store.deleteFile({
       bucketId: process.env.NEXT_PUBLIC_BUCKET_ID || '',
       fileId: fileId
     });

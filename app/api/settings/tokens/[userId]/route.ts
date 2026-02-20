@@ -25,7 +25,7 @@ export async function GET(
     }
     
     const tokens = await sql`
-      SELECT * FROM api_tokens
+      SELECT id, name, user_id, created_at, last_used_at, expires_at FROM api_tokens
       WHERE user_id = ${userId}
       ORDER BY created_at DESC
     `

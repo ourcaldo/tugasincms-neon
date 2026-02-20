@@ -113,22 +113,21 @@ export async function PUT(
       WHERE id = ${id}
     `
     
-    // C-4: Only delete associations if the field was explicitly provided
     if (categories !== undefined) {
       await sql`DELETE FROM post_categories WHERE post_id = ${id}`
       if (categories && categories.length > 0) {
-        for (const catId of categories) {
-          await sql`INSERT INTO post_categories (post_id, category_id) VALUES (${id}, ${catId})`
-        }
+        await sql`INSERT INTO post_categories (post_id, category_id)
+          SELECT ${id}, unnest(${categories}::uuid[])
+          ON CONFLICT DO NOTHING`
       }
     }
     
     if (tags !== undefined) {
       await sql`DELETE FROM post_tags WHERE post_id = ${id}`
       if (tags && tags.length > 0) {
-        for (const tagId of tags) {
-          await sql`INSERT INTO post_tags (post_id, tag_id) VALUES (${id}, ${tagId})`
-        }
+        await sql`INSERT INTO post_tags (post_id, tag_id)
+          SELECT ${id}, unnest(${tags}::uuid[])
+          ON CONFLICT DO NOTHING`
       }
     }
     

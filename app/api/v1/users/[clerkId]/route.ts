@@ -5,6 +5,7 @@ import {
   errorResponse,
   notFoundResponse,
   validationErrorResponse,
+  forbiddenResponse,
 } from '@/lib/response'
 import { setCorsHeaders } from '@/lib/cors'
 import { updateUserProfileSchema } from '@/lib/validation'
@@ -12,13 +13,18 @@ import { updateUserProfileSchema } from '@/lib/validation'
 export { apiTokenOptions as OPTIONS }
 
 // GET /api/v1/users/[clerkId] — Get full user profile (user + skills + experience + education)
-export const GET = withApiTokenAuth(async (request, _token, origin) => {
+export const GET = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const clerkId = url.pathname.split('/').filter(Boolean).at(-1)
 
     if (!clerkId) {
       return setCorsHeaders(errorResponse('User ID is required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     // Fetch user, skills, experience, education in parallel
@@ -55,13 +61,18 @@ export const GET = withApiTokenAuth(async (request, _token, origin) => {
 })
 
 // PUT /api/v1/users/[clerkId] — Update basic profile fields
-export const PUT = withApiTokenAuth(async (request, _token, origin) => {
+export const PUT = withApiTokenAuth(async (request, token, origin) => {
   try {
     const url = new URL(request.url)
     const clerkId = url.pathname.split('/').filter(Boolean).at(-1)
 
     if (!clerkId) {
       return setCorsHeaders(errorResponse('User ID is required', 400), origin)
+    }
+
+    // C-2: Verify token owner matches requested user
+    if (token.user_id !== clerkId) {
+      return setCorsHeaders(forbiddenResponse('Cannot access another user\'s data'), origin)
     }
 
     const body = await request.json()

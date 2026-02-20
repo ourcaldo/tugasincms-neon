@@ -18,11 +18,12 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(validation.error.issues[0].message)
     }
     
-    const { id, email, name, avatar } = validation.data
+    const { email, name, avatar } = validation.data
     
+    // C-1 Fix: Always use authenticated userId, never trust body id (prevents IDOR)
     const result = await sql`
       INSERT INTO users (id, email, name, avatar)
-      VALUES (${id}, ${email || null}, ${name || null}, ${avatar || null})
+      VALUES (${userId}, ${email || null}, ${name || null}, ${avatar || null})
       ON CONFLICT (id)
       DO UPDATE SET 
         email = EXCLUDED.email,

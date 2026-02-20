@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -17,15 +17,7 @@ import { useApiClient } from '../../lib/api-client'
 import { Textarea } from '../ui/textarea'
 import { Checkbox } from '../ui/checkbox'
 import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog'
-
-interface Category {
-  id: string
-  name: string
-  slug: string
-  description?: string
-  created_at?: string
-  updated_at?: string
-}
+import { Category } from '@/types'
 
 export function CategoriesList() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -48,12 +40,7 @@ export function CategoriesList() {
   const [searchQuery, setSearchQuery] = useState('')
   const apiClient = useApiClient()
 
-  useEffect(() => {
-    fetchCategories()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: Category[] }>('/categories')
@@ -68,7 +55,11 @@ export function CategoriesList() {
     } finally {
       setFetchLoading(false)
     }
-  }
+  }, [apiClient])
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
 
   const handleCreateCategory = async () => {
     if (!formData.name.trim()) {

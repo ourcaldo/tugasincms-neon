@@ -1,4 +1,4 @@
-import { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useApiClient } from '../../../lib/api-client';
 import { uploadImage } from '../../../lib/appwrite';
@@ -76,41 +76,7 @@ export function useJobPostForm({
   const { user } = useUser();
 
   // Fetch existing job post
-  useEffect(() => {
-    if (postId) {
-      fetchJobPost();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
-
-  // Auto-generate slug from title
-  useEffect(() => {
-    if (!postId && formData.title) {
-      const slug = formData.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      setFormData(prev => ({
-        ...prev,
-        slug,
-        seo: { ...prev.seo, slug },
-      }));
-    }
-  }, [formData.title, postId]);
-
-  // Sync SEO fields from title/excerpt
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      seo: {
-        ...prev.seo,
-        title: prev.seo.title || prev.title,
-        metaDescription: prev.seo.metaDescription || prev.excerpt,
-      },
-    }));
-  }, [formData.title, formData.excerpt]);
-
-  const fetchJobPost = async () => {
+  const fetchJobPost = useCallback(async () => {
     if (!postId) return;
     try {
       setLoading(true);
@@ -172,7 +138,40 @@ export function useJobPostForm({
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiClient, postId]);
+
+  useEffect(() => {
+    if (postId) {
+      fetchJobPost();
+    }
+  }, [postId, fetchJobPost]);
+
+  // Auto-generate slug from title
+  useEffect(() => {
+    if (!postId && formData.title) {
+      const slug = formData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      setFormData(prev => ({
+        ...prev,
+        slug,
+        seo: { ...prev.seo, slug },
+      }));
+    }
+  }, [formData.title, postId]);
+
+  // Sync SEO fields from title/excerpt
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      seo: {
+        ...prev.seo,
+        title: prev.seo.title || prev.title,
+        metaDescription: prev.seo.metaDescription || prev.excerpt,
+      },
+    }));
+  }, [formData.title, formData.excerpt]);
 
   const handleInputChange = (field: string, value: JobFormData[keyof JobFormData]) => {
     setFormData(prev => ({ ...prev, [field]: value }));

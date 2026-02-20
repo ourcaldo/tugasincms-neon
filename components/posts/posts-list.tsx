@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDebounce } from '../../hooks/use-debounce';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -43,17 +43,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
   const apiClient = useApiClient();
   const debouncedSearch = useDebounce(filters.search, 300);
 
-  useEffect(() => {
-    fetchPosts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, debouncedSearch, filters.status, filters.category]);
-
-  useEffect(() => {
-    fetchCategories();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setFetchLoading(true);
       
@@ -62,7 +52,7 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
         limit: itemsPerPage.toString(),
       });
       
-      if (filters.search) params.append('search', filters.search);
+      if (debouncedSearch) params.append('search', debouncedSearch);
       if (filters.status) params.append('status', filters.status);
       if (filters.category) params.append('category', filters.category);
       
@@ -78,9 +68,9 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
     } finally {
       setFetchLoading(false);
     }
-  };
+  }, [apiClient, currentPage, itemsPerPage, debouncedSearch, filters.status, filters.category]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await apiClient.get<{ data?: Category[] }>('/categories');
       const categoriesData = response?.data || response || [];
@@ -89,7 +79,15 @@ export function PostsList({ onCreatePost, onEditPost, onViewPost, onDeletePost }
       console.error('Error fetching categories:', error);
       setCategories([]);
     }
-  };
+  }, [apiClient]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const handleDelete = async (postId: string) => {
     setDeleteTarget(postId);

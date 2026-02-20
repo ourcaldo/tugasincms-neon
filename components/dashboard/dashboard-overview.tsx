@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -48,12 +48,7 @@ export function DashboardOverview() {
   const apiClient = useApiClient()
   const router = useRouter()
 
-  useEffect(() => {
-    fetchDashboardData()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const [postsRes, pagesRes, jobPostsRes] = await Promise.all([
         apiClient.get<Record<string, unknown>>('/posts?limit=5'),
@@ -106,7 +101,11 @@ export function DashboardOverview() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
   if (loading) {
     return <LoadingState message="Loading dashboard..." />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -28,12 +28,7 @@ export function CustomPostTypesSettings() {
   const [updating, setUpdating] = useState<string | null>(null)
   const apiClient = useApiClient()
 
-  useEffect(() => {
-    fetchPostTypes()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchPostTypes = async () => {
+  const fetchPostTypes = useCallback(async () => {
     try {
       const result = await apiClient.get<{ success: boolean; data: CustomPostType[]; error?: string }>('/settings/custom-post-types')
       
@@ -47,7 +42,11 @@ export function CustomPostTypesSettings() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient])
+
+  useEffect(() => {
+    fetchPostTypes()
+  }, [fetchPostTypes])
 
   const togglePostType = async (slug: string, currentState: boolean) => {
     if (slug === 'post') {

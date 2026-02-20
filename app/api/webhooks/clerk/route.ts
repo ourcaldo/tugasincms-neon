@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { Webhook } from 'svix'
 import { sql } from '@/lib/database'
+import { successResponse, errorResponse, validationErrorResponse } from '@/lib/response'
 
 // Clerk sends webhooks signed with Svix.
 // CLERK_WEBHOOK_SECRET must be set in .env from the Clerk dashboard.
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
   if (!webhookSecret) {
     console.error('CLERK_WEBHOOK_SECRET is not set')
-    return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 })
+    return errorResponse('Webhook secret not configured')
   }
 
   // Get Svix headers for verification
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
       ipAddress,
       processingMs: Date.now() - startTime,
     })
-    return NextResponse.json({ error: 'Missing Svix headers' }, { status: 400 })
+    return validationErrorResponse('Missing Svix headers')
   }
 
   const body = await request.text()
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
       ipAddress,
       processingMs: Date.now() - startTime,
     })
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    return validationErrorResponse('Invalid signature')
   }
 
   const { type, data } = event
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
       processingMs: Date.now() - startTime,
     })
 
-    return NextResponse.json({ received: true }, { status: 200 })
+    return successResponse({ received: true })
   } catch (error) {
     console.error(`Webhook error processing ${type}:`, error)
 
@@ -171,6 +172,6 @@ export async function POST(request: NextRequest) {
       processingMs: Date.now() - startTime,
     })
 
-    return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 })
+    return errorResponse('Failed to process webhook')
   }
 }

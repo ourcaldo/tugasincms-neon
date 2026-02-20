@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -45,12 +45,7 @@ export function JobTagsList() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
-  useEffect(() => {
-    fetchTags()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchTags = async () => {
+  const fetchTags = useCallback(async () => {
     try {
       setFetchLoading(true)
       const response = await apiClient.get<{ success: boolean; data: JobTag[] }>('/job-tags')
@@ -65,7 +60,11 @@ export function JobTagsList() {
     } finally {
       setFetchLoading(false)
     }
-  }
+  }, [apiClient])
+
+  useEffect(() => {
+    fetchTags()
+  }, [fetchTags])
 
   const handleCreateTag = async () => {
     if (!formData.name.trim()) {

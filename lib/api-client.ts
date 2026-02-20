@@ -16,7 +16,7 @@ class ApiClient {
 
     // L-3: Only set Content-Type for requests that have a body
     const method = (options.method || 'GET').toUpperCase();
-    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+    if (options.body || method === 'POST' || method === 'PUT' || method === 'PATCH') {
       headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     }
 

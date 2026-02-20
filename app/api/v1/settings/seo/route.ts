@@ -28,6 +28,11 @@ export async function GET(request: NextRequest) {
       if (!validToken) {
         return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
       }
+      // C-3: Enforce role check on API token path too
+      const tokenUserRole = await getUserRole(validToken.user_id)
+      if (tokenUserRole !== 'super_admin') {
+        return setCorsHeaders(forbiddenResponse('Only super admins can access this resource'), origin)
+      }
     } else {
       // If no token, check Clerk auth (dashboard access)
       try {
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
     
     // Fetch robots.txt settings
     const settings = await sql`
-      SELECT * FROM robots_settings 
+      SELECT id, robots_txt, created_at, updated_at FROM robots_settings 
       ORDER BY created_at DESC 
       LIMIT 1
     `
@@ -115,6 +120,11 @@ export async function PUT(request: NextRequest) {
 
       if (!validToken) {
         return setCorsHeaders(unauthorizedResponse('Invalid or expired API token'), origin)
+      }
+      // C-3: Enforce role check on API token path too
+      const tokenUserRole = await getUserRole(validToken.user_id)
+      if (tokenUserRole !== 'super_admin') {
+        return setCorsHeaders(forbiddenResponse('Only super admins can access this resource'), origin)
       }
     } else {
       // If no token, check Clerk auth (dashboard access)

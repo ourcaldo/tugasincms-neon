@@ -13,8 +13,10 @@ export interface Category {
   name: string;
   slug: string;
   description?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Tag {

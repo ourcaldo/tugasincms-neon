@@ -23,11 +23,6 @@ function getCmsHost(): string {
     return `https://${process.env.CMS_HOST}`
   }
   
-  const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS
-  if (replitDomain) {
-    return `https://${replitDomain.split(',')[0]}`
-  }
-  
   const port = process.env.PORT || '5000'
   return `http://localhost:${port}`
 }
@@ -39,11 +34,6 @@ function getSitemapHost(): string {
   
   if (process.env.CMS_HOST) {
     return `https://${process.env.CMS_HOST}`
-  }
-  
-  const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS
-  if (replitDomain) {
-    return `https://${replitDomain.split(',')[0]}`
   }
   
   const port = process.env.PORT || '5000'

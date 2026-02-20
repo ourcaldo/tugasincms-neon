@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -46,14 +46,7 @@ export function ApiTokens() {
   const apiClient = useApiClient();
   const { user } = useUser();
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchTokens();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const fetchTokens = async () => {
+  const fetchTokens = useCallback(async () => {
     if (!user?.id) return;
     try {
       setLoading(true);
@@ -66,7 +59,13 @@ export function ApiTokens() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiClient, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchTokens();
+    }
+  }, [user?.id, fetchTokens]);
 
   const generateToken = async () => {
     if (!newTokenName.trim()) {

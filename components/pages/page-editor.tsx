@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -86,21 +86,7 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
   const apiClient = useApiClient();
   const { user } = useUser();
 
-  useEffect(() => {
-    if (pageId && !page) {
-      fetchPage();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageId]);
-
-  useEffect(() => {
-    fetchCategories();
-    fetchTags();
-    fetchPages();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const result = await apiClient.get<{ data?: Category[] }>('/categories');
       const data = result.data || result;
@@ -108,9 +94,9 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     } catch {
       setCategories([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchTags = async () => {
+  const fetchTags = useCallback(async () => {
     try {
       const result = await apiClient.get<{ data?: Tag[] }>('/tags');
       const data = result.data || result;
@@ -119,9 +105,9 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
       console.error('Error fetching tags:', error);
       setAllTags([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchPages = async () => {
+  const fetchPages = useCallback(async () => {
     try {
       const result = await apiClient.get<{ data?: { pages?: PageData[] } }>('/pages');
       const data = result.data?.pages || result.data || result;
@@ -129,9 +115,9 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     } catch {
       setPages([]);
     }
-  };
+  }, [apiClient]);
 
-  const fetchPage = async () => {
+  const fetchPage = useCallback(async () => {
     if (!pageId) return;
     try {
       setLoading(true);
@@ -165,7 +151,19 @@ export function PageEditor({ page, pageId, onSave, onPreview, onPublish }: PageE
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiClient, pageId]);
+
+  useEffect(() => {
+    if (pageId && !page) {
+      fetchPage();
+    }
+  }, [pageId, page, fetchPage]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchTags();
+    fetchPages();
+  }, [fetchCategories, fetchTags, fetchPages]);
 
   useEffect(() => {
     if (!page && formData.title) {
