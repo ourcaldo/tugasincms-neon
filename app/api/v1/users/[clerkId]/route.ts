@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { sql } from '@/lib/database'
 import { withApiTokenAuth, apiTokenOptions } from '@/lib/auth'
 import {

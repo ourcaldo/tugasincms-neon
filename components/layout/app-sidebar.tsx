@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -112,12 +112,8 @@ export function AppSidebar() {
       .filter((group) => group.items.length > 0);
   });
 
-  useEffect(() => {
-    fetchCustomPostTypes();
-  }, [role]);
-
   // Filter menu items based on role — admin only sees Profile in Settings
-  const filterByRole = (groups: MenuGroup[]): MenuGroup[] => {
+  const filterByRole = useCallback((groups: MenuGroup[]): MenuGroup[] => {
     if (role === 'super_admin') return groups;
     return groups
       .map((group) => ({
@@ -125,9 +121,9 @@ export function AppSidebar() {
         items: group.items.filter((item) => !item.superAdminOnly),
       }))
       .filter((group) => group.items.length > 0);
-  };
+  }, [role]);
 
-  const fetchCustomPostTypes = async () => {
+  const fetchCustomPostTypes = useCallback(async () => {
     try {
       const response = await fetch('/api/settings/custom-post-types');
       if (response.ok) {
@@ -172,7 +168,11 @@ export function AppSidebar() {
     } catch (error) {
       console.error('Error fetching custom post types:', error);
     }
-  };
+  }, [filterByRole]);
+
+  useEffect(() => {
+    fetchCustomPostTypes();
+  }, [fetchCustomPostTypes]);
 
   return (
     <Sidebar>
