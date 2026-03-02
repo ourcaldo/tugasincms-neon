@@ -462,7 +462,7 @@ CREATE TABLE job_posts (
   CONSTRAINT job_posts_slug_key UNIQUE (slug),
   CONSTRAINT job_posts_status_check CHECK (status IN ('draft', 'published', 'scheduled')),
   CONSTRAINT job_posts_author_id_fkey FOREIGN KEY (author_id)
-    REFERENCES users(id) ON DELETE CASCADE,
+    REFERENCES users(id) ON DELETE RESTRICT,
   CONSTRAINT job_posts_job_education_level_id_fkey FOREIGN KEY (job_education_level_id)
     REFERENCES job_education_levels(id) ON DELETE SET NULL,
   CONSTRAINT job_posts_job_employment_type_id_fkey FOREIGN KEY (job_employment_type_id)

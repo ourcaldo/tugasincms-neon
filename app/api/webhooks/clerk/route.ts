@@ -135,7 +135,25 @@ export async function POST(request: NextRequest) {
 
       case 'user.deleted': {
         if (data.id) {
-          await sql`DELETE FROM users WHERE id = ${data.id}`
+          // SAFEGUARD: Never hard-delete users — it would CASCADE-delete all their job_posts.
+          // Instead, soft-delete the user by marking them inactive and keeping their content intact.
+          const jobCount = await sql`SELECT COUNT(*)::int AS count FROM job_posts WHERE author_id = ${data.id}`
+          const hasJobs = (jobCount?.[0]?.count ?? 0) > 0
+
+          if (hasJobs) {
+            // Soft-delete: deactivate the user but preserve their job posts
+            await sql`
+              UPDATE users
+              SET role = 'deleted',
+                  name = COALESCE(name, 'Deleted User'),
+                  updated_at = NOW()
+              WHERE id = ${data.id}
+            `
+            console.warn(`User ${data.id} soft-deleted (had ${jobCount[0].count} job posts)`)
+          } else {
+            // No content — safe to hard-delete
+            await sql`DELETE FROM users WHERE id = ${data.id}`
+          }
         }
         break
       }
